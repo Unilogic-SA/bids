@@ -4,7 +4,10 @@ import {
   FileSearchIcon,
 } from "lucide-react"
 
-import { ListingFilterIsland } from "@/components/listing-filter-island"
+import {
+  ListingFilterIsland,
+  MobileListingControls,
+} from "@/components/listing-filter-island"
 import { TenderListItem } from "@/components/tender-list-item"
 import {
   Alert,
@@ -85,7 +88,11 @@ export default async function Home({ searchParams }: HomeProps) {
           </Alert>
         ) : null}
 
-        <aside aria-label="Tender filters">
+        <div className="lg:hidden">
+          <MobileListingControls filters={filters} />
+        </div>
+
+        <aside aria-label="Tender filters" className="hidden lg:block">
           <ListingFilterIsland filters={filters} />
         </aside>
 

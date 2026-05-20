@@ -1,4 +1,7 @@
+"use client"
+
 import Link from "next/link"
+import { IconChevronDown } from "@tabler/icons-react"
 import { RotateCcwIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -27,6 +30,15 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select"
+import { Separator } from "@/components/ui/separator"
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import {
   DEFAULT_LISTING_SORT,
   INDUSTRY_FILTERS,
@@ -52,120 +64,7 @@ export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
       </CardHeader>
       <form action="/" method="get">
         <CardContent>
-          <FieldSet>
-            <FieldLegend className="sr-only">Tender filters</FieldLegend>
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel htmlFor="q">Search</FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    defaultValue={filters.q || ""}
-                    id="q"
-                    name="q"
-                    placeholder="Number, buyer, keyword"
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      aria-label="Search tenders"
-                      size="icon-xs"
-                      type="submit"
-                    >
-                      <SearchIcon data-icon="inline-start" />
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                </InputGroup>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="region">Region</FieldLabel>
-                <NativeSelect
-                  className="w-full"
-                  defaultValue={filters.region || ""}
-                  id="region"
-                  name="region"
-                  size="sm"
-                >
-                  <NativeSelectOption value="">All regions</NativeSelectOption>
-                  {REGION_OPTIONS.map((region) => (
-                    <NativeSelectOption key={region.value} value={region.value}>
-                      {region.label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="buyer">Buyer</FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    defaultValue={filters.buyer || ""}
-                    id="buyer"
-                    name="buyer"
-                    placeholder="Buyer contains…"
-                  />
-                </InputGroup>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="industry">Industry</FieldLabel>
-                <NativeSelect
-                  className="w-full"
-                  defaultValue={filters.industry || ""}
-                  id="industry"
-                  name="industry"
-                  size="sm"
-                >
-                  <NativeSelectOption value="">All industries</NativeSelectOption>
-                  {INDUSTRY_FILTERS.map((industry) => (
-                    <NativeSelectOption
-                      key={industry.value}
-                      value={industry.value}
-                    >
-                      {industry.label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="tender_type">Tender type</FieldLabel>
-                <NativeSelect
-                  className="w-full"
-                  defaultValue={filters.tenderType || ""}
-                  id="tender_type"
-                  name="tender_type"
-                  size="sm"
-                >
-                  <NativeSelectOption value="">All types</NativeSelectOption>
-                  {TENDER_TYPE_FILTERS.map((tenderType) => (
-                    <NativeSelectOption
-                      key={tenderType.value}
-                      value={tenderType.value}
-                    >
-                      {tenderType.label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="sort">Sort</FieldLabel>
-                <NativeSelect
-                  className="w-full"
-                  defaultValue={filters.sort || DEFAULT_LISTING_SORT}
-                  id="sort"
-                  name="sort"
-                  size="sm"
-                >
-                  {SORT_OPTIONS.map((sort) => (
-                    <NativeSelectOption key={sort.value} value={sort.value}>
-                      {sort.label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-            </FieldGroup>
-          </FieldSet>
+          <SearchFilterFields filters={filters} idPrefix="desktop" includeSort />
         </CardContent>
 
         <CardFooter className="mt-4 justify-between gap-2">
@@ -183,4 +82,273 @@ export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
       </form>
     </Card>
   )
+}
+
+export function MobileListingControls({ filters }: ListingFilterIslandProps) {
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] overflow-hidden rounded-md border bg-card">
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button
+            className="h-14 justify-center rounded-none text-base font-normal text-muted-foreground"
+            variant="ghost"
+          >
+            Search
+            <IconChevronDown data-icon="inline-end" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="max-h-[85svh] overflow-y-auto p-0" side="bottom">
+          <SheetHeader>
+            <SheetTitle>Search</SheetTitle>
+          </SheetHeader>
+          <form action="/" method="get">
+            <HiddenInput
+              name="sort"
+              value={
+                filters.sort !== DEFAULT_LISTING_SORT ? filters.sort : undefined
+              }
+            />
+            <div className="px-4">
+              <SearchFilterFields filters={filters} idPrefix="mobile-filter" />
+            </div>
+            <SheetFooter>
+              <Button asChild variant="outline">
+                <Link href="/">
+                  <RotateCcwIcon data-icon="inline-start" />
+                  Reset
+                </Link>
+              </Button>
+              <Button type="submit">
+                <SearchIcon data-icon="inline-start" />
+                Apply
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Separator orientation="vertical" />
+
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button
+            className="h-14 justify-center rounded-none text-base font-normal text-muted-foreground"
+            variant="ghost"
+          >
+            Sort By
+            <IconChevronDown data-icon="inline-end" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="p-0" side="bottom">
+          <SheetHeader>
+            <SheetTitle>Sort By</SheetTitle>
+          </SheetHeader>
+          <form action="/" method="get">
+            <PreservedFilterInputs filters={filters} />
+            <div className="px-4">
+              <FieldSet>
+                <FieldLegend className="sr-only">Sort tenders</FieldLegend>
+                <FieldGroup>
+                  <SortField filters={filters} id="mobile-sort-sort" />
+                </FieldGroup>
+              </FieldSet>
+            </div>
+            <SheetFooter>
+              <Button asChild variant="outline">
+                <Link href={buildFilterHref(filters, { sort: DEFAULT_LISTING_SORT })}>
+                  <RotateCcwIcon data-icon="inline-start" />
+                  Reset
+                </Link>
+              </Button>
+              <Button type="submit">Apply</Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+    </div>
+  )
+}
+
+function SearchFilterFields({
+  filters,
+  includeSort,
+  idPrefix,
+}: ListingFilterIslandProps & {
+  includeSort?: boolean
+  idPrefix: string
+}) {
+  return (
+    <FieldSet>
+      <FieldLegend className="sr-only">Tender filters</FieldLegend>
+      <FieldGroup className="gap-3">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-q`}>Search</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              defaultValue={filters.q || ""}
+              id={`${idPrefix}-q`}
+              name="q"
+              placeholder="Number, buyer, keyword"
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                aria-label="Search tenders"
+                size="icon-xs"
+                type="submit"
+              >
+                <SearchIcon data-icon="inline-start" />
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-region`}>Region</FieldLabel>
+          <NativeSelect
+            className="w-full"
+            defaultValue={filters.region || ""}
+            id={`${idPrefix}-region`}
+            name="region"
+            size="sm"
+          >
+            <NativeSelectOption value="">All regions</NativeSelectOption>
+            {REGION_OPTIONS.map((region) => (
+              <NativeSelectOption key={region.value} value={region.value}>
+                {region.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-buyer`}>Buyer</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              defaultValue={filters.buyer || ""}
+              id={`${idPrefix}-buyer`}
+              name="buyer"
+              placeholder="Buyer contains…"
+            />
+          </InputGroup>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-industry`}>Industry</FieldLabel>
+          <NativeSelect
+            className="w-full"
+            defaultValue={filters.industry || ""}
+            id={`${idPrefix}-industry`}
+            name="industry"
+            size="sm"
+          >
+            <NativeSelectOption value="">All industries</NativeSelectOption>
+            {INDUSTRY_FILTERS.map((industry) => (
+              <NativeSelectOption key={industry.value} value={industry.value}>
+                {industry.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-tender-type`}>Tender type</FieldLabel>
+          <NativeSelect
+            className="w-full"
+            defaultValue={filters.tenderType || ""}
+            id={`${idPrefix}-tender-type`}
+            name="tender_type"
+            size="sm"
+          >
+            <NativeSelectOption value="">All types</NativeSelectOption>
+            {TENDER_TYPE_FILTERS.map((tenderType) => (
+              <NativeSelectOption
+                key={tenderType.value}
+                value={tenderType.value}
+              >
+                {tenderType.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
+
+        {includeSort ? (
+          <SortField filters={filters} id={`${idPrefix}-sort`} />
+        ) : null}
+      </FieldGroup>
+    </FieldSet>
+  )
+}
+
+function SortField({
+  filters,
+  id,
+}: ListingFilterIslandProps & {
+  id: string
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>Sort</FieldLabel>
+      <NativeSelect
+        className="w-full"
+        defaultValue={filters.sort || DEFAULT_LISTING_SORT}
+        id={id}
+        name="sort"
+        size="sm"
+      >
+        {SORT_OPTIONS.map((sort) => (
+          <NativeSelectOption key={sort.value} value={sort.value}>
+            {sort.label}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
+    </Field>
+  )
+}
+
+function PreservedFilterInputs({ filters }: ListingFilterIslandProps) {
+  return (
+    <>
+      <HiddenInput name="q" value={filters.q} />
+      <HiddenInput name="region" value={filters.region} />
+      <HiddenInput name="buyer" value={filters.buyer} />
+      <HiddenInput name="industry" value={filters.industry} />
+      <HiddenInput name="tender_type" value={filters.tenderType} />
+    </>
+  )
+}
+
+function HiddenInput({
+  name,
+  value,
+}: {
+  name: string
+  value?: string | null
+}) {
+  return value ? <input name={name} type="hidden" value={value} /> : null
+}
+
+function buildFilterHref(
+  filters: ListingSearchParams,
+  patch: Partial<ListingSearchParams> = {}
+) {
+  const next = new URLSearchParams()
+  const merged = { ...filters, ...patch }
+
+  appendParam(next, "q", merged.q)
+  appendParam(next, "region", merged.region)
+  appendParam(next, "buyer", merged.buyer)
+  appendParam(next, "industry", merged.industry)
+  appendParam(next, "tender_type", merged.tenderType)
+  appendParam(
+    next,
+    "sort",
+    merged.sort !== DEFAULT_LISTING_SORT ? merged.sort : undefined
+  )
+
+  const query = next.toString()
+  return query ? `/?${query}` : "/"
+}
+
+function appendParam(params: URLSearchParams, key: string, value?: string) {
+  if (value) params.set(key, value)
 }
