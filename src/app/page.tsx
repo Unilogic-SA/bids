@@ -68,6 +68,7 @@ export default async function Home({ searchParams }: HomeProps) {
     latestSuccessfulSync,
     latestRecentFailedSync
   )
+  const activeFilterCount = countActiveListingFilters(filters)
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,9 +100,14 @@ export default async function Home({ searchParams }: HomeProps) {
         <div className="flex min-w-0 flex-col gap-4">
           <section className="flex flex-col gap-2" aria-label="Tender results">
             {listing.items.length > 0 ? (
-              listing.items.map((tender) => (
+              listing.items.map((tender, index) => (
                 <TenderListItem
                   key={tender.ocid}
+                  analytics={{
+                    activeFilterCount,
+                    page,
+                    position: index + 1,
+                  }}
                   buyer={tender.buyer_name || tender.department}
                   closingDate={tender.closing_at}
                   detailUrl={tender.detail_path || buildTenderPath(tender.ocid)}
@@ -165,6 +171,7 @@ function TenderPagination({
   pageCount: number
 }) {
   const pages = getVisiblePages(currentPage, pageCount)
+  const activeFilterCount = countActiveListingFilters(filters)
 
   return (
     <Pagination>
@@ -172,6 +179,11 @@ function TenderPagination({
         {currentPage > 1 ? (
           <PaginationItem>
             <PaginationPrevious
+              data-umami-event="tender_listing_page_change"
+              data-umami-event-active-filters={String(activeFilterCount)}
+              data-umami-event-direction="previous"
+              data-umami-event-from-page={String(currentPage)}
+              data-umami-event-to-page={String(currentPage - 1)}
               href={buildListingHref(filters, { page: currentPage - 1 })}
             />
           </PaginationItem>
@@ -180,7 +192,14 @@ function TenderPagination({
         {pages[0] > 1 ? (
           <>
             <PaginationItem>
-              <PaginationLink href={buildListingHref(filters, { page: 1 })}>
+              <PaginationLink
+                data-umami-event="tender_listing_page_change"
+                data-umami-event-active-filters={String(activeFilterCount)}
+                data-umami-event-direction="jump"
+                data-umami-event-from-page={String(currentPage)}
+                data-umami-event-to-page="1"
+                href={buildListingHref(filters, { page: 1 })}
+              >
                 1
               </PaginationLink>
             </PaginationItem>
@@ -193,6 +212,13 @@ function TenderPagination({
         {pages.map((pageNumber) => (
           <PaginationItem key={pageNumber}>
             <PaginationLink
+              data-umami-event="tender_listing_page_change"
+              data-umami-event-active-filters={String(activeFilterCount)}
+              data-umami-event-direction={
+                pageNumber > currentPage ? "forward" : "back"
+              }
+              data-umami-event-from-page={String(currentPage)}
+              data-umami-event-to-page={String(pageNumber)}
               href={buildListingHref(filters, { page: pageNumber })}
               isActive={pageNumber === currentPage}
             >
@@ -207,7 +233,14 @@ function TenderPagination({
               <PaginationEllipsis />
             </PaginationItem>
             <PaginationItem>
-              <PaginationLink href={buildListingHref(filters, { page: pageCount })}>
+              <PaginationLink
+                data-umami-event="tender_listing_page_change"
+                data-umami-event-active-filters={String(activeFilterCount)}
+                data-umami-event-direction="jump"
+                data-umami-event-from-page={String(currentPage)}
+                data-umami-event-to-page={String(pageCount)}
+                href={buildListingHref(filters, { page: pageCount })}
+              >
                 {pageCount}
               </PaginationLink>
             </PaginationItem>
@@ -217,6 +250,11 @@ function TenderPagination({
         {currentPage < pageCount ? (
           <PaginationItem>
             <PaginationNext
+              data-umami-event="tender_listing_page_change"
+              data-umami-event-active-filters={String(activeFilterCount)}
+              data-umami-event-direction="next"
+              data-umami-event-from-page={String(currentPage)}
+              data-umami-event-to-page={String(currentPage + 1)}
               href={buildListingHref(filters, { page: currentPage + 1 })}
             />
           </PaginationItem>
@@ -235,6 +273,18 @@ function getVisiblePages(currentPage: number, pageCount: number) {
     { length: end - adjustedStart + 1 },
     (_, index) => adjustedStart + index
   )
+}
+
+function countActiveListingFilters(
+  filters: ReturnType<typeof parseListingSearchParams>
+) {
+  return [
+    filters.q,
+    filters.region,
+    filters.buyer,
+    filters.industry,
+    filters.tenderType,
+  ].filter(Boolean).length
 }
 
 function getSyncHealth(

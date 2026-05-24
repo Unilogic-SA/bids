@@ -2,43 +2,14 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { ReactNode } from "react"
 import {
-  ArrowLeftIcon,
-  ExternalLinkIcon,
-  FileDownIcon,
-} from "lucide-react"
+  IconArrowLeft,
+  IconExternalLink,
+  IconFileDownload,
+} from "@tabler/icons-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import { Separator } from "@/components/ui/separator"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
 import {
   cleanValue,
   formatDate,
@@ -68,16 +39,16 @@ export default async function TenderPage({ params }: TenderPageProps) {
       <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-6 md:px-6">
         <Button asChild className="w-fit" variant="outline">
           <Link href="/">
-            <ArrowLeftIcon data-icon="inline-start" />
+            <IconArrowLeft data-icon="inline-start" />
             Tenders
           </Link>
         </Button>
-        <Card>
-          <CardHeader>
-            <CardTitle>Tender data unavailable</CardTitle>
-            <CardDescription>Supabase env vars are missing.</CardDescription>
-          </CardHeader>
-        </Card>
+        <section className="flex flex-col gap-2 border-l-2 border-primary pl-4">
+          <h1 className="text-lg font-medium">Tender data unavailable</h1>
+          <p className="text-sm text-muted-foreground">
+            Supabase env vars are missing.
+          </p>
+        </section>
       </main>
     )
   }
@@ -87,16 +58,16 @@ export default async function TenderPage({ params }: TenderPageProps) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-background">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 md:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 md:px-6">
           <Button asChild className="w-fit" size="sm" variant="ghost">
             <Link href="/">
-              <ArrowLeftIcon data-icon="inline-start" />
+              <IconArrowLeft data-icon="inline-start" />
               Tenders
             </Link>
           </Button>
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-3">
             <div className="flex min-w-0 flex-col gap-2">
-              <h1 className="text-2xl font-semibold tracking-normal md:text-3xl">
+              <h1 className="text-2xl font-semibold tracking-normal md:text-[1.7rem]">
                 {tender.tender_no || "Tender"}
               </h1>
               <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
@@ -123,46 +94,20 @@ export default async function TenderPage({ params }: TenderPageProps) {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-6">
-        <Tabs className="gap-5" defaultValue="details">
-          <div className="flex flex-col gap-3">
-            <TabsList
-              className="max-w-full justify-start overflow-x-auto"
-              variant="line"
-            >
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger id="documents-tab" value="documents">
-                Documents ({documents.length})
-              </TabsTrigger>
-              <TabsTrigger value="source">Source</TabsTrigger>
-            </TabsList>
-            <Separator />
-          </div>
+      <main className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-4 md:px-6 lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.15fr)_1px_minmax(17rem,0.78fr)_1px_minmax(18rem,0.86fr)]">
+        <section className="min-w-0">
+          <TenderDetailSections tender={tender} />
+        </section>
 
-          <TabsContent className="mt-0" value="details">
-            <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_1px_minmax(18rem,22rem)]">
-              <div className="order-2 min-w-0 lg:order-1">
-                <TenderDetailSections tender={tender} />
-              </div>
-              <Separator
-                className="order-2 hidden lg:block"
-                orientation="vertical"
-              />
-              <TenderActionSidebar
-                documentsCount={documents.length}
-                tender={tender}
-              />
-            </section>
-          </TabsContent>
+        <Separator className="hidden lg:block" orientation="vertical" />
 
-          <TabsContent value="documents">
-            <TenderDocuments documents={documents} />
-          </TabsContent>
+        <section className="min-w-0">
+          <TenderLogistics tender={tender} />
+        </section>
 
-          <TabsContent value="source">
-            <TenderSource tender={tender} />
-          </TabsContent>
-        </Tabs>
+        <Separator className="hidden lg:block" orientation="vertical" />
+
+        <TenderActionColumn documents={documents} tender={tender} />
       </main>
     </div>
   )
@@ -180,11 +125,11 @@ function TenderSummaryStrip({ tender }: { tender: TenderDetail }) {
 
 function TenderDetailSections({ tender }: { tender: TenderDetail }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 lg:gap-3">
       <h2 className="text-base font-medium">Tender details</h2>
 
       <TenderSection title="Bid">
-        <dl className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2">
           <DetailItem label="Type" value={cleanValue(tender.tender_type)} />
           <DetailItem label="Tender number" value={cleanValue(tender.tender_no)} />
           <DetailItem label="Department" value={cleanValue(tender.department)} />
@@ -193,13 +138,17 @@ function TenderDetailSections({ tender }: { tender: TenderDetail }) {
             label="Procurement category"
             value={cleanValue(tender.procurement_category)}
           />
+          <DetailItem
+            label="Procurement method"
+            value={cleanValue(tender.procurement_method_details)}
+          />
         </dl>
       </TenderSection>
 
       <Separator />
 
       <TenderSection title="Dates">
-        <dl className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2">
           <DetailItem label="Opening date" value={formatDate(tender.opening_at)} />
           <DetailItem
             label="Closing date"
@@ -218,8 +167,37 @@ function TenderDetailSections({ tender }: { tender: TenderDetail }) {
 
       <Separator />
 
+      <TenderSection title="Conditions">
+        <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2">
+          <DetailItem
+            label="Status"
+            value={
+              tender.has_special_conditions
+                ? "Special conditions supplied"
+                : "None supplied"
+            }
+          />
+          <DetailItem
+            label="Eligibility notes"
+            value={cleanValue(tender.eligibility_notes)}
+          />
+          <DetailItem
+            label="Special conditions"
+            value={cleanValue(tender.special_conditions)}
+          />
+        </dl>
+      </TenderSection>
+    </div>
+  )
+}
+
+function TenderLogistics({ tender }: { tender: TenderDetail }) {
+  return (
+    <div className="flex flex-col gap-4 lg:gap-3">
+      <h2 className="text-base font-medium">Logistics</h2>
+
       <TenderSection title="Location">
-        <dl className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-1">
           <DetailItem label="Place" value={cleanValue(tender.place_raw)} />
           <DetailItem label="Address" value={cleanValue(tender.address_line)} />
           <DetailItem label="Area" value={cleanValue(tender.suburb_or_area)} />
@@ -231,7 +209,7 @@ function TenderDetailSections({ tender }: { tender: TenderDetail }) {
       <Separator />
 
       <TenderSection title="Briefing">
-        <dl className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-1">
           <DetailItem
             label="Status"
             value={
@@ -249,51 +227,34 @@ function TenderDetailSections({ tender }: { tender: TenderDetail }) {
           <DetailItem label="Venue" value={cleanValue(tender.briefing_venue)} />
         </dl>
       </TenderSection>
-
-      <Separator />
-
-      <TenderSection title="Conditions">
-        <dl className="flex flex-col gap-4">
-          <DetailItem
-            label="Status"
-            value={
-              tender.has_special_conditions
-                ? "Special conditions supplied"
-                : "None supplied"
-            }
-          />
-          <DetailItem
-            label="Special conditions"
-            value={cleanValue(tender.special_conditions)}
-          />
-          <DetailItem
-            label="Eligibility notes"
-            value={cleanValue(tender.eligibility_notes)}
-          />
-        </dl>
-      </TenderSection>
     </div>
   )
 }
 
-function TenderActionSidebar({
-  documentsCount,
+function TenderActionColumn({
+  documents,
   tender,
 }: {
-  documentsCount: number
+  documents: TenderDocument[]
   tender: TenderDetail
 }) {
   return (
-    <aside className="order-1 flex min-w-0 flex-col gap-5 lg:order-3 lg:sticky lg:top-6 lg:self-start">
+    <aside className="flex min-w-0 flex-col gap-4">
       <SidebarSection title="Contact">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <p className="break-words text-sm font-medium">
             {cleanValue(tender.contact_person)}
           </p>
-          <dl className="flex flex-col gap-3">
+          <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-1">
             <DetailItem
               label="Email"
-              value={<EmailLink email={tender.contact_email} />}
+              value={
+                <EmailLink
+                  context="contact"
+                  email={tender.contact_email}
+                  tender={tender}
+                />
+              }
             />
             <DetailItem label="Telephone" value={cleanValue(tender.contact_tel)} />
             <DetailItem label="Role" value={cleanValue(tender.contact_role)} />
@@ -305,149 +266,118 @@ function TenderActionSidebar({
       <Separator />
 
       <SidebarSection title="Submission">
-        <dl className="flex flex-col gap-3">
-          <DetailItem
-            label="Email"
-            value={<EmailLink email={tender.contact_email} />}
-          />
-        </dl>
+        <DetailItem
+          label="Email"
+          value={
+            <EmailLink
+              context="submission"
+              email={tender.contact_email}
+              tender={tender}
+            />
+          }
+        />
       </SidebarSection>
 
       <Separator />
 
-      <SidebarSection title="Documents">
-        <div className="flex flex-col items-start gap-3">
-          <dl className="w-full">
-            <DetailItem
-              label="Linked documents"
-              value={String(documentsCount)}
-            />
-          </dl>
-          <Button asChild size="sm" variant="outline">
-            <a href="#documents-tab">Documents tab</a>
-          </Button>
-        </div>
-      </SidebarSection>
+      <TenderDocuments documents={documents} tender={tender} />
 
       <Separator />
 
-      <SidebarSection title="Source">
-        <div className="flex flex-col items-start gap-3">
-          <dl className="w-full">
-            <DetailItem
-              label="Reference"
-              value={cleanValue(tender.source_label || tender.source_site)}
-            />
-          </dl>
-          {tender.original_source_url ? (
-            <Button asChild size="sm" variant="outline">
-              <a href={tender.original_source_url} rel="noreferrer" target="_blank">
-                <ExternalLinkIcon data-icon="inline-start" />
-                Original
-              </a>
-            </Button>
-          ) : null}
-        </div>
-      </SidebarSection>
+      <TenderSource tender={tender} />
     </aside>
   )
 }
 
-function TenderDocuments({ documents }: { documents: TenderDocument[] }) {
+function TenderDocuments({
+  documents,
+  tender,
+}: {
+  documents: TenderDocument[]
+  tender: TenderDetail
+}) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Documents</CardTitle>
-        <CardDescription>{documents.length} linked document(s)</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {documents.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>File</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Published</TableHead>
-                <TableHead className="text-right">Link</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {documents.map((document) => (
-                <TableRow key={document.id}>
-                  <TableCell>{document.document_index}</TableCell>
-                  <TableCell className="min-w-80 whitespace-normal">
-                    {document.document_title || document.file_name || "Document"}
-                  </TableCell>
-                  <TableCell>{cleanValue(document.file_extension)}</TableCell>
-                  <TableCell>{cleanValue(document.file_size_text)}</TableCell>
-                  <TableCell>{formatDate(document.date_published)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild size="sm" variant="outline">
-                      <a
-                        href={document.document_url}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        <FileDownIcon data-icon="inline-start" />
-                        Open
-                      </a>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <FileDownIcon />
-              </EmptyMedia>
-              <EmptyTitle>No documents linked</EmptyTitle>
-              <EmptyDescription>
-                The source record does not include document links.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-      </CardContent>
-    </Card>
+    <SidebarSection title={`Documents (${documents.length})`}>
+      {documents.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {documents.map((document) => (
+            <div
+              className="grid min-w-0 gap-2 border-l-2 border-primary/30 pl-3"
+              key={document.id}
+            >
+              <div className="min-w-0">
+                <p className="break-words text-sm font-medium">
+                  {document.document_title || document.file_name || "Document"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {[
+                    cleanValue(document.file_extension),
+                    cleanValue(document.file_size_text),
+                    formatDate(document.date_published),
+                  ].join(" / ")}
+                </p>
+              </div>
+              <Button asChild className="w-fit" size="sm">
+                <a
+                  data-umami-event="tender_document_open"
+                  data-umami-event-extension={document.file_extension || "unknown"}
+                  data-umami-event-index={String(document.document_index)}
+                  data-umami-event-ocid={tender.ocid}
+                  data-umami-event-source={document.document_source || "unknown"}
+                  href={document.document_url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <IconFileDownload data-icon="inline-start" />
+                  Open document
+                </a>
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          The source record does not include document links.
+        </p>
+      )}
+    </SidebarSection>
   )
 }
 
 function TenderSource({ tender }: { tender: TenderDetail }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Source</CardTitle>
-        <CardDescription>{cleanValue(tender.source_label)}</CardDescription>
-        {tender.original_source_url ? (
-          <CardAction>
-            <Button asChild size="sm" variant="outline">
-              <a href={tender.original_source_url} rel="noreferrer" target="_blank">
-                <ExternalLinkIcon data-icon="inline-start" />
-                Original
-              </a>
-            </Button>
-          </CardAction>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <dl className="grid gap-4 md:grid-cols-2">
-          <DetailItem label="Source site" value={cleanValue(tender.source_site)} />
-          <DetailItem label="Release ID" value={cleanValue(tender.release_id)} />
-          <DetailItem label="OCDS ID" value={cleanValue(tender.ocid)} />
-          <DetailItem label="Imported" value={formatDateTime(tender.imported_at)} />
-          <DetailItem label="Captured" value={formatDateTime(tender.captured_at)} />
-          <DetailItem
-            label="Documents"
-            value={String(tender.documents_count || 0)}
-          />
-        </dl>
-      </CardContent>
-    </Card>
+    <SidebarSection title="Source">
+      <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-1">
+        <DetailItem
+          label="Reference"
+          value={cleanValue(tender.source_label || tender.source_site)}
+        />
+        <DetailItem label="Source site" value={cleanValue(tender.source_site)} />
+        <DetailItem label="Release ID" value={cleanValue(tender.release_id)} />
+        <DetailItem label="OCDS ID" value={cleanValue(tender.ocid)} />
+        <DetailItem label="Imported" value={formatDateTime(tender.imported_at)} />
+        <DetailItem label="Captured" value={formatDateTime(tender.captured_at)} />
+        <DetailItem
+          label="Documents"
+          value={String(tender.documents_count || 0)}
+        />
+      </dl>
+      {tender.original_source_url ? (
+        <Button asChild className="w-fit" size="sm" variant="outline">
+          <a
+            data-umami-event="tender_source_open"
+            data-umami-event-location="detail_page"
+            data-umami-event-ocid={tender.ocid}
+            href={tender.original_source_url}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <IconExternalLink data-icon="inline-start" />
+            Original
+          </a>
+        </Button>
+      ) : null}
+    </SidebarSection>
   )
 }
 
@@ -474,7 +404,7 @@ function TenderSection({
   title: string
 }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3 lg:gap-2.5">
       <h3 className="text-sm font-medium">{title}</h3>
       {children}
     </section>
@@ -489,18 +419,32 @@ function SidebarSection({
   title: string
 }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3 lg:gap-2.5">
       <h2 className="text-sm font-medium">{title}</h2>
       {children}
     </section>
   )
 }
 
-function EmailLink({ email }: { email?: string | null }) {
+function EmailLink({
+  context,
+  email,
+  tender,
+}: {
+  context: string
+  email?: string | null
+  tender: TenderDetail
+}) {
   if (!email) return "Not supplied"
 
   return (
-    <a className="break-all underline underline-offset-4" href={`mailto:${email}`}>
+    <a
+      className="break-all underline underline-offset-4"
+      data-umami-event="tender_contact_email_click"
+      data-umami-event-context={context}
+      data-umami-event-ocid={tender.ocid}
+      href={`mailto:${email}`}
+    >
       {email}
     </a>
   )
@@ -516,7 +460,7 @@ function DetailItem({
   return (
     <div className="min-w-0">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="mt-1 break-words text-sm leading-6">{value}</dd>
+      <dd className="mt-1 break-words text-sm leading-5">{value}</dd>
     </div>
   )
 }

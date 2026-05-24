@@ -2,11 +2,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2"
 
 const ETENDERS_BASE_URL = "https://ocds-api.etenders.gov.za/api/OCDSReleases"
+const ETENDERS_PORTAL_BASE_URL = "https://www.etenders.gov.za"
 const DEFAULT_PAGE_SIZE = 20_000
+const DEFAULT_PORTAL_PAGE_SIZE = 20_000
 const DEFAULT_MAX_PAGES = 20
 const DEFAULT_LOOKBACK_DAYS = 14
 const RETRY_ATTEMPTS = 5
 const RETRY_DELAY_MS = 3_000
+const FETCH_TIMEOUT_MS = 30_000
 
 type OcdsDocument = {
   id?: string
@@ -75,6 +78,37 @@ type OcdsPayload = {
   links?: {
     next?: string
   }
+}
+
+type PortalDocument = {
+  supportDocumentID?: string
+  fileName?: string
+  extension?: string
+  tendersID?: number
+  active?: boolean
+  dateModified?: string
+}
+
+type PortalTender = {
+  id?: number | string
+  supportDocument?: PortalDocument[] | null
+  sd?: PortalDocument[] | null
+}
+
+type PortalPayload =
+  | PortalTender[]
+  | {
+      data?: PortalTender[]
+    }
+
+type NormalizedDocument = {
+  title: string | null
+  description: string | null
+  documentUrl: string | null
+  fileName: string | null
+  fileExtension: string | null
+  datePublished: string | null
+  dateModified: string | null
 }
 
 type SyncPayload = {
@@ -165,11 +199,20 @@ async function runTenderSync(
       pageSize,
       maxPages,
     })
+    const portalTendersById = await fetchPortalTendersById()
     const tenders = releases.map((release) =>
-      mapReleaseToTender(release, startedAt)
+      mapReleaseToTender(
+        release,
+        startedAt,
+        portalTendersById.get(readTenderId(release) || "")
+      )
     )
     const documents = releases.flatMap((release) =>
-      mapReleaseToDocuments(release, startedAt)
+      mapReleaseToDocuments(
+        release,
+        startedAt,
+        portalTendersById.get(readTenderId(release) || "")
+      )
     )
     const releaseOcids = releases
       .map((release) => release.ocid)
@@ -203,6 +246,7 @@ async function runTenderSync(
       completedAt: completedAt.toISOString(),
       pageSize,
       maxPages,
+      portalTenderCount: portalTendersById.size,
       ...window,
     }
 
@@ -266,15 +310,19 @@ async function fetchAllReleasesForRange({
   return releases
 }
 
-async function fetchJsonWithRetry(url: URL): Promise<OcdsPayload> {
+async function fetchJsonWithRetry<T = OcdsPayload>(url: URL): Promise<T> {
   let lastError: unknown
 
   for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+
     try {
       const response = await fetch(url, {
         headers: {
           accept: "application/json,text/plain",
         },
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -282,25 +330,59 @@ async function fetchJsonWithRetry(url: URL): Promise<OcdsPayload> {
         throw new Error(`HTTP ${response.status}: ${text.slice(0, 300)}`)
       }
 
-      return (await response.json()) as OcdsPayload
+      return (await response.json()) as T
     } catch (error) {
       lastError = error
       if (attempt < RETRY_ATTEMPTS) {
         await delay(RETRY_DELAY_MS * attempt)
       }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
   throw lastError
 }
 
+async function fetchPortalTendersById() {
+  const tendersById = new Map<string, PortalTender>()
+
+  try {
+    const url = new URL(
+      "/Home/PaginatedTenderOpportunities",
+      ETENDERS_PORTAL_BASE_URL,
+    )
+    url.searchParams.set("draw", "1")
+    url.searchParams.set("start", "0")
+    url.searchParams.set("length", String(DEFAULT_PORTAL_PAGE_SIZE))
+    url.searchParams.set("status", "1")
+
+    const payload = await fetchJsonWithRetry<PortalPayload>(url)
+    const tenders = Array.isArray(payload) ? payload : payload.data || []
+
+    for (const tender of tenders) {
+      const id = cleanText(String(tender.id || ""))
+      if (id) tendersById.set(id, tender)
+    }
+  } catch (error) {
+    console.warn(
+      `Unable to fetch eTenders portal support documents: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+  }
+
+  return tendersById
+}
+
 function mapReleaseToTender(
   release: OcdsRelease,
-  capturedAt: Date
+  capturedAt: Date,
+  portalTender?: PortalTender
 ): TenderUpsert {
   const tender = release.tender || {}
   const buyerName = release.buyer?.name || tender.procuringEntity?.name || null
-  const documents = tender.documents || []
+  const documents = collectTenderDocuments(release, portalTender)
   const closingAt = normalizeDate(
     tender.tenderPeriod?.endDate || tender.tenderPeriod?.closingDate
   )
@@ -308,7 +390,7 @@ function mapReleaseToTender(
   const publishedAt = normalizeDate(release.date)
   const modifiedAt = latestDate([
     release.date,
-    ...documents.map((document) => document.dateModified),
+    ...documents.map((document) => document.dateModified || undefined),
   ])
   const tenderNo = tender.title || tender.id || release.ocid || "Unknown"
   const description = cleanText(tender.description)
@@ -389,25 +471,25 @@ function mapReleaseToTender(
 
 function mapReleaseToDocuments(
   release: OcdsRelease,
-  capturedAt: Date
+  capturedAt: Date,
+  portalTender?: PortalTender
 ): DocumentUpsert[] {
   const tender = release.tender || {}
   const tenderNo = tender.title || tender.id || release.ocid || "Unknown"
   const detailPath = release.ocid
     ? `/tenders/${encodeURIComponent(release.ocid)}`
     : null
-  const documents = tender.documents || []
+  const documents = collectTenderDocuments(release, portalTender)
   const rows: DocumentUpsert[] = []
 
   documents.forEach((document, index) => {
-    const documentUrl = document.url || document.downloadUrl
-    if (!release.ocid || !documentUrl) return
+    if (!release.ocid || !document.documentUrl) return
 
-    const fileName = parseFileName(documentUrl, document.title)
+    const fileName =
+      document.fileName ||
+      parseFileName(document.documentUrl, document.title || undefined)
     const fileExtension =
-      cleanText(document.format)?.toLowerCase() ||
-      fileName?.split(".").pop()?.toLowerCase() ||
-      null
+      document.fileExtension || fileName?.split(".").pop()?.toLowerCase() || null
 
     rows.push({
       tender_ocid: release.ocid,
@@ -415,12 +497,12 @@ function mapReleaseToDocuments(
       detail_url: detailPath,
       document_index: index + 1,
       document_title: cleanText(document.title || document.description),
-      document_url: documentUrl,
+      document_url: document.documentUrl,
       file_name: fileName,
       file_extension: fileExtension,
       file_size_text: null,
       file_size_kb: null,
-      document_source: parseHostname(documentUrl),
+      document_source: parseHostname(document.documentUrl),
       date_published: normalizeDate(document.datePublished),
       date_modified: normalizeDate(document.dateModified),
       downloaded_at: null,
@@ -430,6 +512,78 @@ function mapReleaseToDocuments(
   })
 
   return rows
+}
+
+function collectTenderDocuments(
+  release: OcdsRelease,
+  portalTender?: PortalTender
+): NormalizedDocument[] {
+  const portalDocuments = normalizePortalDocuments(portalTender)
+  if (portalDocuments.length > 0) return portalDocuments
+
+  return (release.tender?.documents || [])
+    .map((document) => {
+      const documentUrl = document.url || document.downloadUrl || null
+      return {
+        title: cleanText(document.title),
+        description: cleanText(document.description),
+        documentUrl,
+        fileName: documentUrl ? parseFileName(documentUrl, document.title) : null,
+        fileExtension: normalizeFileExtension(document.format),
+        datePublished: normalizeDate(document.datePublished),
+        dateModified: normalizeDate(document.dateModified),
+      }
+    })
+    .filter((document) => Boolean(document.documentUrl))
+}
+
+function normalizePortalDocuments(portalTender?: PortalTender) {
+  const documents = portalTender?.supportDocument || portalTender?.sd || []
+  const seenUrls = new Set<string>()
+  const normalized: NormalizedDocument[] = []
+
+  for (const document of documents) {
+    if (document.active === false || !document.supportDocumentID) continue
+
+    const fileName = cleanText(document.fileName) || "Document"
+    const fileExtension = normalizeFileExtension(document.extension)
+    const documentUrl = buildPortalDocumentUrl(
+      document.supportDocumentID,
+      fileExtension,
+      fileName,
+    )
+
+    if (seenUrls.has(documentUrl)) continue
+    seenUrls.add(documentUrl)
+
+    normalized.push({
+      title: fileName,
+      description: fileName,
+      documentUrl,
+      fileName,
+      fileExtension,
+      datePublished: normalizeDate(document.dateModified),
+      dateModified: normalizeDate(document.dateModified),
+    })
+  }
+
+  return normalized
+}
+
+function buildPortalDocumentUrl(
+  supportDocumentId: string,
+  fileExtension: string | null,
+  fileName: string,
+) {
+  const blobName = `${supportDocumentId}${fileExtension ? `.${fileExtension}` : ""}`
+  const url = new URL("/home/Download", ETENDERS_PORTAL_BASE_URL)
+  url.searchParams.set("blobName", blobName)
+  url.searchParams.set("downloadedFileName", fileName)
+  return url.toString()
+}
+
+function readTenderId(release: OcdsRelease) {
+  return cleanText(release.tender?.id)
 }
 
 function isReleaseOpen(release: OcdsRelease, now: Date) {
@@ -531,6 +685,10 @@ function parseFileName(url: string, title?: string) {
   } catch {
     return null
   }
+}
+
+function normalizeFileExtension(value?: string | null) {
+  return cleanText(value)?.replace(/^\./, "").toLowerCase() || null
 }
 
 function parseHostname(value: string) {

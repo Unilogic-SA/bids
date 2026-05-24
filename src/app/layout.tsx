@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Figtree, Geist_Mono, Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,12 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col">{children}</body>
+      <Script
+        data-website-id="628e3929-8181-451a-b427-8f5746434e4c"
+        id="umami-analytics"
+        src="https://cloud.umami.is/script.js"
+        strategy="afterInteractive"
+      />
     </html>
   );
 }

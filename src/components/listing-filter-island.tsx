@@ -47,6 +47,7 @@ import {
   TENDER_TYPE_FILTERS,
 } from "@/lib/tenders/filters"
 import type { ListingSearchParams } from "@/lib/tenders/types"
+import { trackUmamiEvent } from "@/lib/analytics"
 
 type ListingFilterIslandProps = {
   filters: ListingSearchParams
@@ -62,14 +63,23 @@ export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
         </CardTitle>
         <CardDescription>Open tenders only.</CardDescription>
       </CardHeader>
-      <form action="/" method="get">
+      <form
+        action="/"
+        method="get"
+        onSubmit={(event) => trackFilterApply("desktop", event.currentTarget)}
+      >
         <CardContent>
           <SearchFilterFields filters={filters} idPrefix="desktop" includeSort />
         </CardContent>
 
         <CardFooter className="mt-4 justify-between gap-2">
           <Button asChild size="sm" variant="outline">
-            <Link href="/">
+            <Link
+              href="/"
+              onClick={() =>
+                trackUmamiEvent("tender_filter_reset", { surface: "desktop" })
+              }
+            >
               <RotateCcwIcon data-icon="inline-start" />
               Reset
             </Link>
@@ -91,6 +101,9 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
         <SheetTrigger asChild>
           <Button
             className="h-14 justify-center rounded-none text-base font-normal text-muted-foreground"
+            onClick={() =>
+              trackUmamiEvent("tender_filter_panel_open", { panel: "search" })
+            }
             variant="ghost"
           >
             Search
@@ -101,7 +114,13 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
           <SheetHeader>
             <SheetTitle>Search</SheetTitle>
           </SheetHeader>
-          <form action="/" method="get">
+          <form
+            action="/"
+            method="get"
+            onSubmit={(event) =>
+              trackFilterApply("mobile_search", event.currentTarget)
+            }
+          >
             <HiddenInput
               name="sort"
               value={
@@ -113,7 +132,14 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             </div>
             <SheetFooter>
               <Button asChild variant="outline">
-                <Link href="/">
+                <Link
+                  href="/"
+                  onClick={() =>
+                    trackUmamiEvent("tender_filter_reset", {
+                      surface: "mobile_search",
+                    })
+                  }
+                >
                   <RotateCcwIcon data-icon="inline-start" />
                   Reset
                 </Link>
@@ -133,6 +159,9 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
         <SheetTrigger asChild>
           <Button
             className="h-14 justify-center rounded-none text-base font-normal text-muted-foreground"
+            onClick={() =>
+              trackUmamiEvent("tender_filter_panel_open", { panel: "sort" })
+            }
             variant="ghost"
           >
             Sort By
@@ -143,7 +172,13 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
           <SheetHeader>
             <SheetTitle>Sort By</SheetTitle>
           </SheetHeader>
-          <form action="/" method="get">
+          <form
+            action="/"
+            method="get"
+            onSubmit={(event) =>
+              trackFilterApply("mobile_sort", event.currentTarget)
+            }
+          >
             <PreservedFilterInputs filters={filters} />
             <div className="px-4">
               <FieldSet>
@@ -155,7 +190,14 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             </div>
             <SheetFooter>
               <Button asChild variant="outline">
-                <Link href={buildFilterHref(filters, { sort: DEFAULT_LISTING_SORT })}>
+                <Link
+                  href={buildFilterHref(filters, { sort: DEFAULT_LISTING_SORT })}
+                  onClick={() =>
+                    trackUmamiEvent("tender_filter_reset", {
+                      surface: "mobile_sort",
+                    })
+                  }
+                >
                   <RotateCcwIcon data-icon="inline-start" />
                   Reset
                 </Link>
@@ -347,6 +389,44 @@ function buildFilterHref(
 
   const query = next.toString()
   return query ? `/?${query}` : "/"
+}
+
+function trackFilterApply(surface: string, form: HTMLFormElement) {
+  const formData = new FormData(form)
+  const query = String(formData.get("q") || "").trim()
+  const buyer = String(formData.get("buyer") || "").trim()
+  const region = String(formData.get("region") || "")
+  const industry = String(formData.get("industry") || "")
+  const tenderType = String(formData.get("tender_type") || "")
+  const sort = String(formData.get("sort") || DEFAULT_LISTING_SORT)
+
+  trackUmamiEvent("tender_filter_apply", {
+    active_filters: countActiveFilters({
+      buyer,
+      industry,
+      q: query,
+      region,
+      tenderType,
+    }),
+    buyer_present: Boolean(buyer),
+    industry: industry || "all",
+    query_length: query.length,
+    query_present: Boolean(query),
+    region: region || "all",
+    sort,
+    surface,
+    tender_type: tenderType || "all",
+  })
+}
+
+function countActiveFilters(filters: {
+  buyer?: string
+  industry?: string
+  q?: string
+  region?: string
+  tenderType?: string
+}) {
+  return Object.values(filters).filter(Boolean).length
 }
 
 function appendParam(params: URLSearchParams, key: string, value?: string) {
