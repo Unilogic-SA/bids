@@ -293,12 +293,12 @@ function SearchFilterFields({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor={`${idPrefix}-tender-type`}>Tender type</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-type`}>Type</FieldLabel>
           <NativeSelect
             className="w-full"
             defaultValue={filters.tenderType || ""}
-            id={`${idPrefix}-tender-type`}
-            name="tender_type"
+            id={`${idPrefix}-type`}
+            name="type"
             size="sm"
           >
             <NativeSelectOption value="">All types</NativeSelectOption>
@@ -354,7 +354,7 @@ function PreservedFilterInputs({ filters }: ListingFilterIslandProps) {
       <HiddenInput name="region" value={filters.region} />
       <HiddenInput name="buyer" value={filters.buyer} />
       <HiddenInput name="industry" value={filters.industry} />
-      <HiddenInput name="tender_type" value={filters.tenderType} />
+      <HiddenInput name="type" value={filters.tenderType} />
     </>
   )
 }
@@ -380,7 +380,7 @@ function buildFilterHref(
   appendParam(next, "region", merged.region)
   appendParam(next, "buyer", merged.buyer)
   appendParam(next, "industry", merged.industry)
-  appendParam(next, "tender_type", merged.tenderType)
+  appendParam(next, "type", merged.tenderType)
   appendParam(
     next,
     "sort",
@@ -397,7 +397,7 @@ function trackFilterApply(surface: string, form: HTMLFormElement) {
   const buyer = String(formData.get("buyer") || "").trim()
   const region = String(formData.get("region") || "")
   const industry = String(formData.get("industry") || "")
-  const tenderType = String(formData.get("tender_type") || "")
+  const tenderType = String(formData.get("type") || "")
   const sort = String(formData.get("sort") || DEFAULT_LISTING_SORT)
 
   trackUmamiEvent("tender_filter_apply", {

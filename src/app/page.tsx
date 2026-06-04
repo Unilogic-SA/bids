@@ -3,6 +3,7 @@ import {
   DatabaseIcon,
   FileSearchIcon,
 } from "lucide-react"
+import type { Metadata } from "next"
 
 import {
   ListingFilterIsland,
@@ -38,6 +39,12 @@ import {
   getTenderListing,
   parseListingSearchParams,
 } from "@/lib/tenders/query"
+import {
+  absoluteUrl,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  stringifyJsonLd,
+} from "@/lib/seo"
 import { TENDER_TYPE_FILTERS } from "@/lib/tenders/filters"
 import { buildTenderPath } from "@/lib/tenders/format"
 import type { TenderListingItem } from "@/lib/tenders/types"
@@ -46,6 +53,42 @@ export const dynamic = "force-dynamic"
 
 type HomeProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export async function generateMetadata({
+  searchParams,
+}: HomeProps): Promise<Metadata> {
+  const filters = parseListingSearchParams(await searchParams)
+  const hasListingModifiers = countActiveListingFilters(filters) > 0 || filters.page > 1
+
+  return {
+    title: hasListingModifiers
+      ? "Tender search results"
+      : "South African public tenders",
+    description: SITE_DESCRIPTION,
+    alternates: {
+      canonical: "/",
+    },
+    robots: hasListingModifiers
+      ? {
+          index: false,
+          follow: true,
+          googleBot: {
+            index: false,
+            follow: true,
+          },
+        }
+      : {
+          index: true,
+          follow: true,
+        },
+    openGraph: {
+      title: `${SITE_NAME} - South African public tenders`,
+      description: SITE_DESCRIPTION,
+      url: "/",
+      type: "website",
+    },
+  }
 }
 
 export default async function Home({ searchParams }: HomeProps) {
@@ -69,9 +112,26 @@ export default async function Home({ searchParams }: HomeProps) {
     latestRecentFailedSync
   )
   const activeFilterCount = countActiveListingFilters(filters)
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: absoluteUrl("/"),
+    description: SITE_DESCRIPTION,
+    inLanguage: "en-ZA",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${absoluteUrl("/")}?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  }
 
   return (
     <div className="min-h-screen bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: stringifyJsonLd(websiteJsonLd) }}
+      />
       <main className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-4 md:px-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
         {listing.configMissing ? (
           <Alert className="lg:col-span-2">

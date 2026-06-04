@@ -185,9 +185,19 @@ export const TENDER_TYPE_FILTERS: Array<
     rawValues: ["Request for Bid(Limited-Tender", "Participation"],
   },
   {
+    value: "restricted_bidding",
+    label: "Restricted bidding",
+    rawValues: ["Restricted Bidding"],
+  },
+  {
     value: "sita",
     label: "SITA contract",
     rawValues: ["SITA contract"],
+  },
+  {
+    value: "sole_source",
+    label: "Sole source",
+    rawValues: ["Sole source bidding"],
   },
 ]
 

@@ -36,7 +36,9 @@ curl -X POST "http://localhost:3000/api/sync?secret=$ETENDERS_SYNC_SECRET&mode=d
 The production data path is Supabase-native:
 
 1. `sync-tenders` Edge Function supports both a rolling recent refresh and explicit date-range refreshes against the OCDS API, and refreshes every release in each covered window so early closures are reflected too.
-2. Supabase Cron runs four staggered batches every day at `06:00`, `06:10`, `06:20`, and `06:30 UTC` (`08:00`, `08:10`, `08:20`, and `08:30` South Africa time). Together they cover 5-day range refreshes from the oldest still-open tender through today, so older open tenders are reconciled too without overloading the source API.
+2. Supabase Cron keeps production data fresh with two jobs:
+   - `sync-tenders-recent-refresh` runs every 6 hours and refreshes yesterday through today so the public listing has a current successful sync.
+   - `sync-tenders-open-horizon-rotating` runs every 30 minutes and reconciles one 2-day window at a time from the oldest still-open tender through today, avoiding the timeout-prone morning fan-out.
 3. The listing page reads the last successful sync from Supabase and shows a stale-data warning when the latest successful run is older than 26 hours or the latest run failed.
 
 The manual `/api/sync` route is still useful for one-off backfills and recovery runs.

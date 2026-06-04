@@ -22,7 +22,9 @@ export type TenderTypeFilter =
   | "rfi"
   | "eoi"
   | "limited_participation"
+  | "restricted_bidding"
   | "sita"
+  | "sole_source"
 
 export type ListingSearchParams = {
   q?: string
@@ -54,6 +56,19 @@ export type TenderListingItem = {
   derived_status: string | null
   is_new: boolean | null
   documents_count: number | null
+}
+
+export type TenderSitemapItem = Pick<
+  TenderListingItem,
+  | "ocid"
+  | "detail_path"
+  | "published_at"
+  | "closing_at"
+  | "documents_count"
+> & {
+  modified_at: string | null
+  imported_at: string | null
+  captured_at: string | null
 }
 
 export type TenderDetail = TenderListingItem & {

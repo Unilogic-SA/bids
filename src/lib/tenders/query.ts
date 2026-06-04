@@ -14,6 +14,7 @@ import type {
   TenderDetail,
   TenderDocument,
   TenderListingItem,
+  TenderSitemapItem,
 } from "@/lib/tenders/types"
 
 export const LISTING_PAGE_SIZE = 12
@@ -97,6 +98,17 @@ const DOCUMENT_COLUMNS = [
   "document_hash",
 ].join(",")
 
+const SITEMAP_COLUMNS = [
+  "ocid",
+  "detail_path",
+  "published_at",
+  "closing_at",
+  "modified_at",
+  "imported_at",
+  "captured_at",
+  "documents_count",
+].join(",")
+
 const SEARCH_COLUMNS = [
   "tender_no",
   "bid_description",
@@ -120,7 +132,7 @@ export function parseListingSearchParams(
 ): ListingSearchParams {
   const region = readParam(input.region)
   const industry = readParam(input.industry)
-  const tenderType = readParam(input.tender_type)
+  const tenderType = readParam(input.type) || readParam(input.tender_type)
   const sort = readParam(input.sort)
 
   return {
@@ -177,7 +189,7 @@ export async function getTenderListing(params: ListingSearchParams) {
 
   const tenderTypeRawValues = getTenderTypeRawValues(params.tenderType)
   if (tenderTypeRawValues?.length) {
-    query = query.in("procurement_method_details", tenderTypeRawValues)
+    query = query.in("tender_type", tenderTypeRawValues)
   }
 
   const sort = SORT_CONFIG[params.sort]
@@ -240,6 +252,25 @@ export async function getTenderDetail(ocid: string) {
   }
 }
 
+export async function getTenderSitemapItems(limit = 5000) {
+  if (!hasSupabasePublicConfig()) return [] as TenderSitemapItem[]
+
+  const supabase = createPublicClient()
+  const availabilityCutoff = getAvailabilityCutoff()
+  const { data, error } = await supabase
+    .from("tenders")
+    .select(SITEMAP_COLUMNS)
+    .eq("derived_status", "open")
+    .gte("closing_at", availabilityCutoff)
+    .order("modified_at", { ascending: false, nullsFirst: false })
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+
+  return (data || []) as unknown as TenderSitemapItem[]
+}
+
 export async function getLatestSyncRun() {
   if (!hasSupabasePublicConfig()) return null
 
@@ -297,7 +328,7 @@ export function buildListingHref(
   appendParam(next, "region", merged.region)
   appendParam(next, "buyer", merged.buyer)
   appendParam(next, "industry", merged.industry)
-  appendParam(next, "tender_type", merged.tenderType)
+  appendParam(next, "type", merged.tenderType)
   appendParam(
     next,
     "sort",
