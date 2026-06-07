@@ -1,19 +1,17 @@
 "use client"
 
 import Link from "next/link"
-import { IconChevronRight } from "@tabler/icons-react"
 
 import { Badge } from "@/components/ui/badge"
 import { trackUmamiEvent } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-ZA", {
-  day: "2-digit",
+const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1_000
+
+const dayFormatter = new Intl.DateTimeFormat("en-ZA", {
+  day: "numeric",
   month: "short",
   year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
 })
 
 type TenderListItemProps = {
@@ -26,6 +24,7 @@ type TenderListItemProps = {
   tenderNumber?: string | null
   closingDate?: string | null
   isNew?: boolean | null
+  publishedAt?: string | null
   detailUrl: string
   analytics?: {
     activeFilterCount: number
@@ -44,23 +43,23 @@ export function TenderListItem({
   tenderNumber,
   closingDate,
   isNew,
+  publishedAt,
   detailUrl,
   analytics,
 }: TenderListItemProps) {
   const displayTitle =
     normalizeTenderTitle(cleanText(title)) || "Tender title not supplied"
-  const displayBuyer = cleanText(buyer)
-  const closingLabel = formatClosingDate(closingDate)
-  const desktopMetadata = compact([
-    province,
-    displayBuyer,
-    tenderNumber,
-  ])
+  const displayBuyer = cleanText(buyer) || "Buyer not supplied"
+  const displayProvince = cleanText(province)
+  const displayIndustry = cleanText(industry)
+  const displayTenderNumber = cleanText(tenderNumber) || "Reference not supplied"
+  const closing = formatClosingUrgency(closingDate)
+  const showNewBadge = Boolean(isNew && isRecentlyPublished(publishedAt))
 
   return (
     <Link
-      aria-label={`${displayTitle}. Closes ${closingLabel}.`}
-      className="group grid min-w-0 gap-2.5 rounded-md border bg-card p-2.5 text-card-foreground transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:px-3 sm:py-2.5"
+      aria-label={`${displayTitle}. ${closing.label}.`}
+      className="group relative flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card px-3.5 py-2.5 text-card-foreground transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
       href={detailUrl}
       onClick={() =>
         trackUmamiEvent("tender_result_open", {
@@ -76,55 +75,63 @@ export function TenderListItem({
         })
       }
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex min-w-0 items-center gap-2">
-          {isNew ? (
-            <Badge className="shrink-0" variant="outline">
-              New
-            </Badge>
-          ) : null}
-          <h2 className="truncate text-sm font-semibold leading-5 tracking-normal">
-            {displayTitle}
-          </h2>
-        </div>
+      {showNewBadge ? (
+        <Badge
+          className="absolute -top-3 left-4 isolate h-5 rounded-md border-primary/35 bg-background px-2 text-[0.68rem] font-medium text-primary shadow-sm ring-2 ring-background before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-primary/10 before:content-['']"
+          variant="outline"
+        >
+          New
+        </Badge>
+      ) : null}
 
-        <MetadataLine items={desktopMetadata} />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <p
+            className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground"
+          >
+            {displayBuyer}
+          </p>
+          <p className="max-w-[42%] shrink-0 truncate text-xs font-medium text-muted-foreground">
+            {displayTenderNumber}
+          </p>
+        </div>
+        <h2 className="line-clamp-2 text-[0.95rem] font-semibold leading-snug tracking-normal text-foreground sm:text-base">
+          {displayTitle}
+        </h2>
+        <PillLine province={displayProvince} industry={displayIndustry} />
       </div>
 
-      <div className="flex min-w-0 items-center justify-between gap-3 sm:justify-end">
-        <div className="flex min-w-0 items-baseline gap-2 text-sm sm:block sm:min-w-40">
-          <span className="shrink-0 text-muted-foreground">Closes</span>
-          <span className="truncate font-medium text-foreground sm:block">
-            {closingLabel}
-          </span>
-        </div>
-        <IconChevronRight
-          aria-hidden="true"
-          className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
-        />
-      </div>
+      <p className={cn("text-sm font-semibold", closing.className)}>
+        {closing.label}
+      </p>
     </Link>
   )
 }
 
-function MetadataLine({
-  className,
-  items,
+function PillLine({
+  province,
+  industry,
 }: {
-  className?: string
-  items: string[]
+  province?: string | null
+  industry?: string | null
 }) {
+  const items = compact([province, industry])
   if (!items.length) return null
 
   return (
-    <p
-      className={cn(
-        "min-w-0 truncate text-sm text-muted-foreground",
-        className
-      )}
-    >
-      {items.join(" · ")}
-    </p>
+    <div className="flex min-w-0 flex-wrap gap-2">
+      {items.map((item) => (
+        <Badge
+          className={cn(
+            "max-w-full rounded-md border-border bg-secondary/70 px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+          )}
+          key={item}
+          variant="secondary"
+        >
+          <span className="truncate">{item}</span>
+        </Badge>
+      ))}
+    </div>
   )
 }
 
@@ -165,11 +172,88 @@ function compact(values: Array<string | null | undefined>) {
     .filter((value): value is string => Boolean(value))
 }
 
-function formatClosingDate(value?: string | null) {
-  if (!value) return "Not supplied"
+function formatClosingUrgency(value?: string | null) {
+  if (!value) {
+    return {
+      className: "text-muted-foreground",
+      label: "Closing date TBC",
+    }
+  }
 
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "Not supplied"
+  if (Number.isNaN(date.getTime())) {
+    return {
+      className: "text-muted-foreground",
+      label: "Closing date TBC",
+    }
+  }
 
-  return dateTimeFormatter.format(date)
+  const diffMs = date.getTime() - Date.now()
+  if (diffMs <= 0) {
+    return {
+      className: "text-muted-foreground",
+      label: "Closed",
+    }
+  }
+
+  const dayMs = 24 * 60 * 60 * 1_000
+  const hourMs = 60 * 60 * 1_000
+  const minuteMs = 60 * 1_000
+
+  if (diffMs < hourMs) {
+    const minutesLeft = Math.max(1, Math.ceil(diffMs / minuteMs))
+    return {
+      className: "text-primary",
+      label: `Closing in ${minutesLeft} ${
+        minutesLeft === 1 ? "minute" : "minutes"
+      }`,
+    }
+  }
+
+  if (diffMs < dayMs) {
+    const hoursLeft = Math.max(1, Math.ceil(diffMs / hourMs))
+    return {
+      className: "text-primary",
+      label: `Closing in ${hoursLeft} ${hoursLeft === 1 ? "hour" : "hours"}`,
+    }
+  }
+
+  const today = startOfDay(new Date())
+  const closingDay = startOfDay(date)
+  const calendarDaysLeft = Math.round(
+    (closingDay.getTime() - today.getTime()) / dayMs
+  )
+
+  if (calendarDaysLeft === 1) {
+    return {
+      className: "text-primary",
+      label: "Closes tomorrow",
+    }
+  }
+
+  if (calendarDaysLeft >= 2 && calendarDaysLeft <= 5) {
+    return {
+      className: "text-primary",
+      label: `Closes in ${calendarDaysLeft} days`,
+    }
+  }
+
+  return {
+    className: "text-muted-foreground",
+    label: `Closes ${dayFormatter.format(date)}`,
+  }
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function isRecentlyPublished(value?: string | null) {
+  if (!value) return false
+
+  const publishedAt = new Date(value)
+  if (Number.isNaN(publishedAt.getTime())) return false
+
+  const ageMs = Date.now() - publishedAt.getTime()
+  return ageMs >= 0 && ageMs <= NEW_BADGE_WINDOW_MS
 }

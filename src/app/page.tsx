@@ -9,6 +9,7 @@ import {
   ListingFilterIsland,
   MobileListingControls,
 } from "@/components/listing-filter-island"
+import { ListingResultCount } from "@/components/listing-result-count"
 import { TenderListItem } from "@/components/tender-list-item"
 import {
   Alert,
@@ -48,6 +49,7 @@ import {
 import { TENDER_TYPE_FILTERS } from "@/lib/tenders/filters"
 import { buildTenderPath } from "@/lib/tenders/format"
 import type { TenderListingItem } from "@/lib/tenders/types"
+import { cn } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -149,16 +151,24 @@ export default async function Home({ searchParams }: HomeProps) {
           </Alert>
         ) : null}
 
-        <div className="lg:hidden">
+        <div className="sticky top-0 z-20 bg-background/95 py-1.5 backdrop-blur lg:hidden">
           <MobileListingControls filters={filters} />
         </div>
 
-        <aside aria-label="Tender filters" className="hidden lg:block">
+        <aside
+          aria-label="Tender filters"
+          className="hidden lg:sticky lg:top-4 lg:block lg:self-start"
+        >
           <ListingFilterIsland filters={filters} />
         </aside>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <section className="flex flex-col gap-2" aria-label="Tender results">
+          <ListingResultCount
+            isFiltered={activeFilterCount > 0}
+            totalCount={listing.totalCount}
+          />
+
+          <section className="flex flex-col gap-3" aria-label="Tender results">
             {listing.items.length > 0 ? (
               listing.items.map((tender, index) => (
                 <TenderListItem
@@ -175,6 +185,7 @@ export default async function Home({ searchParams }: HomeProps) {
                   industry={tender.industry}
                   isNew={tender.is_new}
                   procurementType={formatProcurementType(tender)}
+                  publishedAt={tender.published_at}
                   province={tender.province}
                   tenderNumber={tender.tender_no}
                   title={
@@ -272,6 +283,10 @@ function TenderPagination({
         {pages.map((pageNumber) => (
           <PaginationItem key={pageNumber}>
             <PaginationLink
+              className={cn(
+                pageNumber === currentPage &&
+                  "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+              )}
               data-umami-event="tender_listing_page_change"
               data-umami-event-active-filters={String(activeFilterCount)}
               data-umami-event-direction={

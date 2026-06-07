@@ -13,7 +13,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -27,8 +26,6 @@ import {
   cleanValue,
   formatDate,
   formatDateTime,
-  formatTenderStatus,
-  statusLabel,
   summarizeTender,
 } from "@/lib/tenders/format"
 import {
@@ -136,7 +133,6 @@ export default async function TenderPage({ params }: TenderPageProps) {
     )
   }
 
-  const status = formatTenderStatus(tender)
   const jsonLd = buildTenderJsonLd(tender, documents)
   const description =
     tender.bid_description || tender.title || "No description supplied"
@@ -149,7 +145,7 @@ export default async function TenderPage({ params }: TenderPageProps) {
       />
       <header className="border-b bg-background">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:py-5 md:px-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
             <Button
               asChild
               className="min-h-11 w-fit sm:min-h-7"
@@ -161,22 +157,6 @@ export default async function TenderPage({ params }: TenderPageProps) {
                 Tenders
               </Link>
             </Button>
-
-            <div className="flex w-full flex-wrap justify-start gap-2 sm:w-auto sm:justify-end">
-              <Badge
-                variant={
-                  status === "closed"
-                    ? "secondary"
-                    : status === "closing_today"
-                      ? "destructive"
-                      : "default"
-                }
-              >
-                {statusLabel(status)}
-              </Badge>
-              {tender.is_new ? <Badge variant="outline">New</Badge> : null}
-              <Badge variant="outline">{tender.source_site || "eTenders"}</Badge>
-            </div>
           </div>
 
           <div className="flex min-w-0 flex-col gap-3">
@@ -297,7 +277,11 @@ function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
 function TenderSummaryStrip({ tender }: { tender: TenderDetail }) {
   return (
     <dl className="grid gap-x-8 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-      <SummaryItem label="Closing" value={formatDateTime(tender.closing_at)} />
+      <SummaryItem
+        emphasis={getClosingEmphasis(tender.closing_at)}
+        label="Closing"
+        value={formatDateTime(tender.closing_at)}
+      />
       <SummaryItem label="Buyer" value={cleanValue(tender.buyer_name)} />
       <SummaryItem label="Province" value={cleanValue(tender.province)} />
     </dl>
@@ -347,6 +331,7 @@ function TenderDetailTabs({ tender }: { tender: TenderDetail }) {
                 value={formatDate(tender.opening_at)}
               />
               <DetailItem
+                emphasis={getClosingEmphasis(tender.closing_at)}
                 label="Closing date"
                 value={formatDateTime(tender.closing_at)}
               />
@@ -562,16 +547,29 @@ function TenderSection({
 }
 
 function SummaryItem({
+  emphasis,
   label,
   value,
 }: {
+  emphasis?: boolean
   label: string
   value: string
 }) {
   return (
-    <div className="grid min-w-0 gap-1">
+    <div
+      className={cn(
+        "grid min-w-0 gap-1",
+        emphasis &&
+          "rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
+      )}
+    >
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-sm font-medium leading-5">
+      <dd
+        className={cn(
+          "min-w-0 break-words text-sm font-medium leading-5",
+          emphasis && "text-primary"
+        )}
+      >
         {value}
       </dd>
     </div>
@@ -603,16 +601,40 @@ function EmailLink({
 }
 
 function DetailItem({
+  emphasis,
   label,
   value,
 }: {
+  emphasis?: boolean
   label: string
   value: ReactNode
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-1",
+        emphasis &&
+          "rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
+      )}
+    >
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="break-words text-sm leading-5">{value}</dd>
+      <dd
+        className={cn(
+          "break-words text-sm leading-5",
+          emphasis && "font-medium text-primary"
+        )}
+      >
+        {value}
+      </dd>
     </div>
   )
+}
+
+function getClosingEmphasis(value?: string | null) {
+  if (!value) return false
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+
+  return date.getTime() > Date.now()
 }

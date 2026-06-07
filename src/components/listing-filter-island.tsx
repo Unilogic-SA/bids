@@ -2,17 +2,10 @@
 
 import Link from "next/link"
 import { IconChevronDown } from "@tabler/icons-react"
-import { RotateCcwIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react"
+import { RotateCcwIcon, SearchIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import {
   Field,
   FieldGroup,
@@ -55,14 +48,7 @@ type ListingFilterIslandProps = {
 
 export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
   return (
-    <Card className="lg:sticky lg:top-6" size="sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <SlidersHorizontalIcon data-icon="inline-start" />
-          Filters
-        </CardTitle>
-        <CardDescription>Open tenders only.</CardDescription>
-      </CardHeader>
+    <Card size="sm">
       <form
         action="/"
         method="get"
@@ -100,7 +86,7 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
       <Sheet>
         <SheetTrigger asChild>
           <Button
-            className="h-14 justify-center rounded-none text-base font-normal text-muted-foreground"
+            className="h-11 justify-center rounded-none text-sm font-normal text-muted-foreground"
             onClick={() =>
               trackUmamiEvent("tender_filter_panel_open", { panel: "search" })
             }
@@ -158,7 +144,7 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
       <Sheet>
         <SheetTrigger asChild>
           <Button
-            className="h-14 justify-center rounded-none text-base font-normal text-muted-foreground"
+            className="h-11 justify-center rounded-none text-sm font-normal text-muted-foreground"
             onClick={() =>
               trackUmamiEvent("tender_filter_panel_open", { panel: "sort" })
             }
