@@ -6,8 +6,6 @@ import {
   IconArrowLeft,
   IconDatabaseOff,
   IconExternalLink,
-  IconFileDownload,
-  IconFileOff,
 } from "@tabler/icons-react"
 
 import {
@@ -17,13 +15,6 @@ import {
 } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import { Separator } from "@/components/ui/separator"
 import {
   Tabs,
@@ -31,6 +22,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import { TenderDocuments } from "@/components/tender-documents"
 import {
   cleanValue,
   formatDate,
@@ -197,10 +189,7 @@ export default async function TenderPage({ params }: TenderPageProps) {
               </p>
             </div>
 
-            <TenderSummaryStrip
-              documentsCount={documents.length}
-              tender={tender}
-            />
+            <TenderSummaryStrip tender={tender} />
           </div>
         </div>
       </header>
@@ -305,19 +294,12 @@ function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
   }
 }
 
-function TenderSummaryStrip({
-  documentsCount,
-  tender,
-}: {
-  documentsCount: number
-  tender: TenderDetail
-}) {
+function TenderSummaryStrip({ tender }: { tender: TenderDetail }) {
   return (
-    <dl className="grid gap-x-8 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+    <dl className="grid gap-x-8 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
       <SummaryItem label="Closing" value={formatDateTime(tender.closing_at)} />
       <SummaryItem label="Buyer" value={cleanValue(tender.buyer_name)} />
       <SummaryItem label="Province" value={cleanValue(tender.province)} />
-      <SummaryItem label="Documents" value={String(documentsCount)} />
     </dl>
   )
 }
@@ -478,84 +460,6 @@ function TenderActionColumn({
   )
 }
 
-function TenderDocuments({
-  documents,
-  tender,
-}: {
-  documents: TenderDocument[]
-  tender: TenderDetail
-}) {
-  return (
-    <section className="flex flex-col gap-3 border-t pt-5 lg:border-t-0 lg:pt-0">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-medium">Documents</h2>
-        <Badge variant="secondary">{documents.length}</Badge>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        {documents.length > 0
-          ? "Source files open in a new tab."
-          : "No document links were included with this source record."}
-      </p>
-
-      {documents.length > 0 ? (
-        <div className="flex flex-col">
-          {documents.map((document, index) => (
-            <div className="min-w-0" key={document.id}>
-              <div className="flex min-w-0 flex-col gap-3 py-3 first:pt-0 last:pb-0">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <p className="break-words text-sm font-medium leading-5">
-                    {document.document_title || document.file_name || "Document"}
-                  </p>
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    {formatDocumentMeta(document)}
-                  </p>
-                </div>
-                <Button
-                  asChild
-                  className="min-h-11 w-full sm:min-h-7 sm:w-fit"
-                  size="sm"
-                  variant="outline"
-                >
-                  <a
-                    data-umami-event="tender_document_open"
-                    data-umami-event-extension={
-                      document.file_extension || "unknown"
-                    }
-                    data-umami-event-index={String(document.document_index)}
-                    data-umami-event-ocid={tender.ocid}
-                    data-umami-event-source={
-                      document.document_source || "unknown"
-                    }
-                    href={document.document_url}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    <IconFileDownload data-icon="inline-start" />
-                    Open document
-                  </a>
-                </Button>
-              </div>
-              {index < documents.length - 1 ? <Separator /> : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <Empty className="min-h-44">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <IconFileOff />
-            </EmptyMedia>
-            <EmptyTitle>No documents listed</EmptyTitle>
-            <EmptyDescription>
-              The source record does not include document links.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
-    </section>
-  )
-}
-
 function TenderContact({ tender }: { tender: TenderDetail }) {
   return (
     <div className="grid gap-6">
@@ -577,24 +481,6 @@ function TenderContact({ tender }: { tender: TenderDetail }) {
           />
           <DetailItem label="Telephone" value={cleanValue(tender.contact_tel)} />
           <DetailItem label="Role" value={cleanValue(tender.contact_role)} />
-        </dl>
-      </TenderSection>
-
-      <Separator />
-
-      <TenderSection title="Submission">
-        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-          <DetailItem
-            label="Submission email"
-            value={
-              <EmailLink
-                context="submission"
-                email={tender.contact_email}
-                tender={tender}
-              />
-            }
-          />
-          <DetailItem label="Raw contact" value={cleanValue(tender.contact_raw)} />
         </dl>
       </TenderSection>
     </div>
@@ -729,16 +615,4 @@ function DetailItem({
       <dd className="break-words text-sm leading-5">{value}</dd>
     </div>
   )
-}
-
-function formatDocumentMeta(document: TenderDocument) {
-  const metadata = [
-    cleanText(document.file_extension).toLocaleUpperCase("en-ZA"),
-    cleanText(document.file_size_text),
-    document.date_published
-      ? `Published ${formatDate(document.date_published)}`
-      : "",
-  ].filter(Boolean)
-
-  return metadata.length ? metadata.join(" / ") : "Details not supplied"
 }
