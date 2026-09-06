@@ -1,6 +1,9 @@
 {
   "name": "Bug",
   "description": "Tell us what went wrong.",
+  "labels": [
+    "type:bug"
+  ],
   "body": [
     {
       "type": "textarea",
@@ -70,4 +73,3 @@
     }
   ]
 }
-
