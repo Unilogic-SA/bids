@@ -1,0 +1,50 @@
+{
+  "name": "Preview readiness",
+  "on": {
+    "workflow_run": {
+      "workflows": [
+        "CI"
+      ],
+      "types": [
+        "completed"
+      ]
+    },
+    "deployment_status": {},
+    "workflow_dispatch": {}
+  },
+  "permissions": {},
+  "concurrency": {
+    "group": "repository-preview-readiness",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "readiness": {
+      "if": "github.repository == 'Unilogic-SA/bids'",
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 5,
+      "permissions": {
+        "contents": "read",
+        "issues": "write",
+        "pull-requests": "read",
+        "actions": "read",
+        "deployments": "read"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "ref": "main",
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/github-script@v7",
+          "with": {
+            "script": "const run = require('./.github/scripts/workflow.cjs'); await run.preview({ github, context, core });"
+          }
+        }
+      ]
+    }
+  }
+}
+

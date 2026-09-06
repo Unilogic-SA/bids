@@ -1,0 +1,73 @@
+{
+  "name": "Bug",
+  "description": "Tell us what went wrong.",
+  "body": [
+    {
+      "type": "textarea",
+      "id": "happened",
+      "attributes": {
+        "label": "What happened",
+        "description": "Describe the problem."
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "expected",
+      "attributes": {
+        "label": "Expected behaviour",
+        "description": "What should have happened?"
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "steps",
+      "attributes": {
+        "label": "Steps to reproduce",
+        "description": "List the steps that show the problem."
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "environment",
+      "attributes": {
+        "label": "Environment / page",
+        "description": "Page URL, browser/device, and whether this is preview or production."
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "context",
+      "attributes": {
+        "label": "Screenshot or context",
+        "description": "Attach useful context with private information removed."
+      },
+      "validations": {
+        "required": false
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "acceptance",
+      "attributes": {
+        "label": "Acceptance criteria for the fix",
+        "description": "What will you check to confirm the fix?"
+      },
+      "validations": {
+        "required": true
+      }
+    }
+  ]
+}
+
