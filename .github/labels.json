@@ -1,0 +1,88 @@
+[
+  {
+    "name": "type:feature",
+    "description": "New capability or improvement",
+    "color": "1D76DB"
+  },
+  {
+    "name": "type:bug",
+    "description": "Something is not working",
+    "color": "D73A4A"
+  },
+  {
+    "name": "type:ux",
+    "description": "Usability or visual experience",
+    "color": "A2EEEF"
+  },
+  {
+    "name": "type:seo",
+    "description": "Search visibility",
+    "color": "0075CA"
+  },
+  {
+    "name": "type:tech-debt",
+    "description": "Maintenance without a new feature",
+    "color": "5319E7"
+  },
+  {
+    "name": "risk:low",
+    "description": "Small impact; easy to reverse",
+    "color": "C2E0C6"
+  },
+  {
+    "name": "risk:medium",
+    "description": "Needs careful preview testing",
+    "color": "FBCA04"
+  },
+  {
+    "name": "risk:high",
+    "description": "Security, auth, data or release-sensitive change",
+    "color": "B60205"
+  },
+  {
+    "name": "size:small",
+    "description": "One focused change",
+    "color": "C2E0C6"
+  },
+  {
+    "name": "size:medium",
+    "description": "Several related changes",
+    "color": "FBCA04"
+  },
+  {
+    "name": "size:large",
+    "description": "Split into smaller Issues where possible",
+    "color": "D93F0B"
+  },
+  {
+    "name": "needs-spec",
+    "description": "Clarify the outcome and acceptance criteria",
+    "color": "FBCA04"
+  },
+  {
+    "name": "codex-ready",
+    "description": "Owner has authorised implementation",
+    "color": "0E8A16"
+  },
+  {
+    "name": "in-development",
+    "description": "Implementation or checks are in progress",
+    "color": "1D76DB"
+  },
+  {
+    "name": "ready-for-testing",
+    "description": "Latest CI and preview ready for owner testing",
+    "color": "5319E7"
+  },
+  {
+    "name": "changes-needed",
+    "description": "Owner requests another iteration on the same PR",
+    "color": "D93F0B"
+  },
+  {
+    "name": "approved",
+    "description": "Owner tested this revision; human merge still required",
+    "color": "0E8A16"
+  }
+]
+

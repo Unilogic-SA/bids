@@ -1,0 +1,84 @@
+{
+  "name": "Feature / Improvement",
+  "description": "Describe an outcome you want.",
+  "body": [
+    {
+      "type": "textarea",
+      "id": "problem",
+      "attributes": {
+        "label": "Problem",
+        "description": "What is difficult or missing, and for whom?"
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "outcome",
+      "attributes": {
+        "label": "Desired Outcome",
+        "description": "What should be better?"
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "behaviour",
+      "attributes": {
+        "label": "User Behaviour",
+        "description": "What should a person be able to do?"
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "ux",
+      "attributes": {
+        "label": "UX / UI considerations",
+        "description": "Describe the experience or attach a sketch; no technical design needed."
+      },
+      "validations": {
+        "required": false
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "acceptance",
+      "attributes": {
+        "label": "Acceptance Criteria",
+        "description": "List observable checks that tell you this is finished."
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "scope",
+      "attributes": {
+        "label": "Out of Scope",
+        "description": "What should stay outside this change?"
+      },
+      "validations": {
+        "required": false
+      }
+    },
+    {
+      "type": "textarea",
+      "id": "context",
+      "attributes": {
+        "label": "Additional Context",
+        "description": "Links or screenshots. Never paste secrets or private data."
+      },
+      "validations": {
+        "required": false
+      }
+    }
+  ]
+}
+

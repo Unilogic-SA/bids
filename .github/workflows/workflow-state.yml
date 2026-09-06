@@ -1,0 +1,63 @@
+{
+  "name": "Issue and PR workflow",
+  "on": {
+    "issues": {
+      "types": [
+        "opened",
+        "edited",
+        "labeled",
+        "reopened",
+        "closed"
+      ]
+    },
+    "pull_request_target": {
+      "branches": [
+        "main"
+      ],
+      "types": [
+        "opened",
+        "edited",
+        "reopened",
+        "synchronize",
+        "ready_for_review",
+        "converted_to_draft",
+        "closed",
+        "labeled"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {},
+  "concurrency": {
+    "group": "repository-workflow-state",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "metadata": {
+      "if": "github.repository == 'Unilogic-SA/bids'",
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 5,
+      "permissions": {
+        "contents": "read",
+        "issues": "write",
+        "pull-requests": "read"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "ref": "main",
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/github-script@v7",
+          "with": {
+            "script": "const run = require('./.github/scripts/workflow.cjs'); await run({ github, context, core });"
+          }
+        }
+      ]
+    }
+  }
+}
+
