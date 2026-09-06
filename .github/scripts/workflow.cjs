@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Metadata-only automation. Never execute PR code or fetch an external repository.
 const REPO = { owner: 'Unilogic-SA', repo: 'bids' };
 const FULL = 'Unilogic-SA/bids';
