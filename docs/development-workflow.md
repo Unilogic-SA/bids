@@ -3,7 +3,7 @@
 Only use [Unilogic-SA/bids](https://github.com/Unilogic-SA/bids). See [one-time setup](workflow-setup.md) first.
 
 ## Daily use
-1. Add an idea as a Feature / Improvement or Bug Issue. Add it to the board's Backlog.
+1. Capture an unfinished thought with **Quick Idea / Backlog**, or use **Feature / Improvement** or **Bug** when the outcome is already clear. New Issues are added to Backlog automatically.
 2. Describe the outcome and acceptance criteria. Use Needs Spec while deciding.
 3. When ready, open the Issue inside the board and apply **codex-ready**; move Status to **Ready for Codex**.
 4. In Codex Cloud, select **Unilogic-SA/bids** and submit this prompt with the Issue URL:
@@ -16,6 +16,15 @@ Only use [Unilogic-SA/bids](https://github.com/Unilogic-SA/bids). See [one-time 
 10. GitHub closes the linked Issue on merge to main; the built-in Project workflow moves it to Done. Vercel deploys main when its Git integration is configured. Check that production deployment also succeeds.
 
 A new commit invalidates your previous approval: test the new preview again. Green CI or an approved label never merges anything automatically.
+
+## Capturing a rough idea
+Use **Quick Idea / Backlog** when you want to record a thought without writing a full specification. It receives **needs-spec** automatically. Later, ask Codex:
+
+> Turn this rough idea into a complete Feature Issue with a clear problem, desired outcome, user behaviour and testable acceptance criteria. Do not implement it.
+
+Review the improved Issue yourself. Apply **codex-ready** only when you want implementation to begin.
+
+The Feature form applies **type:feature** automatically. The Bug form applies **type:bug** automatically.
 
 ## Status meanings
 | Status | Meaning |
@@ -41,4 +50,3 @@ A new commit invalidates your previous approval: test the new preview again. Gre
 - Paste secrets, passwords or private records into public Issues/PRs.
 - Merge failing checks to “see if it works”, or merge a revision you have not tested.
 - Use production write credentials or run production sync jobs while testing a preview.
-
