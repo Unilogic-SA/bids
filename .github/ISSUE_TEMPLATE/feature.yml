@@ -1,6 +1,9 @@
 {
   "name": "Feature / Improvement",
   "description": "Describe an outcome you want.",
+  "labels": [
+    "type:feature"
+  ],
   "body": [
     {
       "type": "textarea",
@@ -81,4 +84,3 @@
     }
   ]
 }
-
