@@ -26,6 +26,7 @@ type TenderListItemProps = {
   isNew?: boolean | null
   publishedAt?: string | null
   detailUrl: string
+  resultId?: string
   analytics?: {
     activeFilterCount: number
     page: number
@@ -45,6 +46,7 @@ export function TenderListItem({
   isNew,
   publishedAt,
   detailUrl,
+  resultId,
   analytics,
 }: TenderListItemProps) {
   const displayTitle =
@@ -61,6 +63,7 @@ export function TenderListItem({
       aria-label={`${displayTitle}. ${closing.label}.`}
       className="group relative flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card px-3.5 py-2.5 text-card-foreground transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
       href={detailUrl}
+      id={resultId}
       onClick={() =>
         trackUmamiEvent("tender_result_open", {
           active_filters: analytics?.activeFilterCount,

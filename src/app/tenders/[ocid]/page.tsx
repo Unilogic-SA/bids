@@ -1,6 +1,5 @@
 import Link from "next/link"
 import type { Metadata } from "next"
-import { notFound } from "next/navigation"
 import { cache, type ReactNode } from "react"
 import {
   IconArrowLeft,
@@ -22,6 +21,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { TenderDocuments } from "@/components/tender-documents"
+import { TenderNotFound } from "@/components/tender-not-found"
 import {
   cleanValue,
   formatDate,
@@ -60,11 +60,9 @@ export async function generateMetadata({
     decodeURIComponent(ocid)
   )
 
-  if (!tender && !configMissing) notFound()
-
   if (!tender) {
     return {
-      title: "Tender data unavailable",
+      title: configMissing ? "Tender data unavailable" : "Tender not found",
       robots: {
         index: false,
         follow: false,
@@ -121,7 +119,9 @@ export default async function TenderPage({
     decodeURIComponent(ocid)
   )
 
-  if (!tender && !configMissing) notFound()
+  if (!tender && !configMissing) {
+    return <TenderNotFound listingHref={listingHref} />
+  }
 
   if (!tender) {
     return (

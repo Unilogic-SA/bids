@@ -346,23 +346,40 @@ export function buildListingHref(
 
 export function buildTenderDetailHref(
   detailPath: string,
-  listingParams: ListingSearchParams
+  listingParams: ListingSearchParams,
+  resultPosition: number
 ) {
-  const returnTo = buildListingHref(listingParams)
+  const returnTo = `${buildListingHref(listingParams)}#${buildTenderResultId(resultPosition)}`
   const separator = detailPath.includes("?") ? "&" : "?"
 
   return `${detailPath}${separator}from=${encodeURIComponent(returnTo)}`
 }
 
+export function buildTenderResultId(position: number) {
+  return `tender-result-${position}`
+}
+
 export function parseListingReturnHref(value: string | string[] | undefined) {
   const returnTo = readParam(value)
   if (returnTo === "/") return returnTo
-  if (!returnTo?.startsWith("/?")) return "/"
+  if (!returnTo?.startsWith("/?") && !returnTo?.startsWith("/#")) return "/"
 
-  const query = returnTo.slice(2).split("#", 1)[0]
+  const [pathAndQuery, hash] = returnTo.split("#", 2)
+  const query = pathAndQuery === "/" ? "" : pathAndQuery.slice(2)
   const rawParams = Object.fromEntries(new URLSearchParams(query))
+  const listingHref = buildListingHref(parseListingSearchParams(rawParams))
 
-  return buildListingHref(parseListingSearchParams(rawParams))
+  if (!hash || !isTenderResultId(hash)) return listingHref
+
+  return `${listingHref}#${hash}`
+}
+
+function isTenderResultId(value: string) {
+  const match = /^tender-result-(\d+)$/.exec(value)
+  if (!match) return false
+
+  const position = Number(match[1])
+  return position >= 1 && position <= LISTING_PAGE_SIZE
 }
 
 function readParam(value: string | string[] | undefined) {

@@ -35,6 +35,7 @@ import {
 import {
   buildListingHref,
   buildTenderDetailHref,
+  buildTenderResultId,
   getLatestRecentFailedSyncRun,
   getLatestSyncRun,
   getLatestSuccessfulSyncRun,
@@ -183,13 +184,15 @@ export default async function Home({ searchParams }: HomeProps) {
                   closingDate={tender.closing_at}
                   detailUrl={buildTenderDetailHref(
                     tender.detail_path || buildTenderPath(tender.ocid),
-                    filters
+                    filters,
+                    index + 1
                   )}
                   documentsCount={tender.documents_count}
                   industry={tender.industry}
                   isNew={tender.is_new}
                   procurementType={formatProcurementType(tender)}
                   publishedAt={tender.published_at}
+                  resultId={buildTenderResultId(index + 1)}
                   province={tender.province}
                   tenderNumber={tender.tender_no}
                   title={
