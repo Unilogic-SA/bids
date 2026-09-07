@@ -42,8 +42,8 @@ For every PR, test the Preview deployment for the newest commit. A new commit in
 ## Automation and permissions
 
 - **CI:** Contents read only. Node 24, `npm ci`, automation tests, lint, typecheck, and production build.
-- **Issue/PR workflow:** Contents read, Issues write, Pull requests read. It handles intake, specification checks, exclusive workflow labels, same-repository PR association, stale approval removal, and label cleanup.
-- **Preview readiness:** Contents, Actions, Deployments, and Pull requests read; Issues write. It requires current successful PR CI and a successful Vercel Preview deployment.
+- **Issue/PR workflow:** Contents read, Issues write, Pull requests write. It handles intake, specification checks, exclusive workflow labels, same-repository PR association, stale approval removal, and label cleanup.
+- **Preview readiness:** Contents, Actions, and Deployments read; Issues and Pull requests write. It requires current successful PR CI and a successful Vercel Preview deployment.
 - Privileged jobs check out `main` only, disable persisted credentials, and never run PR-controlled code.
 - Every job and API operation is explicitly restricted to `Unilogic-SA/bids`.
 - GitHub Actions uses only its repository-scoped `GITHUB_TOKEN`. No PAT or extra GitHub App token was added.
