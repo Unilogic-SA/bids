@@ -1,6 +1,8 @@
-import Link from "next/link"
 import { FileSearchIcon } from "lucide-react"
+import Link from "next/link"
+import { Suspense } from "react"
 
+import { TenderListingReturnButton } from "@/components/tender-listing-return-link"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -11,7 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 
-export function TenderNotFound({ listingHref = "/" }: { listingHref?: string }) {
+export function TenderNotFound() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-4 py-10 md:px-6">
       <Empty className="border">
@@ -26,9 +28,15 @@ export function TenderNotFound({ listingHref = "/" }: { listingHref?: string }) 
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button asChild>
-            <Link href={listingHref}>Back to open tenders</Link>
-          </Button>
+          <Suspense
+            fallback={
+              <Button asChild>
+                <Link href="/">Back to open tenders</Link>
+              </Button>
+            }
+          >
+            <TenderListingReturnButton />
+          </Suspense>
         </EmptyContent>
       </Empty>
     </main>

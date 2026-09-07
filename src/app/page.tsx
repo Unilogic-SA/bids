@@ -36,11 +36,13 @@ import {
   buildListingHref,
   buildTenderDetailHref,
   buildTenderResultId,
+  parseListingSearchParams,
+} from "@/lib/tenders/navigation"
+import {
   getLatestRecentFailedSyncRun,
   getLatestSyncRun,
   getLatestSuccessfulSyncRun,
   getTenderListing,
-  parseListingSearchParams,
 } from "@/lib/tenders/query"
 import {
   absoluteUrl,

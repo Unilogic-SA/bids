@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 import { cache, type ReactNode } from "react"
 import {
   IconArrowLeft,
@@ -21,7 +22,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { TenderDocuments } from "@/components/tender-documents"
-import { TenderNotFound } from "@/components/tender-not-found"
 import {
   cleanValue,
   formatDate,
@@ -36,10 +36,8 @@ import {
   getTenderTitle,
   stringifyJsonLd,
 } from "@/lib/seo"
-import {
-  getTenderDetail,
-  parseListingReturnHref,
-} from "@/lib/tenders/query"
+import { parseListingReturnHref } from "@/lib/tenders/navigation"
+import { getTenderDetail } from "@/lib/tenders/query"
 import type { TenderDetail, TenderDocument } from "@/lib/tenders/types"
 import { cn } from "@/lib/utils"
 
@@ -59,6 +57,8 @@ export async function generateMetadata({
   const { tender, documents, configMissing } = await getCachedTenderDetail(
     decodeURIComponent(ocid)
   )
+
+  if (!tender && !configMissing) notFound()
 
   if (!tender) {
     return {
@@ -119,9 +119,7 @@ export default async function TenderPage({
     decodeURIComponent(ocid)
   )
 
-  if (!tender && !configMissing) {
-    return <TenderNotFound listingHref={listingHref} />
-  }
+  if (!tender && !configMissing) notFound()
 
   if (!tender) {
     return (
