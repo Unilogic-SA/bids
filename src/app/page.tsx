@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/pagination"
 import {
   buildListingHref,
+  buildTenderDetailHref,
   getLatestRecentFailedSyncRun,
   getLatestSyncRun,
   getLatestSuccessfulSyncRun,
@@ -180,7 +181,10 @@ export default async function Home({ searchParams }: HomeProps) {
                   }}
                   buyer={tender.buyer_name || tender.department}
                   closingDate={tender.closing_at}
-                  detailUrl={tender.detail_path || buildTenderPath(tender.ocid)}
+                  detailUrl={buildTenderDetailHref(
+                    tender.detail_path || buildTenderPath(tender.ocid),
+                    filters
+                  )}
                   documentsCount={tender.documents_count}
                   industry={tender.industry}
                   isNew={tender.is_new}

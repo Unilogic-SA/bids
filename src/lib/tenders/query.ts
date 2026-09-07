@@ -344,6 +344,27 @@ export function buildListingHref(
   return query ? `/?${query}` : "/"
 }
 
+export function buildTenderDetailHref(
+  detailPath: string,
+  listingParams: ListingSearchParams
+) {
+  const returnTo = buildListingHref(listingParams)
+  const separator = detailPath.includes("?") ? "&" : "?"
+
+  return `${detailPath}${separator}from=${encodeURIComponent(returnTo)}`
+}
+
+export function parseListingReturnHref(value: string | string[] | undefined) {
+  const returnTo = readParam(value)
+  if (returnTo === "/") return returnTo
+  if (!returnTo?.startsWith("/?")) return "/"
+
+  const query = returnTo.slice(2).split("#", 1)[0]
+  const rawParams = Object.fromEntries(new URLSearchParams(query))
+
+  return buildListingHref(parseListingSearchParams(rawParams))
+}
+
 function readParam(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value[0] || undefined
   return value || undefined
