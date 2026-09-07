@@ -75,7 +75,7 @@ async function run({ github, context, core }) {
         await note(github, number, 'Please complete the problem, desired outcome and acceptance criteria (or the Bug form). Each should contain a useful sentence. Then apply codex-ready again. This check only checks completeness.');
       } else {
         await state(github, number, 'codex-ready');
-        await note(github, number, 'Ready for your Codex handoff. In Codex Cloud select Unilogic-SA/bids and submit: "Implement ' + issue.html_url + ' following AGENTS.md. Use a dedicated branch, open a PR with Closes #' + number + ', and do not merge." This label does not launch Codex. See docs/development-workflow.md.');
+        await note(github, number, 'Ready for Codex. As the owner, add this exact new comment to this Issue:\n\n@codex Implement this Issue following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #' + number + ', and do not merge.\n\nThe comment launches a Codex Cloud task. When it finishes, open the task link and click View PR, or click Create PR if it has not published yet. See docs/development-workflow.md.');
       }
     } else if (context.payload.action === 'labeled' && STATES.includes(context.payload.label.name)) {
       await state(github, number, context.payload.label.name);
