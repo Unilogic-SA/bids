@@ -18,8 +18,9 @@ test('intake requires useful specification sections', () => {
   assert.equal(run.specComplete('### Problem\n_No response_\n### Desired Outcome\nTBD\n### Acceptance Criteria\n<!-- fill this section -->'), false);
 });
 test('only the repository owner can start issue implementation by comment', () => {
-  const base = {issue:{number:12,state:'open'},comment:{user:{login:'Unilogic-SA'},body:'@codex Review and refine this Issue, then implement it.'}};
+  const base = {action:'created',issue:{number:12,state:'open'},comment:{user:{login:'Unilogic-SA'},body:'@codex Review and refine this Issue, then implement it.'}};
   assert.equal(run.ownerImplementation(base), true);
+  assert.equal(run.ownerImplementation({...base,action:'edited'}), false);
   assert.equal(run.ownerImplementation({...base,comment:{...base.comment,user:{login:'someone-else'}}}), false);
   assert.equal(run.ownerImplementation({...base,issue:{...base.issue,pull_request:{url:'pr'}}}), false);
   assert.equal(run.ownerImplementation({...base,comment:{...base.comment,body:'@codex groom this Issue only'}}), false);
@@ -39,7 +40,7 @@ test('owner implementation comment transitions the Issue to in-development', asy
     context:{
       repo:{owner:'Unilogic-SA',repo:'bids'},
       eventName:'issue_comment',
-      payload:{issue:{number:12,state:'open'},comment:{user:{login:'Unilogic-SA'},body:'@codex refine and implement this Issue'}}
+      payload:{action:'created',issue:{number:12,state:'open'},comment:{user:{login:'Unilogic-SA'},body:'@codex refine and implement this Issue'}}
     },
     core:{info(){}}
   });
