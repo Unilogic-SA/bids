@@ -203,15 +203,12 @@ export async function getTenderDetail(ocid: string) {
   }
 
   const supabase = createPublicClient()
-  const availabilityCutoff = getAvailabilityCutoff()
   const [{ data: tender, error }, { data: documents, error: documentsError }] =
     await Promise.all([
       supabase
         .from("tenders")
         .select(DETAIL_COLUMNS)
         .eq("ocid", ocid)
-        .eq("derived_status", "open")
-        .gte("closing_at", availabilityCutoff)
         .maybeSingle(),
       supabase
         .from("tender_documents")
