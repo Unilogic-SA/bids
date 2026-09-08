@@ -15,11 +15,11 @@ Future schema changes require a reviewed migration and explicit environment/depl
 Production Supabase project: eanhpdxlskwxplglprrt. Preview must not receive its service-role key, secret key or ETENDERS_SYNC_SECRET. Public configuration does not grant permission to modify production data.
 
 ## Development workflow
-Every implementation maps to an Issue in this repository. Wait for the owner to apply codex-ready.
-Read the whole Issue and acceptance criteria. A label check is only a completeness check, not a product specification review.
+Every implementation maps to an Issue in this repository. The owner's codex-ready label or explicit @codex implementation request is Gate 1 and authorises implementation.
+Read the whole Issue and acceptance criteria. If the owner has authorised a Quick Idea whose structure is informal, refine its specification in the same Issue as needed; do not reject it solely because exact template headings are absent.
 Use a dedicated codex/<issue-number>-<short-name> branch from main; never implement directly on main.
 Set in-development when starting, open a PR, and include a standalone closing line: Closes #123.
-When a GitHub @codex task finishes without publishing, preserve the committed workspace and tell the owner to use the task's **Create PR** action. Shell GitHub credentials are not required for that supported publication path.
+When a GitHub @codex task finishes without publishing, preserve the committed workspace and tell the owner to open that Codex task and personally click **Create PR**. Another GitHub comment cannot click the task UI. Shell GitHub credentials are not required for this supported publication path.
 Use exactly one originating Issue per PR. Keep fixes on the same branch/PR unless there is a clear reason to split them.
 Never merge, enable auto-merge, approve on the owner's behalf, or apply approved without explicit human production approval for the current change. Normally the owner performs the merge in GitHub.
 After any new commit, prior preview approval is stale: rerun checks and ask the owner to retest.
