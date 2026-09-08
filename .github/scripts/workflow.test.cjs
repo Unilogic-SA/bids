@@ -10,7 +10,7 @@ test('refuses any repository except Unilogic-SA/bids', () => {
 });
 test('only accepts one unambiguous local closing line', () => {
   assert.equal(run.linkedIssue('Summary\nCloses #123\n'), 123);
-  for (const body of ['Closes other/repo#1','Closes https://github.com/other/repo/issues/1','Closes #1 and #2','Closes #1\nFixes #2','Closes #0']) assert.equal(run.linkedIssue(body), null);
+  for (const body of ['Closes other/repo#1','Closes https://github.com/other/repo/issues/1','Closes #1 and #2','Closes #1\nFixes #2','Closes #1.','Closes [https://github.com/Unilogic-SA/bids/issues/1]','Closes #0']) assert.equal(run.linkedIssue(body), null);
 });
 test('intake requires useful specification sections', () => {
   assert.equal(run.specComplete('### Problem\nUsers cannot find relevant tenders.\n### Desired Outcome\nMake finding relevant tenders easier.\n### Acceptance Criteria\nThe owner can filter by province.'), true);

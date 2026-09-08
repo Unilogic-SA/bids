@@ -25,11 +25,11 @@ Board dragging alone does not start Codex. Open the Issue and apply **codex-read
 
 A Codex Cloud environment connected to **Unilogic-SA/bids** exists. Keep it limited to this repository and do not add production database secrets.
 
-**Codex handoff requires this one manual action:** create a task in that environment with the Issue URL and this prompt:
+**Codex handoff requires one deliberate owner action:** add this comment to the ready Issue, replacing only the number:
 
-> Implement ISSUE_URL following AGENTS.md. Use a dedicated branch, open a PR linked with Closes #NUMBER, and do not merge.
+> @codex Implement this Issue following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #NUMBER, and do not merge.
 
-The supported integration does not provide a repository-safe label-to-Codex-task trigger, so no invented API, scraped UI, OpenAI credential, or paid runner is used. Existing desktop skills are not guaranteed in Cloud; configure a specialised skill there only when a task needs it.
+This supported GitHub mention launches a repository-scoped Codex Cloud task. When it finishes, use **View PR**. If it committed the work but reports that shell push credentials are unavailable, click **Create PR** in the task; do not recreate the code or add a GitHub token. Applying `codex-ready` alone does not launch Codex, which preserves the owner's development gate. Existing desktop skills are not guaranteed in Cloud; configure a specialised skill there only when a task needs it.
 
 ## Vercel
 

@@ -19,6 +19,7 @@ Every implementation maps to an Issue in this repository. Wait for the owner to 
 Read the whole Issue and acceptance criteria. A label check is only a completeness check, not a product specification review.
 Use a dedicated codex/<issue-number>-<short-name> branch from main; never implement directly on main.
 Set in-development when starting, open a PR, and include a standalone closing line: Closes #123.
+When a GitHub @codex task finishes without publishing, preserve the committed workspace and tell the owner to use the task's **Create PR** action. Shell GitHub credentials are not required for that supported publication path.
 Use exactly one originating Issue per PR. Keep fixes on the same branch/PR unless there is a clear reason to split them.
 Never merge, enable auto-merge, approve on the owner's behalf, or apply approved without explicit human production approval for the current change. Normally the owner performs the merge in GitHub.
 After any new commit, prior preview approval is stale: rerun checks and ask the owner to retest.

@@ -6,9 +6,9 @@ Only use [Unilogic-SA/bids](https://github.com/Unilogic-SA/bids). See [one-time 
 1. Capture an unfinished thought with **Quick Idea / Backlog**, or use **Feature / Improvement** or **Bug** when the outcome is already clear. New Issues are added to Backlog automatically.
 2. Describe the outcome and acceptance criteria. Use Needs Spec while deciding.
 3. When ready, open the Issue inside the board and apply **codex-ready**; move Status to **Ready for Codex**.
-4. In Codex Cloud, select **Unilogic-SA/bids** and submit this prompt with the Issue URL:
-   > Implement ISSUE_URL following AGENTS.md. Use a dedicated branch, open a PR linked with Closes #NUMBER, and do not merge.
-5. Codex starts implementation and opens a PR. Labels track development, and Codex automatically reviews your new PR. The board's intermediate Status needs a manual move; labels do not automatically update it.
+4. On the Issue, add this exact comment, replacing only the number:
+   > @codex Implement this Issue following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #NUMBER, and do not merge.
+5. The comment launches a Codex Cloud task. When it finishes, click **View PR**. If the task still shows **Create PR**, click it once to publish the committed work; a shell push warning does not mean the work is lost. Labels track development, and Codex automatically reviews your new PR. The board's intermediate Status needs a manual move; labels do not automatically update it.
 6. Open [My Action](https://github.com/users/Unilogic-SA/projects/1/views/2) to see work labelled **needs-spec**, **codex-ready**, **ready-for-testing**, **changes-needed**, or **approved**. For testing, open the Issue/PR labelled **ready-for-testing** and click its current Vercel preview link.
 7. Test every acceptance criterion. Test preview, not the production site.
 8. Wrong result? Describe what you saw on the **same PR**, apply **changes-needed** to the PR and move the board to Changes Needed. Comment `@codex fix the problems described above on this same PR; do not merge` when the Codex GitHub integration is enabled; otherwise send the PR URL and feedback to the existing Codex task.
@@ -22,7 +22,7 @@ Use **Quick Idea / Backlog** when you want to record a thought without writing a
 
 > Turn this rough idea into a complete Feature Issue with a clear problem, desired outcome, user behaviour and testable acceptance criteria. Do not implement it.
 
-Review the improved Issue yourself. Apply **codex-ready** only when you want implementation to begin.
+Review the improved Issue yourself. Apply **codex-ready** only when you want implementation to begin. Keep `Closes #NUMBER` as plain text in the implementation instruction; do not turn it into a link.
 
 The Feature form applies **type:feature** automatically. The Bug form applies **type:bug** automatically.
 
