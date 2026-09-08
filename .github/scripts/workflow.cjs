@@ -27,6 +27,7 @@ function ownerImplementation(payload = {}) {
   const issue = payload.issue;
   const comment = payload.comment;
   return Boolean(
+    payload.action === 'created' &&
     issue &&
     !issue.pull_request &&
     issue.state === 'open' &&
