@@ -58,7 +58,7 @@ export default async function AdminLoginPage({
               <CardTitle>Admin access</CardTitle>
             </div>
             <CardDescription>
-              Sign in with an authorized email address.
+              Sign in with an authorized admin account.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
