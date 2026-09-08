@@ -2,6 +2,7 @@
 // Metadata-only automation. Never execute PR code or fetch an external repository.
 const REPO = { owner: 'Unilogic-SA', repo: 'bids' };
 const FULL = 'Unilogic-SA/bids';
+const OWNER = 'Unilogic-SA';
 const STATES = ['needs-spec', 'codex-ready', 'in-development', 'ready-for-testing', 'changes-needed', 'approved'];
 function boundary(context) {
   if (context.repo.owner + '/' + context.repo.repo !== FULL) throw new Error('Repository boundary violation');
@@ -21,6 +22,18 @@ function specComplete(body = '') {
   });
   return usable(['problem', 'desired outcome', 'acceptance criteria']) ||
     usable(['what happened', 'expected behaviour', 'steps to reproduce', 'acceptance criteria for the fix']);
+}
+function ownerImplementation(payload = {}) {
+  const issue = payload.issue;
+  const comment = payload.comment;
+  return Boolean(
+    issue &&
+    !issue.pull_request &&
+    issue.state === 'open' &&
+    comment?.user?.login === OWNER &&
+    /@codex\b/i.test(comment.body || '') &&
+    /\bimplement\b/i.test(comment.body || '')
+  );
 }
 async function state(github, number, next) {
   const { data: item } = await github.rest.issues.get({ ...REPO, issue_number: number });
@@ -58,6 +71,13 @@ async function run({ github, context, core }) {
     core.info('Labels installed for ' + FULL);
     return;
   }
+  if (context.eventName === 'issue_comment') {
+    if (!ownerImplementation(context.payload)) return;
+    const number = context.payload.issue.number;
+    await state(github, number, 'in-development');
+    await note(github, number, 'Codex implementation was requested by the repository owner, so this Issue is now in development. When the Codex task finishes, open its task link. If it still shows Create PR, click that button yourself to publish the branch and PR; another GitHub comment cannot click the task button.');
+    return;
+  }
   if (context.eventName === 'issues') {
     const number = context.payload.issue.number;
     const { data: issue } = await github.rest.issues.get({ ...REPO, issue_number: number });
@@ -70,13 +90,11 @@ async function run({ github, context, core }) {
       await state(github, number, 'needs-spec');
     }
     if (labels.includes('codex-ready')) {
-      if (!specComplete(issue.body || '')) {
-        await state(github, number, 'needs-spec');
-        await note(github, number, 'Please complete the problem, desired outcome and acceptance criteria (or the Bug form). Each should contain a useful sentence. Then apply codex-ready again. This check only checks completeness.');
-      } else {
-        await state(github, number, 'codex-ready');
-        await note(github, number, 'Ready for Codex. As the owner, add this exact new comment to this Issue:\n\n@codex Implement this Issue following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #' + number + ', and do not merge.\n\nThe comment launches a Codex Cloud task. When it finishes, open the task link and click View PR, or click Create PR if it has not published yet. See docs/development-workflow.md.');
-      }
+      await state(github, number, 'codex-ready');
+      const guidance = specComplete(issue.body || '')
+        ? 'The usual specification sections are complete.'
+        : 'You chose to proceed with the current description. Codex should refine any missing detail in this same Issue before coding.';
+      await note(github, number, 'Ready for Codex. ' + guidance + ' As the repository owner, add this new comment to this Issue:\n\n@codex Review and refine this Issue if needed, then implement it following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #' + number + ', and do not merge.\n\nThis comment starts a Codex Cloud task and changes the Issue to in-development. When the task finishes, open its link. If it shows Create PR, you must click that button once to publish the branch and PR; asking Codex in another GitHub comment cannot click its task UI. See docs/development-workflow.md.');
     } else if (context.payload.action === 'labeled' && STATES.includes(context.payload.label.name)) {
       await state(github, number, context.payload.label.name);
     }
@@ -146,5 +164,6 @@ module.exports = run;
 module.exports.preview = preview;
 module.exports.linkedIssue = linkedIssue;
 module.exports.specComplete = specComplete;
+module.exports.ownerImplementation = ownerImplementation;
 module.exports.boundary = boundary;
 
