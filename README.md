@@ -39,7 +39,7 @@ The production data path is Supabase-native:
 2. Supabase Cron keeps production data fresh with two jobs:
    - `sync-tenders-recent-refresh` runs every 6 hours and refreshes yesterday through today so the public listing has a current successful sync.
    - `sync-tenders-open-horizon-rotating` runs every 30 minutes and reconciles one 2-day window at a time from the oldest still-open tender through today, avoiding the timeout-prone morning fan-out.
-3. The listing page reads the latest successful and failed syncs from Supabase. It warns when the latest successful run is older than 26 hours or when a newer failure has not yet been resolved by a successful run.
+3. The listing page reads recent successful and failed syncs from Supabase. It warns when the latest successful run is older than 26 hours or when a failed date range has not yet been covered by a later successful run.
 
 The manual `/api/sync` route is still useful for one-off backfills and recovery runs.
 
