@@ -36,6 +36,7 @@ import {
   getTenderTitle,
   stringifyJsonLd,
 } from "@/lib/seo"
+import { parseListingReturnHref } from "@/lib/tenders/navigation"
 import { getTenderDetail } from "@/lib/tenders/query"
 import type { TenderDetail, TenderDocument } from "@/lib/tenders/types"
 import { cn } from "@/lib/utils"
@@ -44,6 +45,7 @@ export const dynamic = "force-dynamic"
 
 type TenderPageProps = {
   params: Promise<{ ocid: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 const getCachedTenderDetail = cache((ocid: string) => getTenderDetail(ocid))
@@ -60,7 +62,7 @@ export async function generateMetadata({
 
   if (!tender) {
     return {
-      title: "Tender data unavailable",
+      title: configMissing ? "Tender data unavailable" : "Tender not found",
       robots: {
         index: false,
         follow: false,
@@ -107,8 +109,12 @@ export async function generateMetadata({
   }
 }
 
-export default async function TenderPage({ params }: TenderPageProps) {
+export default async function TenderPage({
+  params,
+  searchParams,
+}: TenderPageProps) {
   const { ocid } = await params
+  const listingHref = parseListingReturnHref((await searchParams).from)
   const { tender, documents, configMissing } = await getCachedTenderDetail(
     decodeURIComponent(ocid)
   )
@@ -119,7 +125,7 @@ export default async function TenderPage({ params }: TenderPageProps) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-4 px-4 py-4 md:px-6">
         <Button asChild className="min-h-11 w-fit" variant="outline">
-          <Link href="/">
+          <Link href={listingHref}>
             <IconArrowLeft data-icon="inline-start" />
             Tenders
           </Link>
@@ -152,7 +158,7 @@ export default async function TenderPage({ params }: TenderPageProps) {
               size="sm"
               variant="ghost"
             >
-              <Link href="/">
+              <Link href={listingHref}>
                 <IconArrowLeft data-icon="inline-start" />
                 Tenders
               </Link>
