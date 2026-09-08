@@ -34,11 +34,15 @@ import {
 } from "@/components/ui/pagination"
 import {
   buildListingHref,
+  buildTenderDetailHref,
+  buildTenderResultId,
+  parseListingSearchParams,
+} from "@/lib/tenders/navigation"
+import {
   getLatestRecentFailedSyncRun,
   getLatestSyncRun,
   getLatestSuccessfulSyncRun,
   getTenderListing,
-  parseListingSearchParams,
 } from "@/lib/tenders/query"
 import {
   absoluteUrl,
@@ -180,12 +184,17 @@ export default async function Home({ searchParams }: HomeProps) {
                   }}
                   buyer={tender.buyer_name || tender.department}
                   closingDate={tender.closing_at}
-                  detailUrl={tender.detail_path || buildTenderPath(tender.ocid)}
+                  detailUrl={buildTenderDetailHref(
+                    tender.detail_path || buildTenderPath(tender.ocid),
+                    filters,
+                    index + 1
+                  )}
                   documentsCount={tender.documents_count}
                   industry={tender.industry}
                   isNew={tender.is_new}
                   procurementType={formatProcurementType(tender)}
                   publishedAt={tender.published_at}
+                  resultId={buildTenderResultId(index + 1)}
                   province={tender.province}
                   tenderNumber={tender.tender_no}
                   title={
