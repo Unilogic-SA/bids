@@ -40,7 +40,6 @@ import {
 } from "@/lib/tenders/navigation"
 import {
   getLatestRecentFailedSyncRun,
-  getLatestSyncRun,
   getLatestSuccessfulSyncRun,
   getTenderListing,
 } from "@/lib/tenders/query"
@@ -101,22 +100,13 @@ export default async function Home({ searchParams }: HomeProps) {
   const rawSearchParams = await searchParams
   const filters = parseListingSearchParams(rawSearchParams)
   const page = filters.page
-  const [
-    listing,
-    latestSync,
-    latestSuccessfulSync,
-    latestRecentFailedSync,
-  ] = await Promise.all([
-    getTenderListing(filters),
-    getLatestSyncRun(),
-    getLatestSuccessfulSyncRun(),
-    getLatestRecentFailedSyncRun(),
-  ])
-  const syncHealth = getSyncHealth(
-    latestSync,
-    latestSuccessfulSync,
-    latestRecentFailedSync
-  )
+  const [listing, latestSuccessfulSync, latestRecentFailedSync] =
+    await Promise.all([
+      getTenderListing(filters),
+      getLatestSuccessfulSyncRun(),
+      getLatestRecentFailedSyncRun(),
+    ])
+  const syncHealth = getSyncHealth(latestSuccessfulSync, latestRecentFailedSync)
   const activeFilterCount = countActiveListingFilters(filters)
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -372,25 +362,22 @@ function countActiveListingFilters(
 }
 
 function getSyncHealth(
-  latestSync: Awaited<ReturnType<typeof getLatestSyncRun>>,
   latestSuccessfulSync: Awaited<ReturnType<typeof getLatestSuccessfulSyncRun>>,
   latestRecentFailedSync: Awaited<
     ReturnType<typeof getLatestRecentFailedSyncRun>
   >
 ) {
-  if (latestRecentFailedSync) {
+  const hasUnresolvedFailure =
+    latestRecentFailedSync?.completed_at &&
+    (!latestSuccessfulSync?.completed_at ||
+      new Date(latestRecentFailedSync.completed_at).getTime() >
+        new Date(latestSuccessfulSync.completed_at).getTime())
+
+  if (hasUnresolvedFailure) {
     return {
       title: "A recent sync failed",
       description:
         "Tender data may be incomplete until the next full refresh completes.",
-    }
-  }
-
-  if (latestSync?.status === "failed") {
-    return {
-      title: "Latest sync failed",
-      description:
-        "Tender data may be stale until the next successful refresh completes.",
     }
   }
 
