@@ -25,6 +25,28 @@ test('only the repository owner can start issue implementation by comment', () =
   assert.equal(run.ownerImplementation({...base,comment:{...base.comment,body:'@codex groom this Issue only'}}), false);
   assert.equal(run.ownerImplementation({...base,issue:{...base.issue,state:'closed'}}), false);
 });
+test('owner implementation comment transitions the Issue to in-development', async () => {
+  const calls = [];
+  const github = {rest:{issues:{
+    get:async()=>({data:{labels:[{name:'needs-spec'}]}}),
+    removeLabel:async args=>calls.push({kind:'remove',...args}),
+    addLabels:async args=>calls.push({kind:'add',...args}),
+    listComments:'comments',
+    createComment:async args=>calls.push({kind:'comment',...args})
+  }},paginate:async()=>[]};
+  await run({
+    github,
+    context:{
+      repo:{owner:'Unilogic-SA',repo:'bids'},
+      eventName:'issue_comment',
+      payload:{issue:{number:12,state:'open'},comment:{user:{login:'Unilogic-SA'},body:'@codex refine and implement this Issue'}}
+    },
+    core:{info(){}}
+  });
+  assert.ok(calls.some(c=>c.kind==='remove'&&c.name==='needs-spec'));
+  assert.ok(calls.some(c=>c.kind==='add'&&c.labels.includes('in-development')));
+  assert.ok(calls.some(c=>c.kind==='comment'&&c.issue_number===12));
+});
 test('all YAML files use valid JSON (a YAML subset), safe permissions and repository guard', () => {
   for (const folder of ['workflows','ISSUE_TEMPLATE']) {
     for (const file of fs.readdirSync(path.join(__dirname,'..',folder)).filter(f=>f.endsWith('.yml'))) {
