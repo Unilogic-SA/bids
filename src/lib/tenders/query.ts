@@ -261,21 +261,22 @@ export async function getLatestSuccessfulSyncRun() {
   return data
 }
 
-export async function getLatestRecentFailedSyncRun() {
-  if (!hasSupabasePublicConfig()) return null
+export async function getRecentSyncRuns() {
+  if (!hasSupabasePublicConfig()) return []
 
   const supabase = createPublicClient()
   const recentCutoff = new Date(Date.now() - 26 * 60 * 60 * 1_000).toISOString()
   const { data } = await supabase
     .from("tender_sync_runs")
-    .select("mode,status,completed_at,open_count,upserted_tender_count,message")
-    .eq("status", "failed")
+    .select(
+      "mode,status,date_from,date_to,completed_at,open_count,upserted_tender_count,message"
+    )
+    .in("status", ["completed", "failed"])
     .gte("completed_at", recentCutoff)
     .order("completed_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .limit(100)
 
-  return data
+  return data || []
 }
 
 function getAvailabilityCutoff() {
