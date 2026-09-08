@@ -15,7 +15,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getAdminSession, getSafeNextPath } from "@/lib/admin/auth"
+import { getAdminSession } from "@/lib/admin/auth"
+import { getSafeAdminNextPath } from "@/lib/admin/redirects"
 
 export const dynamic = "force-dynamic"
 
@@ -39,7 +40,7 @@ export default async function AdminLoginPage({
   searchParams,
 }: AdminLoginPageProps) {
   const params = await searchParams
-  const next = getSafeNextPath(getFirstParam(params.next))
+  const next = getSafeAdminNextPath(getFirstParam(params.next))
   const session = await getAdminSession()
 
   if (session) {

@@ -1,8 +1,11 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-const ADMIN_HOME_PATH = "/admin"
-const ADMIN_LOGIN_PATH = "/admin/login"
+import {
+  ADMIN_LOGIN_PATH,
+  getSafeAdminNextPath,
+  isAdminLoginPath,
+} from "@/lib/admin/redirects"
 
 export async function proxy(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -66,7 +69,10 @@ function redirectToAdminLogin(
   supabaseResponse: NextResponse
 ) {
   const loginUrl = new URL(ADMIN_LOGIN_PATH, request.url)
-  loginUrl.searchParams.set("next", getSafeAdminNextPath(request))
+  loginUrl.searchParams.set(
+    "next",
+    getSafeAdminNextPath(`${request.nextUrl.pathname}${request.nextUrl.search}`)
+  )
 
   const response = NextResponse.redirect(loginUrl)
   supabaseResponse.cookies.getAll().forEach((cookie) => {
@@ -80,22 +86,4 @@ function redirectToAdminLogin(
   response.headers.set("Cache-Control", "private, no-store")
 
   return response
-}
-
-function getSafeAdminNextPath(request: NextRequest) {
-  const next = `${request.nextUrl.pathname}${request.nextUrl.search}`
-
-  if (
-    !next.startsWith(ADMIN_HOME_PATH) ||
-    next.startsWith(ADMIN_LOGIN_PATH) ||
-    next.startsWith("//")
-  ) {
-    return ADMIN_HOME_PATH
-  }
-
-  return next
-}
-
-function isAdminLoginPath(pathname: string) {
-  return pathname === ADMIN_LOGIN_PATH
 }

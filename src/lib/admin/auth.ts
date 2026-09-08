@@ -7,9 +7,12 @@ import {
   hasSupabasePublicConfig,
   hasSupabaseServiceRoleConfig,
 } from "@/lib/supabase/server"
+import {
+  ADMIN_HOME_PATH,
+  ADMIN_LOGIN_PATH,
+} from "@/lib/admin/redirects"
 
-export const ADMIN_HOME_PATH = "/admin"
-export const ADMIN_LOGIN_PATH = "/admin/login"
+export { ADMIN_HOME_PATH, ADMIN_LOGIN_PATH } from "@/lib/admin/redirects"
 
 type AdminUserRow = {
   email: string
@@ -72,44 +75,25 @@ export async function getAllowedAdminUser(
   return admin
 }
 
-export async function isAdminEmailAllowed(email: string) {
-  const normalizedEmail = normalizeAdminEmail(email)
-  if (!normalizedEmail || !hasSupabaseServiceRoleConfig()) return false
-
-  const service = createServiceRoleClient()
-  const { data, error } = await service
-    .from("admin_users")
-    .select("email")
-    .eq("email", normalizedEmail)
-    .maybeSingle()
-
-  return !error && Boolean(data)
-}
-
 export async function claimAdminUser(user: Pick<User, "id" | "email">) {
   const admin = await getAllowedAdminUser(user)
   if (!admin || admin.user_id) return Boolean(admin)
 
   const service = createServiceRoleClient()
-  const { error } = await service
+  const { data, error } = await service
     .from("admin_users")
     .update({ user_id: user.id })
     .eq("email", admin.email)
     .is("user_id", null)
+    .select("user_id")
+    .maybeSingle()
 
-  return !error
+  if (error) return false
+  if (data?.user_id === user.id) return true
+
+  return Boolean(await getAllowedAdminUser(user))
 }
 
 export function normalizeAdminEmail(email?: string | null) {
   return email?.trim().toLowerCase() || null
-}
-
-export function getSafeNextPath(value?: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return ADMIN_HOME_PATH
-  }
-
-  if (value.startsWith("/admin/login")) return ADMIN_HOME_PATH
-
-  return value
 }

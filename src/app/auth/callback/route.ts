@@ -3,14 +3,14 @@ import { NextResponse, type NextRequest } from "next/server"
 import {
   ADMIN_LOGIN_PATH,
   claimAdminUser,
-  getSafeNextPath,
 } from "@/lib/admin/auth"
+import { getSafeAdminNextPath } from "@/lib/admin/redirects"
 import { createServerAuthClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
-  const next = getSafeNextPath(requestUrl.searchParams.get("next"))
+  const next = getSafeAdminNextPath(requestUrl.searchParams.get("next"))
 
   if (!code) {
     return redirectToLogin(request, "callback")
