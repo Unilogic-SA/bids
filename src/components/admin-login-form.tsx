@@ -1,6 +1,6 @@
 "use client"
 
-import { IconMail, IconSend } from "@tabler/icons-react"
+import { IconLogin } from "@tabler/icons-react"
 import { useActionState } from "react"
 
 import {
@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import {
   type AdminLoginState,
-  requestAdminLogin,
+  signInAdmin,
 } from "@/lib/admin/actions"
 
 const initialAdminLoginState: AdminLoginState = {
@@ -34,13 +34,12 @@ type AdminLoginFormProps = {
 }
 
 export function AdminLoginForm({ defaultEmail, next }: AdminLoginFormProps) {
-  const [state, formAction, isPending] = useActionState(requestAdminLogin, {
+  const [state, formAction, isPending] = useActionState(signInAdmin, {
     ...initialAdminLoginState,
     email: defaultEmail,
   })
   const isInvalid = state.status === "error"
-  const isFieldError =
-    isInvalid && state.message === "Enter the admin email address."
+  const isFieldError = isInvalid && state.message.startsWith("Enter your")
   const emailValue = state.email || defaultEmail
 
   return (
@@ -48,9 +47,9 @@ export function AdminLoginForm({ defaultEmail, next }: AdminLoginFormProps) {
       <input type="hidden" name="next" value={next} />
       <FieldGroup>
         {state.message && !isFieldError ? (
-          <Alert variant={isInvalid ? "destructive" : "default"}>
-            <IconMail />
-            <AlertTitle>{isInvalid ? "Sign-in failed" : "Email sent"}</AlertTitle>
+          <Alert variant="destructive">
+            <IconLogin />
+            <AlertTitle>Sign-in failed</AlertTitle>
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
         ) : null}
@@ -73,9 +72,24 @@ export function AdminLoginForm({ defaultEmail, next }: AdminLoginFormProps) {
           {isFieldError ? <FieldError>{state.message}</FieldError> : null}
         </Field>
 
+        <Field data-invalid={isFieldError}>
+          <FieldLabel htmlFor="admin-password">Password</FieldLabel>
+          <Input
+            id="admin-password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            aria-invalid={isFieldError}
+            required
+          />
+          <FieldDescription>
+            Use the password configured for this Supabase Auth user.
+          </FieldDescription>
+        </Field>
+
         <Button type="submit" disabled={isPending}>
-          <IconSend data-icon="inline-start" />
-          {isPending ? "Sending" : "Send sign-in link"}
+          <IconLogin data-icon="inline-start" />
+          {isPending ? "Signing in" : "Sign in"}
         </Button>
       </FieldGroup>
     </form>
