@@ -19,7 +19,7 @@ The board statuses are:
 
 Built-in Project workflows add new open Issues from **Unilogic-SA/bids**, set new items to Backlog, and set closed Issues or merged PRs to Done. Intermediate Project Status changes remain manual. Repository labels carry the automated workflow state.
 
-Board dragging alone does not start Codex. Open the Issue and apply **codex-ready** when implementation is authorised. Do not move an Issue to Done to close it; merge a PR containing `Closes #NUMBER` or close the Issue deliberately.
+Board dragging alone does not start Codex. Open the Issue and apply **codex-ready** when implementation is authorised. The owner's label is authoritative even when a Quick Idea uses informal headings. Do not move an Issue to Done to close it; merge a PR containing `Closes #NUMBER` or close the Issue deliberately.
 
 ## Codex Cloud
 
@@ -27,9 +27,9 @@ A Codex Cloud environment connected to **Unilogic-SA/bids** exists. Keep it limi
 
 **Codex handoff requires one deliberate owner action:** add this comment to the ready Issue, replacing only the number:
 
-> @codex Implement this Issue following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #NUMBER, and do not merge.
+> @codex Review and refine this Issue if needed, then implement it following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #NUMBER, and do not merge.
 
-This supported GitHub mention launches a repository-scoped Codex Cloud task. When it finishes, use **View PR**. If it committed the work but reports that shell push credentials are unavailable, click **Create PR** in the task; do not recreate the code or add a GitHub token. Applying `codex-ready` alone does not launch Codex, which preserves the owner's development gate. Existing desktop skills are not guaranteed in Cloud; configure a specialised skill there only when a task needs it.
+This supported GitHub mention launches a repository-scoped Codex Cloud task and the repository workflow marks the Issue **in-development** when the owner posts it. When the task finishes, use **View PR**. If it committed the work but reports that shell push credentials are unavailable, open that task and personally click **Create PR**; another GitHub comment cannot click the task UI. Do not recreate the code or add a GitHub token. Applying `codex-ready` alone does not launch Codex, which preserves the owner's development gate. Existing desktop skills are not guaranteed in Cloud; configure a specialised skill there only when a task needs it.
 
 ## Vercel
 
@@ -42,7 +42,7 @@ For every PR, test the Preview deployment for the newest commit. A new commit in
 ## Automation and permissions
 
 - **CI:** Contents read only. Node 24, `npm ci`, automation tests, lint, typecheck, and production build.
-- **Issue/PR workflow:** Contents read, Issues write, Pull requests write. It handles intake, specification checks, exclusive workflow labels, same-repository PR association, stale approval removal, and label cleanup.
+- **Issue/PR workflow:** Contents read, Issues write, Pull requests write. It handles intake, advisory specification checks, owner-only implementation comments, exclusive workflow labels, same-repository PR association, stale approval removal, and label cleanup.
 - **Preview readiness:** Contents, Actions, and Deployments read; Issues and Pull requests write. It requires current successful PR CI and a successful Vercel Preview deployment.
 - Privileged jobs check out `main` only, disable persisted credentials, and never run PR-controlled code.
 - Every job and API operation is explicitly restricted to `Unilogic-SA/bids`.

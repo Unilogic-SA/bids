@@ -25,7 +25,12 @@
         "labeled"
       ]
     },
-    "workflow_dispatch": {}
+    "workflow_dispatch": {},
+    "issue_comment": {
+      "types": [
+        "created"
+      ]
+    }
   },
   "permissions": {},
   "concurrency": {
