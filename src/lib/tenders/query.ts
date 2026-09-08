@@ -105,10 +105,13 @@ const SITEMAP_COLUMNS = [
 
 const SEARCH_COLUMNS = [
   "tender_no",
+  "title",
   "bid_description",
   "buyer_name",
+  "department",
   "industry",
   "province",
+  "tender_type",
 ] as const
 
 const SORT_CONFIG: Record<
