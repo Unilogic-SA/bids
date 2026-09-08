@@ -246,20 +246,6 @@ export async function getTenderSitemapItems(limit = 5000) {
   return (data || []) as unknown as TenderSitemapItem[]
 }
 
-export async function getLatestSyncRun() {
-  if (!hasSupabasePublicConfig()) return null
-
-  const supabase = createPublicClient()
-  const { data } = await supabase
-    .from("tender_sync_runs")
-    .select("mode,status,completed_at,open_count,upserted_tender_count,message")
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  return data
-}
-
 export async function getLatestSuccessfulSyncRun() {
   if (!hasSupabasePublicConfig()) return null
 
@@ -268,28 +254,29 @@ export async function getLatestSuccessfulSyncRun() {
     .from("tender_sync_runs")
     .select("mode,status,completed_at,open_count,upserted_tender_count,message")
     .eq("status", "completed")
-    .order("started_at", { ascending: false })
+    .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle()
 
   return data
 }
 
-export async function getLatestRecentFailedSyncRun() {
-  if (!hasSupabasePublicConfig()) return null
+export async function getRecentSyncRuns() {
+  if (!hasSupabasePublicConfig()) return []
 
   const supabase = createPublicClient()
   const recentCutoff = new Date(Date.now() - 26 * 60 * 60 * 1_000).toISOString()
   const { data } = await supabase
     .from("tender_sync_runs")
-    .select("mode,status,completed_at,open_count,upserted_tender_count,message")
-    .eq("status", "failed")
+    .select(
+      "mode,status,date_from,date_to,completed_at,open_count,upserted_tender_count,message"
+    )
+    .in("status", ["completed", "failed"])
     .gte("completed_at", recentCutoff)
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .order("completed_at", { ascending: false })
+    .limit(100)
 
-  return data
+  return data || []
 }
 
 function getAvailabilityCutoff() {

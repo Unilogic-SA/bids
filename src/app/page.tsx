@@ -39,9 +39,8 @@ import {
   parseListingSearchParams,
 } from "@/lib/tenders/navigation"
 import {
-  getLatestRecentFailedSyncRun,
-  getLatestSyncRun,
   getLatestSuccessfulSyncRun,
+  getRecentSyncRuns,
   getTenderListing,
 } from "@/lib/tenders/query"
 import {
@@ -101,22 +100,12 @@ export default async function Home({ searchParams }: HomeProps) {
   const rawSearchParams = await searchParams
   const filters = parseListingSearchParams(rawSearchParams)
   const page = filters.page
-  const [
-    listing,
-    latestSync,
-    latestSuccessfulSync,
-    latestRecentFailedSync,
-  ] = await Promise.all([
+  const [listing, latestSuccessfulSync, recentSyncRuns] = await Promise.all([
     getTenderListing(filters),
-    getLatestSyncRun(),
     getLatestSuccessfulSyncRun(),
-    getLatestRecentFailedSyncRun(),
+    getRecentSyncRuns(),
   ])
-  const syncHealth = getSyncHealth(
-    latestSync,
-    latestSuccessfulSync,
-    latestRecentFailedSync
-  )
+  const syncHealth = getSyncHealth(latestSuccessfulSync, recentSyncRuns)
   const activeFilterCount = countActiveListingFilters(filters)
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -372,25 +361,34 @@ function countActiveListingFilters(
 }
 
 function getSyncHealth(
-  latestSync: Awaited<ReturnType<typeof getLatestSyncRun>>,
   latestSuccessfulSync: Awaited<ReturnType<typeof getLatestSuccessfulSyncRun>>,
-  latestRecentFailedSync: Awaited<
-    ReturnType<typeof getLatestRecentFailedSyncRun>
-  >
+  recentSyncRuns: Awaited<ReturnType<typeof getRecentSyncRuns>>
 ) {
-  if (latestRecentFailedSync) {
+  const hasUnresolvedFailure = recentSyncRuns.some((failedRun) => {
+    if (failedRun.status !== "failed" || !failedRun.completed_at) return false
+
+    const failedFrom = failedRun.date_from
+    const failedTo = failedRun.date_to
+    if (!failedFrom || !failedTo) return true
+
+    const failedAt = new Date(failedRun.completed_at).getTime()
+    return !recentSyncRuns.some(
+      (successfulRun) =>
+        successfulRun.status === "completed" &&
+        successfulRun.completed_at &&
+        new Date(successfulRun.completed_at).getTime() > failedAt &&
+        successfulRun.date_from &&
+        successfulRun.date_to &&
+        successfulRun.date_from <= failedFrom &&
+        successfulRun.date_to >= failedTo
+    )
+  })
+
+  if (hasUnresolvedFailure) {
     return {
       title: "A recent sync failed",
       description:
-        "Tender data may be incomplete until the next full refresh completes.",
-    }
-  }
-
-  if (latestSync?.status === "failed") {
-    return {
-      title: "Latest sync failed",
-      description:
-        "Tender data may be stale until the next successful refresh completes.",
+        "Tender data may be incomplete until a successful refresh covers the failed date range.",
     }
   }
 
