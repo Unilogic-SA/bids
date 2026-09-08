@@ -15,36 +15,33 @@ Future schema changes require a reviewed migration and explicit environment/depl
 Production Supabase project: eanhpdxlskwxplglprrt. Preview must not receive its service-role key, secret key or ETENDERS_SYNC_SECRET. Public configuration does not grant permission to modify production data.
 
 ## Development workflow
-Every implementation maps to an Issue in this repository. The owner's codex-ready label or explicit @codex implementation request is Gate 1 and authorises implementation.
-Read the whole Issue and acceptance criteria. If the owner has authorised a Quick Idea whose structure is informal, refine its specification in the same Issue as needed; do not reject it solely because exact template headings are absent.
-Use a dedicated codex/<issue-number>-<short-name> branch from main; never implement directly on main.
-Set in-development when starting, open a PR, and include a standalone closing line: Closes #123.
-When a GitHub @codex task finishes without publishing, preserve the committed workspace and tell the owner to open that Codex task and personally click **Create PR**. Another GitHub comment cannot click the task UI. Shell GitHub credentials are not required for this supported publication path.
-Use exactly one originating Issue per PR. Keep fixes on the same branch/PR unless there is a clear reason to split them.
-Never merge, enable auto-merge, approve on the owner's behalf, or apply approved without explicit human production approval for the current change. Normally the owner performs the merge in GitHub.
-After any new commit, prior preview approval is stale: rerun checks and ask the owner to retest.
-Do not treat a board status or a bot review as production approval.
+Every implementation maps to an Issue in this repository. An explicit owner request, including an owner `@codex` action comment, authorises implementation.
+Read the whole Issue and acceptance criteria. Refine missing detail in the Issue when needed, but do not reject an authorised task because its headings are informal.
+Use a dedicated `codex/<issue-number>-<short-name>` branch from `main`; never implement directly on `main`.
+Set `in-development` when starting and open a PR that contains one local GitHub closing reference such as `Closes #123`. Plain text, bullet, and checklist formatting are acceptable.
+When a GitHub `@codex` task finishes without publishing, preserve the committed workspace and tell the owner to open that Codex task and click **Create PR**. Another GitHub comment cannot click the task UI.
+Use exactly one originating Issue per PR. Keep fixes on the same branch and PR unless there is a clear reason to split them.
+Never merge, enable auto-merge, approve on the owner's behalf, or apply `approved` without explicit human production approval for the current change.
+After any new commit, prior Preview approval is stale: rerun checks and ask the owner to retest.
+Do not treat a board status or bot review as production approval.
 
 ## Definition of Done
-Use npm ci, npm run lint, npm run typecheck and npm run build.
-typecheck generates Next.js route types then runs tsc --noEmit.
-No application test suite currently exists. Do not claim tests ran; add targeted tests when warranted by the change.
-For automation changes run node --test .github/scripts/*.test.cjs and validate all workflow/issue-form YAML.
-CI runs without production secrets; preview testing checks real runtime behaviour separately.
+Use `npm ci`, `npm run lint`, `npm run typecheck` and `npm run build`.
+Run `npm test` when that script exists. For automation changes run `node --test .github/scripts/*.test.cjs` and validate all workflow and Issue-form YAML.
+CI runs without production secrets; Preview testing checks real runtime behaviour separately.
 Supabase Edge Functions are excluded from the application's TypeScript check; changes there need separate appropriate Deno/Supabase validation.
 Report failures honestly; do not disable rules or skip checks to get green CI.
 
 ## Pull requests
-Fill in .github/pull_request_template.md: linked Issue, what changed and why, affected areas, UI impact, schema/migration impact, security/auth impact, tests/checks, preview/screenshots where practical, limitations and follow-ups.
-Never claim a preview works unless verified for the current commit.
+Fill in `.github/pull_request_template.md`: linked Issue, what changed and why, affected areas, UI impact, schema/migration impact, security/auth impact, tests/checks, Preview/screenshots where practical, limitations and follow-ups.
+Never claim a Preview works unless verified for the current commit.
 
 ## Skills
 Issue = what to build. AGENTS.md = permanent project conventions. Skill = specialised guidance.
-Use relevant available skills for specialised work. No repository skills were present at setup.
-Desktop-installed skills do not automatically exist in Codex Cloud. If required, install/configure them in the selected cloud environment using supported Codex skill mechanisms; never copy temporary skill prompts into every Issue.
+Use relevant available skills for specialised work. Desktop-installed skills do not automatically exist in Codex Cloud. If required, install or configure them in the selected Cloud environment using supported Codex skill mechanisms.
 
-## Code Review Rules
-Flag cross-repository access, production credentials in previews/CI, weakened RLS/auth, automatic merges, and privileged workflows that execute PR-controlled code.
+## Code review rules
+Flag cross-repository access, production credentials in Preview or CI, weakened RLS or auth, automatic merges, and privileged workflows that execute PR-controlled code.
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
