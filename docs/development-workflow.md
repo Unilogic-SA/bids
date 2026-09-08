@@ -4,11 +4,11 @@ Only use [Unilogic-SA/bids](https://github.com/Unilogic-SA/bids). See [one-time 
 
 ## Daily use
 1. Capture an unfinished thought with **Quick Idea / Backlog**, or use **Feature / Improvement** or **Bug** when the outcome is already clear. New Issues are added to Backlog automatically.
-2. Describe the outcome and acceptance criteria. Use Needs Spec while deciding.
-3. When ready, open the Issue inside the board and apply **codex-ready**; move Status to **Ready for Codex**.
-4. On the Issue, add this exact comment, replacing only the number:
-   > @codex Implement this Issue following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #NUMBER, and do not merge.
-5. The comment launches a Codex Cloud task. When it finishes, click **View PR**. If the task still shows **Create PR**, click it once to publish the committed work; a shell push warning does not mean the work is lost. Labels track development, and Codex automatically reviews your new PR. The board's intermediate Status needs a manual move; labels do not automatically update it.
+2. Describe the result you want and how you will recognise success. Use Needs Spec while deciding; the wording does not have to match a technical format.
+3. When you are comfortable with the Issue, apply **codex-ready** and move Status to **Ready for Codex**. Your label is Gate 1: the automation may offer advice but will not move it back to Needs Spec.
+4. On the Issue, add this comment, replacing only the number:
+   > @codex Review and refine this Issue if needed, then implement it following AGENTS.md. Use a dedicated branch, open a PR with the standalone line Closes #NUMBER, and do not merge.
+5. Your implementation comment changes the Issue label to **in-development** and launches a Codex Cloud task. When it finishes, open that task. Click **View PR** if a PR exists. If the task still shows **Create PR**, click it yourself once to publish the committed work; another GitHub comment cannot operate that button. A shell push warning does not mean the work is lost. Codex automatically reviews the published PR. The board's intermediate Status needs a manual move; labels do not automatically update it.
 6. Open [My Action](https://github.com/users/Unilogic-SA/projects/1/views/2) to see work labelled **needs-spec**, **codex-ready**, **ready-for-testing**, **changes-needed**, or **approved**. For testing, open the Issue/PR labelled **ready-for-testing** and click its current Vercel preview link.
 7. Test every acceptance criterion. Test preview, not the production site.
 8. Wrong result? Describe what you saw on the **same PR**, apply **changes-needed** to the PR and move the board to Changes Needed. Comment `@codex fix the problems described above on this same PR; do not merge` when the Codex GitHub integration is enabled; otherwise send the PR URL and feedback to the existing Codex task.
@@ -22,7 +22,7 @@ Use **Quick Idea / Backlog** when you want to record a thought without writing a
 
 > Turn this rough idea into a complete Feature Issue with a clear problem, desired outcome, user behaviour and testable acceptance criteria. Do not implement it.
 
-Review the improved Issue yourself. Apply **codex-ready** only when you want implementation to begin. Keep `Closes #NUMBER` as plain text in the implementation instruction; do not turn it into a link.
+Review the Issue yourself. If it already explains the result and success criteria well enough for you, you can skip a separate grooming round. Apply **codex-ready** only when you want implementation to begin, then use the combined review-and-implement comment above. Keep `Closes #NUMBER` as plain text; do not turn it into a link.
 
 The Feature form applies **type:feature** automatically. The Bug form applies **type:bug** automatically.
 
@@ -42,7 +42,7 @@ The Feature form applies **type:feature** automatically. The Bug form applies **
 **Red build:** do not merge. Open the failed check's Details and send its URL to the existing Codex task, or comment `@codex fix the CI failures; do not merge` on the PR when enabled.
 **Wrong preview:** add expected versus actual behaviour and a screenshot without private information; request changes on the same PR.
 **No preview:** check the Vercel setup checklist. Do not approve an untested change.
-**Workflow did not run:** check the Actions tab. Metadata workflows activate only after setup reaches main; run label setup once first.
+**Workflow did not run:** check the Actions tab. If Codex says it committed but no PR exists, open the linked Codex task and click **Create PR** there. Do not ask Codex in another Issue comment to click its own task button.
 **PR closed without merge:** the Issue stays open. Return it to Backlog or reopen the same PR.
 
 ## Never
