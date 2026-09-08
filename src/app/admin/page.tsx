@@ -537,7 +537,7 @@ function formatDuration(ms: number) {
 }
 
 function formatDate(value: string) {
-  return DATE_FORMAT.format(new Date(value))
+  return `${DATE_FORMAT.format(new Date(value))} SAST`
 }
 
 function formatOptionalDate(value?: string) {

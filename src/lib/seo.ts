@@ -90,8 +90,6 @@ export function stringifyJsonLd(value: unknown) {
 }
 
 function formatIsoDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-
-  return date.toISOString().slice(0, 10)
+  return getSastDateKey(value) || value
 }
+import { getSastDateKey } from "@/lib/sast-date"
