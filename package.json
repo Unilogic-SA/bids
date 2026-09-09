@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/lib/admin/*.test.mts",
+    "test": "tsx --test src/lib/admin/*.test.mts",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
@@ -33,7 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
-
