@@ -1,16 +1,33 @@
 export const ADMIN_HOME_PATH = "/admin"
 export const ADMIN_LOGIN_PATH = "/admin/login"
+const REDIRECT_BASE_URL = "https://admin-redirect.invalid"
 
 export function getSafeAdminNextPath(value?: string | null) {
-  if (!value || !isPathAtOrBelow(value, ADMIN_HOME_PATH)) {
+  const canonicalPath = canonicalizeLocalPath(value)
+
+  if (!canonicalPath || !isPathAtOrBelow(canonicalPath, ADMIN_HOME_PATH)) {
     return ADMIN_HOME_PATH
   }
 
-  if (isPathAtOrBelow(value, ADMIN_LOGIN_PATH)) {
+  if (isPathAtOrBelow(canonicalPath, ADMIN_LOGIN_PATH)) {
     return ADMIN_HOME_PATH
   }
 
-  return value
+  return canonicalPath
+}
+
+function canonicalizeLocalPath(value?: string | null) {
+  if (!value?.startsWith("/")) return null
+
+  try {
+    const url = new URL(value, REDIRECT_BASE_URL)
+
+    if (url.origin !== REDIRECT_BASE_URL) return null
+
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return null
+  }
 }
 
 function isPathAtOrBelow(value: string, path: string) {

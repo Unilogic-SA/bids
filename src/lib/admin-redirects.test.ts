@@ -36,6 +36,22 @@ describe("getSafeAdminNextPath", () => {
     }
   })
 
+  it("canonicalizes paths before checking the admin boundary", () => {
+    for (const value of [
+      "/admin/%2e%2e/tenders",
+      "/admin/%2E%2E/tenders",
+      "/admin/settings/../..//tenders",
+      "/admin\\..\\tenders",
+    ]) {
+      assert.equal(getSafeAdminNextPath(value), ADMIN_HOME_PATH)
+    }
+
+    assert.equal(
+      getSafeAdminNextPath("/admin/settings/../tenders?tab=files#upload"),
+      "/admin/tenders?tab=files#upload",
+    )
+  })
+
   it("rejects login loops", () => {
     for (const value of [
       "/admin/login",
