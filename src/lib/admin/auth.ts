@@ -7,9 +7,13 @@ import {
   hasSupabasePublicConfig,
   hasSupabaseServiceRoleConfig,
 } from "@/lib/supabase/server"
+import {
+  ADMIN_HOME_PATH,
+  ADMIN_LOGIN_PATH,
+  getSafeAdminNextPath,
+} from "@/lib/admin/redirects"
 
-export const ADMIN_HOME_PATH = "/admin"
-export const ADMIN_LOGIN_PATH = "/admin/login"
+export { ADMIN_HOME_PATH, ADMIN_LOGIN_PATH, getSafeAdminNextPath }
 
 type AdminUserRow = {
   email: string
@@ -91,25 +95,17 @@ export async function claimAdminUser(user: Pick<User, "id" | "email">) {
   if (!admin || admin.user_id) return Boolean(admin)
 
   const service = createServiceRoleClient()
-  const { error } = await service
+  const { data, error } = await service
     .from("admin_users")
     .update({ user_id: user.id })
     .eq("email", admin.email)
     .is("user_id", null)
+    .select("user_id")
+    .maybeSingle()
 
-  return !error
+  return !error && data?.user_id === user.id
 }
 
 export function normalizeAdminEmail(email?: string | null) {
   return email?.trim().toLowerCase() || null
-}
-
-export function getSafeNextPath(value?: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return ADMIN_HOME_PATH
-  }
-
-  if (value.startsWith("/admin/login")) return ADMIN_HOME_PATH
-
-  return value
 }

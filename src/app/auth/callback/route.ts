@@ -3,14 +3,22 @@ import { NextResponse, type NextRequest } from "next/server"
 import {
   ADMIN_LOGIN_PATH,
   claimAdminUser,
-  getSafeNextPath,
+  getSafeAdminNextPath,
 } from "@/lib/admin/auth"
-import { createServerAuthClient } from "@/lib/supabase/server"
+import {
+  createServerAuthClient,
+  hasSupabasePublicConfig,
+  hasSupabaseServiceRoleConfig,
+} from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
-  const next = getSafeNextPath(requestUrl.searchParams.get("next"))
+  const next = getSafeAdminNextPath(requestUrl.searchParams.get("next"))
+
+  if (!hasSupabasePublicConfig() || !hasSupabaseServiceRoleConfig()) {
+    return redirectToLogin(request, "configuration")
+  }
 
   if (!code) {
     return redirectToLogin(request, "callback")
