@@ -40,7 +40,6 @@ import {
 } from "@/lib/tenders/navigation"
 import {
   getLatestRecentFailedSyncRun,
-  getLatestSyncRun,
   getLatestSuccessfulSyncRun,
   getTenderListing,
 } from "@/lib/tenders/query"
@@ -101,22 +100,13 @@ export default async function Home({ searchParams }: HomeProps) {
   const rawSearchParams = await searchParams
   const filters = parseListingSearchParams(rawSearchParams)
   const page = filters.page
-  const [
-    listing,
-    latestSync,
-    latestSuccessfulSync,
-    latestRecentFailedSync,
-  ] = await Promise.all([
-    getTenderListing(filters),
-    getLatestSyncRun(),
-    getLatestSuccessfulSyncRun(),
-    getLatestRecentFailedSyncRun(),
-  ])
-  const syncHealth = getSyncHealth(
-    latestSync,
-    latestSuccessfulSync,
-    latestRecentFailedSync
-  )
+  const [listing, latestSuccessfulSync, latestRecentFailedSync] =
+    await Promise.all([
+      getTenderListing(filters),
+      getLatestSuccessfulSyncRun(),
+      getLatestRecentFailedSyncRun(),
+    ])
+  const syncHealth = getSyncHealth(latestSuccessfulSync, latestRecentFailedSync)
   const activeFilterCount = countActiveListingFilters(filters)
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -148,10 +138,22 @@ export default async function Home({ searchParams }: HomeProps) {
         ) : null}
 
         {syncHealth ? (
-          <Alert className="lg:col-span-2" variant="destructive">
+          <Alert
+            className="lg:col-span-2"
+            variant={
+              syncHealth.severity === "critical" ? "destructive" : "default"
+            }
+          >
             <AlertTriangleIcon />
             <AlertTitle>{syncHealth.title}</AlertTitle>
-            <AlertDescription>{syncHealth.description}</AlertDescription>
+            <AlertDescription>
+              {syncHealth.description}
+              {syncHealth.lastSuccessfulAt ? (
+                <span className="mt-1 block text-xs">
+                  Last successful refresh: {formatSyncTime(syncHealth.lastSuccessfulAt)}.
+                </span>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -372,46 +374,64 @@ function countActiveListingFilters(
 }
 
 function getSyncHealth(
-  latestSync: Awaited<ReturnType<typeof getLatestSyncRun>>,
   latestSuccessfulSync: Awaited<ReturnType<typeof getLatestSuccessfulSyncRun>>,
   latestRecentFailedSync: Awaited<
     ReturnType<typeof getLatestRecentFailedSyncRun>
   >
 ) {
-  if (latestRecentFailedSync) {
+  const lastSuccessfulAt = latestSuccessfulSync?.completed_at || null
+  const hasUnresolvedFailure =
+    latestRecentFailedSync?.completed_at &&
+    (!lastSuccessfulAt ||
+      new Date(latestRecentFailedSync.completed_at).getTime() >
+        new Date(lastSuccessfulAt).getTime())
+
+  if (!lastSuccessfulAt) {
     return {
-      title: "A recent sync failed",
-      description:
-        "Tender data may be incomplete until the next full refresh completes.",
+      severity: "critical" as const,
+      title: "Tender data is unavailable",
+      description: hasUnresolvedFailure
+        ? "The latest refresh failed and no successful refresh is recorded."
+        : "No successful tender-data refresh is recorded.",
+      lastSuccessfulAt: null,
     }
   }
 
-  if (latestSync?.status === "failed") {
-    return {
-      title: "Latest sync failed",
-      description:
-        "Tender data may be stale until the next successful refresh completes.",
-    }
-  }
-
-  if (!latestSuccessfulSync?.completed_at) {
-    return {
-      title: "No successful sync yet",
-      description: "Tender data has not completed its first refresh.",
-    }
-  }
-
-  const ageMs =
-    Date.now() - new Date(latestSuccessfulSync.completed_at).getTime()
+  const ageMs = Date.now() - new Date(lastSuccessfulAt).getTime()
   const staleAfterMs = 26 * 60 * 60 * 1_000
 
   if (ageMs > staleAfterMs) {
     return {
-      title: "Tender data is stale",
+      severity: "critical" as const,
+      title: "Tender data is out of date",
+      description: hasUnresolvedFailure
+        ? "The latest refresh failed, and the last successful refresh is more than 26 hours old."
+        : "The last successful refresh is more than 26 hours old.",
+      lastSuccessfulAt,
+    }
+  }
+
+  if (hasUnresolvedFailure) {
+    return {
+      severity: "warning" as const,
+      title: "Tender refresh delayed",
       description:
-        "The last successful refresh is more than 26 hours old.",
+        "The latest refresh attempt failed. The existing listings remain available while the automatic schedule retries.",
+      lastSuccessfulAt,
     }
   }
 
   return null
+}
+
+function formatSyncTime(value: string) {
+  return new Intl.DateTimeFormat("en-ZA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Johannesburg",
+    timeZoneName: "short",
+  }).format(new Date(value))
 }
