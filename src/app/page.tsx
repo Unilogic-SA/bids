@@ -39,8 +39,8 @@ import {
   parseListingSearchParams,
 } from "@/lib/tenders/navigation"
 import {
-  getLatestRecentFailedSyncRun,
   getLatestSuccessfulSyncRun,
+  getRecentSyncRuns,
   getTenderListing,
 } from "@/lib/tenders/query"
 import {
@@ -100,13 +100,12 @@ export default async function Home({ searchParams }: HomeProps) {
   const rawSearchParams = await searchParams
   const filters = parseListingSearchParams(rawSearchParams)
   const page = filters.page
-  const [listing, latestSuccessfulSync, latestRecentFailedSync] =
-    await Promise.all([
-      getTenderListing(filters),
-      getLatestSuccessfulSyncRun(),
-      getLatestRecentFailedSyncRun(),
-    ])
-  const syncHealth = getSyncHealth(latestSuccessfulSync, latestRecentFailedSync)
+  const [listing, latestSuccessfulSync, recentSyncRuns] = await Promise.all([
+    getTenderListing(filters),
+    getLatestSuccessfulSyncRun(),
+    getRecentSyncRuns(),
+  ])
+  const syncHealth = getSyncHealth(latestSuccessfulSync, recentSyncRuns)
   const activeFilterCount = countActiveListingFilters(filters)
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -375,23 +374,28 @@ function countActiveListingFilters(
 
 function getSyncHealth(
   latestSuccessfulSync: Awaited<ReturnType<typeof getLatestSuccessfulSyncRun>>,
-  latestRecentFailedSync: Awaited<
-    ReturnType<typeof getLatestRecentFailedSyncRun>
-  >
+  recentSyncRuns: Awaited<ReturnType<typeof getRecentSyncRuns>>
 ) {
   const lastSuccessfulAt = latestSuccessfulSync?.completed_at || null
-  const hasUnresolvedFailure =
-    latestRecentFailedSync?.completed_at &&
-    (!lastSuccessfulAt ||
-      new Date(latestRecentFailedSync.completed_at).getTime() >
-        new Date(lastSuccessfulAt).getTime())
+  const recentSuccessfulSyncs = recentSyncRuns.filter(
+    (syncRun) => syncRun.status === "completed"
+  )
+  const recentFailedSyncs = recentSyncRuns.filter(
+    (syncRun) => syncRun.status === "failed"
+  )
+  const hasUnresolvedFailure = recentFailedSyncs.some(
+    (failedSync) =>
+      !recentSuccessfulSyncs.some((successfulSync) =>
+        successfulSyncCoversFailure(successfulSync, failedSync)
+      )
+  )
 
   if (!lastSuccessfulAt) {
     return {
       severity: "critical" as const,
       title: "Tender data is unavailable",
       description: hasUnresolvedFailure
-        ? "The latest refresh failed and no successful refresh is recorded."
+        ? "A recent refresh failed and no successful refresh is recorded."
         : "No successful tender-data refresh is recorded.",
       lastSuccessfulAt: null,
     }
@@ -405,7 +409,7 @@ function getSyncHealth(
       severity: "critical" as const,
       title: "Tender data is out of date",
       description: hasUnresolvedFailure
-        ? "The latest refresh failed, and the last successful refresh is more than 26 hours old."
+        ? "A recent refresh failed, and the last successful refresh is more than 26 hours old."
         : "The last successful refresh is more than 26 hours old.",
       lastSuccessfulAt,
     }
@@ -416,12 +420,37 @@ function getSyncHealth(
       severity: "warning" as const,
       title: "Tender refresh delayed",
       description:
-        "The latest refresh attempt failed. The existing listings remain available while the automatic schedule retries.",
+        "A recent refresh attempt failed. The existing listings remain available while the automatic schedule retries that date range.",
       lastSuccessfulAt,
     }
   }
 
   return null
+}
+
+type SyncRun = Awaited<ReturnType<typeof getRecentSyncRuns>>[number]
+
+function successfulSyncCoversFailure(
+  successfulSync: SyncRun,
+  failedSync: SyncRun
+) {
+  if (
+    !successfulSync.completed_at ||
+    !failedSync.completed_at ||
+    !successfulSync.date_from ||
+    !successfulSync.date_to ||
+    !failedSync.date_from ||
+    !failedSync.date_to
+  ) {
+    return false
+  }
+
+  return (
+    new Date(successfulSync.completed_at).getTime() >
+      new Date(failedSync.completed_at).getTime() &&
+    successfulSync.date_from <= failedSync.date_from &&
+    successfulSync.date_to >= failedSync.date_to
+  )
 }
 
 function formatSyncTime(value: string) {
