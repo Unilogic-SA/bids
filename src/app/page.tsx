@@ -137,10 +137,22 @@ export default async function Home({ searchParams }: HomeProps) {
         ) : null}
 
         {syncHealth ? (
-          <Alert className="lg:col-span-2" variant="destructive">
+          <Alert
+            className="lg:col-span-2"
+            variant={
+              syncHealth.severity === "critical" ? "destructive" : "default"
+            }
+          >
             <AlertTriangleIcon />
             <AlertTitle>{syncHealth.title}</AlertTitle>
-            <AlertDescription>{syncHealth.description}</AlertDescription>
+            <AlertDescription>
+              {syncHealth.description}
+              {syncHealth.lastSuccessfulAt ? (
+                <span className="mt-1 block text-xs">
+                  Last successful refresh: {formatSyncTime(syncHealth.lastSuccessfulAt)}.
+                </span>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -392,24 +404,66 @@ function getSyncHealth(
     }
   }
 
-  if (!latestSuccessfulSync?.completed_at) {
-    return {
-      title: "No successful sync yet",
-      description: "Tender data has not completed its first refresh.",
-    }
-  }
-
-  const ageMs =
-    Date.now() - new Date(latestSuccessfulSync.completed_at).getTime()
+  const ageMs = Date.now() - new Date(lastSuccessfulAt).getTime()
   const staleAfterMs = 26 * 60 * 60 * 1_000
 
   if (ageMs > staleAfterMs) {
     return {
-      title: "Tender data is stale",
+      severity: "critical" as const,
+      title: "Tender data is out of date",
+      description: hasUnresolvedFailure
+        ? "A recent refresh failed, and the last successful refresh is more than 26 hours old."
+        : "The last successful refresh is more than 26 hours old.",
+      lastSuccessfulAt,
+    }
+  }
+
+  if (hasUnresolvedFailure) {
+    return {
+      severity: "warning" as const,
+      title: "Tender refresh delayed",
       description:
-        "The last successful refresh is more than 26 hours old.",
+        "A recent refresh attempt failed. The existing listings remain available while the automatic schedule retries that date range.",
+      lastSuccessfulAt,
     }
   }
 
   return null
+}
+
+type SyncRun = Awaited<ReturnType<typeof getRecentSyncRuns>>[number]
+
+function successfulSyncCoversFailure(
+  successfulSync: SyncRun,
+  failedSync: SyncRun
+) {
+  if (
+    !successfulSync.completed_at ||
+    !failedSync.completed_at ||
+    !successfulSync.date_from ||
+    !successfulSync.date_to ||
+    !failedSync.date_from ||
+    !failedSync.date_to
+  ) {
+    return false
+  }
+
+  return (
+    new Date(successfulSync.completed_at).getTime() >
+      new Date(failedSync.completed_at).getTime() &&
+    successfulSync.date_from <= failedSync.date_from &&
+    successfulSync.date_to >= failedSync.date_to
+  )
+}
+
+function formatSyncTime(value: string) {
+  return new Intl.DateTimeFormat("en-ZA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Johannesburg",
+    timeZoneName: "short",
+  }).format(new Date(value))
 }

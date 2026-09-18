@@ -252,7 +252,7 @@ export async function getLatestSuccessfulSyncRun() {
   const supabase = createPublicClient()
   const { data } = await supabase
     .from("tender_sync_runs")
-    .select("mode,status,completed_at,open_count,upserted_tender_count,message")
+    .select("mode,status,date_from,date_to,completed_at")
     .eq("status", "completed")
     .order("completed_at", { ascending: false })
     .limit(1)
