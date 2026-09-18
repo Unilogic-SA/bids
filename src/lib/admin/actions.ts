@@ -6,13 +6,14 @@ import {
   ADMIN_HOME_PATH,
   ADMIN_LOGIN_PATH,
   claimAdminUser,
-  getSafeNextPath,
+  getSafeAdminNextPath,
   isAdminEmailAllowed,
   normalizeAdminEmail,
 } from "@/lib/admin/auth"
 import {
   createServerAuthClient,
   hasSupabasePublicConfig,
+  hasSupabaseServiceRoleConfig,
 } from "@/lib/supabase/server"
 
 export type AdminLoginState = {
@@ -27,7 +28,9 @@ export async function signInAdmin(
 ): Promise<AdminLoginState> {
   const email = normalizeAdminEmail(String(formData.get("email") || ""))
   const password = String(formData.get("password") || "")
-  const next = getSafeNextPath(String(formData.get("next") || ADMIN_HOME_PATH))
+  const next = getSafeAdminNextPath(
+    String(formData.get("next") || ADMIN_HOME_PATH)
+  )
 
   if (!email || !password) {
     return {
@@ -37,7 +40,7 @@ export async function signInAdmin(
     }
   }
 
-  if (!hasSupabasePublicConfig()) {
+  if (!hasSupabasePublicConfig() || !hasSupabaseServiceRoleConfig()) {
     return {
       status: "error",
       message: "Admin login is not configured.",
