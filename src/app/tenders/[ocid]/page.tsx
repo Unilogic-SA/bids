@@ -26,6 +26,7 @@ import {
   cleanValue,
   formatDate,
   formatDateTime,
+  formatTenderStatus,
   summarizeTender,
 } from "@/lib/tenders/format"
 import {
@@ -176,6 +177,16 @@ export default async function TenderPage({
             </div>
 
             <TenderSummaryStrip tender={tender} />
+
+            {formatTenderStatus(tender) === "closed" ? (
+              <Alert variant="destructive">
+                <AlertTitle>Closed</AlertTitle>
+                <AlertDescription>
+                  This opportunity has closed. Its details and documents remain
+                  available for reference.
+                </AlertDescription>
+              </Alert>
+            ) : null}
           </div>
         </div>
       </header>

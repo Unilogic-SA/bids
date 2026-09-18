@@ -4,6 +4,7 @@ import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { trackUmamiEvent } from "@/lib/analytics"
+import { differenceInSastCalendarDays, SAST_TIME_ZONE } from "@/lib/sast-date"
 import { cn } from "@/lib/utils"
 
 const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1_000
@@ -12,6 +13,7 @@ const dayFormatter = new Intl.DateTimeFormat("en-ZA", {
   day: "numeric",
   month: "short",
   year: "numeric",
+  timeZone: SAST_TIME_ZONE,
 })
 
 type TenderListItemProps = {
@@ -221,11 +223,7 @@ function formatClosingUrgency(value?: string | null) {
     }
   }
 
-  const today = startOfDay(new Date())
-  const closingDay = startOfDay(date)
-  const calendarDaysLeft = Math.round(
-    (closingDay.getTime() - today.getTime()) / dayMs
-  )
+  const calendarDaysLeft = differenceInSastCalendarDays(date, Date.now())
 
   if (calendarDaysLeft === 1) {
     return {
@@ -234,7 +232,11 @@ function formatClosingUrgency(value?: string | null) {
     }
   }
 
-  if (calendarDaysLeft >= 2 && calendarDaysLeft <= 5) {
+  if (
+    calendarDaysLeft !== null &&
+    calendarDaysLeft >= 2 &&
+    calendarDaysLeft <= 5
+  ) {
     return {
       className: "text-primary",
       label: `Closes in ${calendarDaysLeft} days`,
@@ -245,10 +247,6 @@ function formatClosingUrgency(value?: string | null) {
     className: "text-muted-foreground",
     label: `Closes ${dayFormatter.format(date)}`,
   }
-}
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
 function isRecentlyPublished(value?: string | null) {

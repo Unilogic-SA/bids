@@ -1,6 +1,6 @@
 {
   "name": "Quick Idea / Backlog",
-  "description": "Capture a thought now and improve it later.",
+  "description": "Capture a thought now; you decide when it is ready for Codex.",
   "title": "[Idea] ",
   "labels": [
     "needs-spec"
@@ -9,7 +9,7 @@
     {
       "type": "markdown",
       "attributes": {
-        "value": "Use this form when the idea is still rough. It stays in Needs Spec until you turn it into a clear outcome and acceptance criteria."
+        "value": "Use this form when the idea is still rough. It starts in Needs Spec. When the description is clear enough for you, applying codex-ready authorises Codex even if you did not rewrite it into another template."
       }
     },
     {

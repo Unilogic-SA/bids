@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getAdminSession, getSafeNextPath } from "@/lib/admin/auth"
+import { getAdminSession, getSafeAdminNextPath } from "@/lib/admin/auth"
 
 export const dynamic = "force-dynamic"
 
@@ -39,7 +39,7 @@ export default async function AdminLoginPage({
   searchParams,
 }: AdminLoginPageProps) {
   const params = await searchParams
-  const next = getSafeNextPath(getFirstParam(params.next))
+  const next = getSafeAdminNextPath(getFirstParam(params.next))
   const session = await getAdminSession()
 
   if (session) {
@@ -58,7 +58,7 @@ export default async function AdminLoginPage({
               <CardTitle>Admin access</CardTitle>
             </div>
             <CardDescription>
-              Sign in with an authorized email address.
+              Sign in with an authorized admin account.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -73,7 +73,9 @@ export default async function AdminLoginPage({
 
 function LoginErrorAlert({ error }: { error: string }) {
   const message =
-    error === "not-authorized"
+    error === "configuration"
+      ? "Admin login is not configured. Contact the site administrator."
+      : error === "not-authorized"
       ? "This session is not authorized for admin access."
       : "The sign-in link could not be verified."
 

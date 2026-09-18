@@ -376,28 +376,31 @@ function getSyncHealth(
   latestSuccessfulSync: Awaited<ReturnType<typeof getLatestSuccessfulSyncRun>>,
   recentSyncRuns: Awaited<ReturnType<typeof getRecentSyncRuns>>
 ) {
-  const lastSuccessfulAt = latestSuccessfulSync?.completed_at || null
-  const recentSuccessfulSyncs = recentSyncRuns.filter(
-    (syncRun) => syncRun.status === "completed"
-  )
-  const recentFailedSyncs = recentSyncRuns.filter(
-    (syncRun) => syncRun.status === "failed"
-  )
-  const hasUnresolvedFailure = recentFailedSyncs.some(
-    (failedSync) =>
-      !recentSuccessfulSyncs.some((successfulSync) =>
-        successfulSyncCoversFailure(successfulSync, failedSync)
-      )
-  )
+  const hasUnresolvedFailure = recentSyncRuns.some((failedRun) => {
+    if (failedRun.status !== "failed" || !failedRun.completed_at) return false
 
-  if (!lastSuccessfulAt) {
+    const failedFrom = failedRun.date_from
+    const failedTo = failedRun.date_to
+    if (!failedFrom || !failedTo) return true
+
+    const failedAt = new Date(failedRun.completed_at).getTime()
+    return !recentSyncRuns.some(
+      (successfulRun) =>
+        successfulRun.status === "completed" &&
+        successfulRun.completed_at &&
+        new Date(successfulRun.completed_at).getTime() > failedAt &&
+        successfulRun.date_from &&
+        successfulRun.date_to &&
+        successfulRun.date_from <= failedFrom &&
+        successfulRun.date_to >= failedTo
+    )
+  })
+
+  if (hasUnresolvedFailure) {
     return {
-      severity: "critical" as const,
-      title: "Tender data is unavailable",
-      description: hasUnresolvedFailure
-        ? "A recent refresh failed and no successful refresh is recorded."
-        : "No successful tender-data refresh is recorded.",
-      lastSuccessfulAt: null,
+      title: "A recent sync failed",
+      description:
+        "Tender data may be incomplete until a successful refresh covers the failed date range.",
     }
   }
 

@@ -743,12 +743,15 @@ function deriveStatus(
   const closing = new Date(closingAt)
   if (closing.getTime() < now.getTime()) return "closed"
 
-  const sameUtcDay =
-    closing.getUTCFullYear() === now.getUTCFullYear() &&
-    closing.getUTCMonth() === now.getUTCMonth() &&
-    closing.getUTCDate() === now.getUTCDate()
+  const sastDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+  const sameSastDay = sastDate.format(closing) === sastDate.format(now)
 
-  return sameUtcDay ? "closing_today" : "open"
+  return sameSastDay ? "closing_today" : "open"
 }
 
 function latestDate(values: Array<string | undefined>) {

@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { buildTenderPath } from "@/lib/tenders/format"
+import { isSameSastDay } from "@/lib/sast-date"
 
 const ETENDERS_BASE_URL =
   process.env.ETENDERS_OCDS_URL ||
@@ -788,7 +789,7 @@ function deriveStatus(
   const closing = new Date(closingAt)
   if (Number.isNaN(closing.getTime())) return "open"
   if (closing.getTime() < now.getTime()) return "closed"
-  if (closing.toDateString() === now.toDateString()) return "closing_today"
+  if (isSameSastDay(closing, now)) return "closing_today"
   return "open"
 }
 

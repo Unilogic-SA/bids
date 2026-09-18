@@ -1,9 +1,11 @@
 import type { TenderDetail, TenderListingItem } from "@/lib/tenders/types"
+import { isSameSastDay, SAST_TIME_ZONE } from "@/lib/sast-date"
 
 const dateFormatter = new Intl.DateTimeFormat("en-ZA", {
   day: "2-digit",
   month: "short",
   year: "numeric",
+  timeZone: SAST_TIME_ZONE,
 })
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-ZA", {
@@ -13,6 +15,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-ZA", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
+  timeZone: SAST_TIME_ZONE,
 })
 
 export function formatDate(value?: string | null) {
@@ -30,7 +33,7 @@ export function formatDateTime(value?: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "Not supplied"
 
-  return dateTimeFormatter.format(date)
+  return `${dateTimeFormatter.format(date)} SAST`
 }
 
 export function formatTenderStatus(
@@ -41,7 +44,7 @@ export function formatTenderStatus(
     if (!Number.isNaN(closing.getTime())) {
       const now = new Date()
       if (closing.getTime() < now.getTime()) return "closed"
-      if (closing.toDateString() === now.toDateString()) return "closing_today"
+      if (isSameSastDay(closing, now)) return "closing_today"
       return "open"
     }
   }

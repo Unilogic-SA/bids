@@ -105,10 +105,13 @@ const SITEMAP_COLUMNS = [
 
 const SEARCH_COLUMNS = [
   "tender_no",
+  "title",
   "bid_description",
   "buyer_name",
+  "department",
   "industry",
   "province",
+  "tender_type",
 ] as const
 
 const SORT_CONFIG: Record<
@@ -200,15 +203,12 @@ export async function getTenderDetail(ocid: string) {
   }
 
   const supabase = createPublicClient()
-  const availabilityCutoff = getAvailabilityCutoff()
   const [{ data: tender, error }, { data: documents, error: documentsError }] =
     await Promise.all([
       supabase
         .from("tenders")
         .select(DETAIL_COLUMNS)
         .eq("ocid", ocid)
-        .eq("derived_status", "open")
-        .gte("closing_at", availabilityCutoff)
         .maybeSingle(),
       supabase
         .from("tender_documents")
@@ -246,21 +246,6 @@ export async function getTenderSitemapItems(limit = 5000) {
   return (data || []) as unknown as TenderSitemapItem[]
 }
 
-export async function getRecentSyncRuns() {
-  if (!hasSupabasePublicConfig()) return []
-
-  const supabase = createPublicClient()
-  const recentCutoff = getRecentSyncCutoff()
-  const { data } = await supabase
-    .from("tender_sync_runs")
-    .select("mode,status,date_from,date_to,completed_at")
-    .in("status", ["completed", "failed"])
-    .gte("completed_at", recentCutoff)
-    .order("completed_at", { ascending: false })
-
-  return data || []
-}
-
 export async function getLatestSuccessfulSyncRun() {
   if (!hasSupabasePublicConfig()) return null
 
@@ -276,8 +261,22 @@ export async function getLatestSuccessfulSyncRun() {
   return data
 }
 
-function getRecentSyncCutoff() {
-  return new Date(Date.now() - 26 * 60 * 60 * 1_000).toISOString()
+export async function getRecentSyncRuns() {
+  if (!hasSupabasePublicConfig()) return []
+
+  const supabase = createPublicClient()
+  const recentCutoff = new Date(Date.now() - 26 * 60 * 60 * 1_000).toISOString()
+  const { data } = await supabase
+    .from("tender_sync_runs")
+    .select(
+      "mode,status,date_from,date_to,completed_at,open_count,upserted_tender_count,message"
+    )
+    .in("status", ["completed", "failed"])
+    .gte("completed_at", recentCutoff)
+    .order("completed_at", { ascending: false })
+    .limit(100)
+
+  return data || []
 }
 
 function getAvailabilityCutoff() {
