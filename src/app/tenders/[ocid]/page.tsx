@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { cache, type ReactNode } from "react"
 import {
+  IconAlertTriangle,
   IconArrowLeft,
   IconDatabaseOff,
   IconExternalLink,
@@ -13,17 +14,17 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { TenderBookmarkButton } from "@/components/tender-bookmark-button"
+import { TenderCalendarAction } from "@/components/tender-calendar-action"
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+  TenderConditionsDisclosure,
+  type TenderConditionItem,
+} from "@/components/tender-conditions-disclosure"
 import { TenderDocuments } from "@/components/tender-documents"
 import {
-  cleanValue,
   formatDate,
   formatDateTime,
   formatTenderStatus,
@@ -140,9 +141,21 @@ export default async function TenderPage({
     )
   }
 
+  const description = getPrimaryDescription(tender)
+  const buyer = getPrimaryBuyer(tender)
+  const canonicalPath =
+    tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
+  const canonicalUrl = absoluteUrl(canonicalPath)
+  const hasCriticalFacts = hasMeaningfulCriticalFacts(tender)
+  const hasBriefing = hasMeaningfulBriefing(tender)
+  const conditionItems = getConditionItems(tender)
+  const hasContact = hasMeaningfulContact(tender)
+  const originalTenderUrl = getVerifiedOriginalTenderUrl(
+    tender.original_source_url
+  )
+  const hasRemainingContent =
+    conditionItems.length > 0 || hasContact || Boolean(originalTenderUrl)
   const jsonLd = buildTenderJsonLd(tender, documents)
-  const description =
-    tender.bid_description || tender.title || "No description supplied"
 
   return (
     <div className="min-h-screen bg-background">
@@ -152,55 +165,103 @@ export default async function TenderPage({
       />
       <header className="border-b bg-background">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:py-5 md:px-6">
-          <div>
-            <Button
-              asChild
-              className="min-h-11 w-fit sm:min-h-7"
-              size="sm"
-              variant="ghost"
-            >
-              <Link href={listingHref}>
-                <IconArrowLeft data-icon="inline-start" />
-                Tenders
-              </Link>
-            </Button>
-          </div>
+          <Button
+            asChild
+            className="min-h-11 w-fit sm:min-h-7"
+            size="sm"
+            variant="ghost"
+          >
+            <Link href={listingHref}>
+              <IconArrowLeft data-icon="inline-start" />
+              Tenders
+            </Link>
+          </Button>
 
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="flex min-w-0 flex-col gap-3">
-              <h1 className="max-w-5xl break-words text-2xl font-semibold leading-tight tracking-normal sm:text-3xl">
-                {tender.tender_no || "Tender notice"}
-              </h1>
-              <p className="max-w-4xl break-words text-sm leading-6 text-muted-foreground sm:text-base">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 max-w-5xl flex-col gap-2">
+              <TenderReference tender={tender} />
+              <h1 className="break-words text-2xl font-semibold leading-tight tracking-normal sm:text-3xl">
                 {description}
-              </p>
+              </h1>
+              {buyer ? (
+                <p className="break-words text-sm font-medium leading-6 sm:text-base">
+                  {buyer}
+                </p>
+              ) : null}
+              <TenderBadges tender={tender} />
             </div>
 
-            <TenderSummaryStrip tender={tender} />
-
-            {formatTenderStatus(tender) === "closed" ? (
-              <Alert variant="destructive">
-                <AlertTitle>Closed</AlertTitle>
-                <AlertDescription>
-                  This opportunity has closed. Its details and documents remain
-                  available for reference.
-                </AlertDescription>
-              </Alert>
-            ) : null}
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <TenderBookmarkButton ocid={tender.ocid} />
+              <TenderCalendarAction
+                tender={{
+                  ocid: tender.ocid,
+                  tenderNumber:
+                    getMeaningfulText(tender.tender_no) || "Tender notice",
+                  description,
+                  buyer,
+                  canonicalUrl,
+                  closingAt: tender.closing_at,
+                  briefingAt: hasBriefing
+                    ? tender.briefing_datetime
+                    : null,
+                  briefingVenue: getMeaningfulText(tender.briefing_venue),
+                  briefingCompulsory: tender.compulsory_briefing,
+                }}
+              />
+            </div>
           </div>
         </div>
       </header>
 
       <main className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <section className="order-2 min-w-0 lg:order-1">
-          <TenderDetailTabs tender={tender} />
-        </section>
+        <div className="order-1 flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
+          {hasCriticalFacts ? <TenderCriticalFacts tender={tender} /> : null}
+          {hasBriefing ? (
+            <>
+              {hasCriticalFacts ? <Separator /> : null}
+              <TenderBriefing tender={tender} />
+            </>
+          ) : null}
+        </div>
 
-        <TenderActionColumn
-          className="order-1 lg:order-2"
-          documents={documents}
-          tender={tender}
-        />
+        <aside className="order-2 min-w-0 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <TenderDocuments documents={documents} tender={tender} />
+        </aside>
+
+        {hasRemainingContent ? (
+          <div className="order-3 flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-2">
+            <Separator />
+            {conditionItems.length > 0 ? (
+              <TenderConditions items={conditionItems} />
+            ) : null}
+            {conditionItems.length > 0 && hasContact ? <Separator /> : null}
+            {hasContact ? <TenderContact tender={tender} /> : null}
+            {(conditionItems.length > 0 || hasContact) && originalTenderUrl ? (
+              <Separator />
+            ) : null}
+            {originalTenderUrl ? (
+              <Button
+                asChild
+                className="min-h-11 w-full sm:min-h-7 sm:w-fit"
+                size="sm"
+                variant="outline"
+              >
+                <a
+                  data-umami-event="tender_source_open"
+                  data-umami-event-location="detail_page"
+                  data-umami-event-ocid={tender.ocid}
+                  href={originalTenderUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <IconExternalLink data-icon="inline-start" />
+                  View original tender on eTenders
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </main>
     </div>
   )
@@ -291,354 +352,250 @@ function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
   }
 }
 
-function TenderSummaryStrip({ tender }: { tender: TenderDetail }) {
+function TenderReference({ tender }: { tender: TenderDetail }) {
+  const reference = [
+    getMeaningfulText(tender.tender_type),
+    getMeaningfulText(tender.tender_no),
+  ].filter(Boolean)
+
+  if (reference.length === 0) return null
+
   return (
-    <dl className="grid gap-x-8 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-      <SummaryItem
-        emphasis={getClosingEmphasis(tender.closing_at)}
-        label="Closing"
-        value={formatDateTime(tender.closing_at)}
-      />
-      <SummaryItem label="Buyer" value={cleanValue(tender.buyer_name)} />
-      <SummaryItem label="Province" value={cleanValue(tender.province)} />
-    </dl>
+    <p className="text-sm font-medium text-muted-foreground">
+      {reference.join(" · ")}
+    </p>
   )
 }
 
-function TenderDetailTabs({ tender }: { tender: TenderDetail }) {
+function TenderBadges({ tender }: { tender: TenderDetail }) {
+  const province = getMeaningfulText(tender.province)
+  const industry = getMeaningfulText(tender.industry)
+
+  if (!province && !industry) return null
+
   return (
-    <Tabs className="min-w-0 gap-5" defaultValue="bid">
-      <div className="overflow-x-auto">
-        <TabsList className="min-w-max" variant="line">
-          <TabsTrigger value="bid">Bid</TabsTrigger>
-          <TabsTrigger value="logistics">Logistics</TabsTrigger>
-          <TabsTrigger value="contact">Contact</TabsTrigger>
-          <TabsTrigger value="source">Source</TabsTrigger>
-        </TabsList>
-      </div>
-
-      <TabsContent className="mt-0" value="bid">
-        <div className="grid gap-6">
-          <TenderSection title="Bid details">
-            <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              <DetailItem label="Type" value={cleanValue(tender.tender_type)} />
-              <DetailItem
-                label="Tender number"
-                value={cleanValue(tender.tender_no)}
-              />
-              <DetailItem label="Department" value={cleanValue(tender.department)} />
-              <DetailItem label="Industry" value={cleanValue(tender.industry)} />
-              <DetailItem
-                label="Procurement category"
-                value={cleanValue(tender.procurement_category)}
-              />
-              <DetailItem
-                label="Procurement method"
-                value={cleanValue(tender.procurement_method_details)}
-              />
-            </dl>
-          </TenderSection>
-
-          <Separator />
-
-          <TenderSection title="Dates">
-            <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              <DetailItem
-                label="Opening date"
-                value={formatDate(tender.opening_at)}
-              />
-              <DetailItem
-                emphasis={getClosingEmphasis(tender.closing_at)}
-                label="Closing date"
-                value={formatDateTime(tender.closing_at)}
-              />
-              <DetailItem
-                label="Published"
-                value={formatDateTime(tender.published_at)}
-              />
-              <DetailItem
-                label="Modified"
-                value={formatDateTime(tender.modified_at)}
-              />
-            </dl>
-          </TenderSection>
-
-          <Separator />
-
-          <TenderSection title="Conditions">
-            <div className="flex flex-col gap-4">
-              {tender.has_special_conditions ? (
-                <Alert>
-                  <AlertTitle>Special conditions supplied</AlertTitle>
-                  <AlertDescription>
-                    {cleanValue(tender.special_conditions)}
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-                <DetailItem
-                  label="Special conditions"
-                  value={cleanValue(tender.special_conditions)}
-                />
-                <DetailItem
-                  label="Eligibility notes"
-                  value={cleanValue(tender.eligibility_notes)}
-                />
-              </dl>
-            </div>
-          </TenderSection>
-        </div>
-      </TabsContent>
-
-      <TabsContent className="mt-0" value="logistics">
-        <div className="grid gap-6">
-          <TenderSection title="Location">
-            <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              <DetailItem label="Place" value={cleanValue(tender.place_raw)} />
-              <DetailItem
-                label="Address"
-                value={cleanValue(tender.address_line)}
-              />
-              <DetailItem label="Area" value={cleanValue(tender.suburb_or_area)} />
-              <DetailItem label="City" value={cleanValue(tender.city)} />
-              <DetailItem
-                label="Postal code"
-                value={cleanValue(tender.postal_code)}
-              />
-            </dl>
-          </TenderSection>
-
-          <Separator />
-
-          <TenderSection title="Briefing">
-            <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              <DetailItem
-                label="Status"
-                value={
-                  tender.briefing_session
-                    ? "Session scheduled"
-                    : "No briefing session"
-                }
-              />
-              <DetailItem
-                label="Compulsory"
-                value={cleanValue(tender.compulsory_briefing)}
-              />
-              <DetailItem
-                label="Date"
-                value={formatDateTime(tender.briefing_datetime)}
-              />
-              <DetailItem label="Venue" value={cleanValue(tender.briefing_venue)} />
-            </dl>
-          </TenderSection>
-        </div>
-      </TabsContent>
-
-      <TabsContent className="mt-0" value="contact">
-        <TenderContact tender={tender} />
-      </TabsContent>
-
-      <TabsContent className="mt-0" value="source">
-        <TenderSource tender={tender} />
-      </TabsContent>
-    </Tabs>
-  )
-}
-
-function TenderActionColumn({
-  className,
-  documents,
-  tender,
-}: {
-  className?: string
-  documents: TenderDocument[]
-  tender: TenderDetail
-}) {
-  return (
-    <aside className={cn("min-w-0 lg:sticky lg:top-4", className)}>
-      <TenderDocuments documents={documents} tender={tender} />
-    </aside>
-  )
-}
-
-function TenderContact({ tender }: { tender: TenderDetail }) {
-  return (
-    <div className="grid gap-6">
-      <TenderSection title="Contact">
-        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-          <DetailItem
-            label="Contact person"
-            value={cleanValue(tender.contact_person)}
-          />
-          <DetailItem
-            label="Email"
-            value={
-              <EmailLink
-                context="contact"
-                email={tender.contact_email}
-                tender={tender}
-              />
-            }
-          />
-          <DetailItem label="Telephone" value={cleanValue(tender.contact_tel)} />
-          <DetailItem label="Role" value={cleanValue(tender.contact_role)} />
-        </dl>
-      </TenderSection>
+    <div className="flex flex-wrap gap-2 pt-1">
+      {province ? <Badge variant="secondary">{province}</Badge> : null}
+      {industry ? <Badge variant="outline">{industry}</Badge> : null}
     </div>
   )
 }
 
-function TenderSource({ tender }: { tender: TenderDetail }) {
-  return (
-    <div className="grid gap-6">
-      <TenderSection title="Source">
-        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-          <DetailItem
-            label="Reference"
-            value={cleanValue(tender.source_label || tender.source_site)}
-          />
-          <DetailItem label="Source site" value={cleanValue(tender.source_site)} />
-          <DetailItem label="Release ID" value={cleanValue(tender.release_id)} />
-          <DetailItem label="OCDS ID" value={cleanValue(tender.ocid)} />
-          <DetailItem
-            label="Imported"
-            value={formatDateTime(tender.imported_at)}
-          />
-          <DetailItem
-            label="Captured"
-            value={formatDateTime(tender.captured_at)}
-          />
-          <DetailItem
-            label="Documents"
-            value={String(tender.documents_count || 0)}
-          />
-        </dl>
-      </TenderSection>
+function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
+  const isClosed = formatTenderStatus(tender) === "closed"
+  const closing = formatAvailableDate(tender.closing_at, true)
+  const opening = formatAvailableDate(tender.opening_at)
+  const published = formatAvailableDate(tender.published_at)
+  const location = buildTenderLocation(tender)
+  const lastUpdated = formatAvailableDate(tender.modified_at)
+  const facts = [
+    closing
+      ? {
+          label: isClosed ? "Closed" : "Closing",
+          value: closing,
+          emphasis: !isClosed,
+          strong: true,
+        }
+      : null,
+    opening
+      ? { label: "Opening date", value: opening }
+      : published
+        ? { label: "Published", value: published }
+        : null,
+    location ? { label: "Required at", value: location } : null,
+    lastUpdated
+      ? { label: "Last updated", value: lastUpdated, quiet: true }
+      : null,
+  ].filter((fact) => fact !== null)
 
-      {tender.original_source_url ? (
-        <>
-          <Separator />
-          <TenderSection title="Original record">
-            <p className="text-sm text-muted-foreground">
-              Open the source tender page on eTenders.
-            </p>
-            <Button
-              asChild
-              className="min-h-11 w-full sm:min-h-7 sm:w-fit"
-              size="sm"
-              variant="outline"
-            >
-              <a
-                data-umami-event="tender_source_open"
-                data-umami-event-location="detail_page"
-                data-umami-event-ocid={tender.ocid}
-                href={tender.original_source_url}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <IconExternalLink data-icon="inline-start" />
-                Original
-              </a>
-            </Button>
-          </TenderSection>
-        </>
+  return (
+    <section aria-label="Critical tender facts" className="flex flex-col gap-4">
+      {facts.length > 0 ? (
+        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+          {facts.map((fact) => (
+            <DetailItem
+              emphasis={fact.emphasis}
+              key={fact.label}
+              label={fact.label}
+              quiet={fact.quiet}
+              strong={fact.strong}
+              value={fact.value}
+            />
+          ))}
+        </dl>
       ) : null}
-    </div>
-  )
-}
 
-function TenderSection({
-  children,
-  title,
-}: {
-  children: ReactNode
-  title: string
-}) {
-  return (
-    <section className="flex min-w-0 flex-col gap-3">
-      <h2 className="text-base font-medium">{title}</h2>
-      {children}
+      {isClosed ? (
+        <Alert variant="destructive">
+          <AlertTitle>Closed</AlertTitle>
+          <AlertDescription>
+            This opportunity has closed. Its details and documents remain
+            available for reference.
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </section>
   )
 }
 
-function SummaryItem({
-  emphasis,
-  label,
-  value,
-}: {
-  emphasis?: boolean
-  label: string
-  value: string
-}) {
+function TenderBriefing({ tender }: { tender: TenderDetail }) {
+  const date = formatAvailableDate(tender.briefing_datetime, true)
+  const venue = getMeaningfulText(tender.briefing_venue)
+  const facts = [
+    date ? { label: "Date and time", value: date } : null,
+    venue ? { label: "Venue", value: venue } : null,
+  ].filter((fact) => fact !== null)
+  const content = facts.length ? (
+    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+      {facts.map((fact) => (
+        <DetailItem key={fact.label} label={fact.label} value={fact.value} />
+      ))}
+    </dl>
+  ) : (
+    <p className="text-sm text-muted-foreground">
+      A briefing session applies. Date and venue were not supplied.
+    </p>
+  )
+
+  if (tender.compulsory_briefing) {
+    return (
+      <Alert>
+        <IconAlertTriangle />
+        <AlertTitle>Compulsory briefing</AlertTitle>
+        <AlertDescription>{content}</AlertDescription>
+      </Alert>
+    )
+  }
+
   return (
-    <div
-      className={cn(
-        "grid min-w-0 gap-1",
-        emphasis &&
-          "rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
-      )}
-    >
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          "min-w-0 break-words text-sm font-medium leading-5",
-          emphasis && "text-primary"
-        )}
-      >
-        {value}
-      </dd>
-    </div>
+    <section className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-base font-medium">Briefing</h2>
+        {tender.compulsory_briefing === false ? (
+          <Badge variant="outline">Non-compulsory</Badge>
+        ) : null}
+      </div>
+      {content}
+    </section>
   )
 }
 
-function EmailLink({
-  context,
-  email,
-  tender,
-}: {
-  context: string
-  email?: string | null
-  tender: TenderDetail
-}) {
-  if (!email) return "Not supplied"
+function TenderConditions({ items }: { items: TenderConditionItem[] }) {
+  const isLong =
+    items.reduce((length, item) => length + item.value.length, 0) > 900 ||
+    items.some(
+      (item) => item.value.length > 700 || item.value.split("\n").length > 8
+    )
 
   return (
-    <a
-      className="break-all underline underline-offset-4"
-      data-umami-event="tender_contact_email_click"
-      data-umami-event-context={context}
-      data-umami-event-ocid={tender.ocid}
-      href={`mailto:${email}`}
-    >
-      {email}
-    </a>
+    <section className="flex min-w-0 flex-col gap-3">
+      <h2 className="text-base font-medium">Conditions</h2>
+      {isLong ? (
+        <TenderConditionsDisclosure items={items} />
+      ) : (
+        <ConditionItems items={items} />
+      )}
+    </section>
+  )
+}
+
+function ConditionItems({ items }: { items: TenderConditionItem[] }) {
+  return (
+    <dl className="flex flex-col gap-4">
+      {items.map((item) => (
+        <div className="flex min-w-0 flex-col gap-1" key={item.label}>
+          <dt className="text-xs font-medium text-muted-foreground">
+            {item.label}
+          </dt>
+          <dd className="whitespace-pre-line break-words text-sm leading-6">
+            {item.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function TenderContact({ tender }: { tender: TenderDetail }) {
+  const person = getMeaningfulText(tender.contact_person)
+  const role = getMeaningfulText(tender.contact_role)
+  const email = getMeaningfulText(tender.contact_email)
+  const emailTarget = getEmailTarget(email)
+  const telephone = getMeaningfulText(tender.contact_tel)
+  const telephoneTarget = getTelephoneTarget(telephone)
+
+  return (
+    <section className="flex min-w-0 flex-col gap-3">
+      <h2 className="text-base font-medium">Contact</h2>
+      <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+        {person ? <DetailItem label="Contact person" value={person} /> : null}
+        {role && !areEquivalent(role, person) ? (
+          <DetailItem label="Role" value={role} />
+        ) : null}
+        {emailTarget ? (
+          <DetailItem
+            label="Email"
+            value={
+              <a
+                className="break-all underline underline-offset-4"
+                data-umami-event="tender_contact_email_click"
+                data-umami-event-context="contact"
+                data-umami-event-ocid={tender.ocid}
+                href={`mailto:${emailTarget}`}
+              >
+                {email}
+              </a>
+            }
+          />
+        ) : null}
+        {telephoneTarget ? (
+          <DetailItem
+            label="Telephone"
+            value={
+              <a
+                className="underline underline-offset-4"
+                data-umami-event="tender_contact_tel_click"
+                data-umami-event-context="contact"
+                data-umami-event-ocid={tender.ocid}
+                href={`tel:${telephoneTarget}`}
+              >
+                {telephone}
+              </a>
+            }
+          />
+        ) : null}
+      </dl>
+    </section>
   )
 }
 
 function DetailItem({
   emphasis,
   label,
+  quiet,
+  strong,
   value,
 }: {
   emphasis?: boolean
   label: string
+  quiet?: boolean
+  strong?: boolean
   value: ReactNode
 }) {
   return (
     <div
       className={cn(
         "flex min-w-0 flex-col gap-1",
-        emphasis &&
-          "rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
+        emphasis && "rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
       )}
     >
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd
         className={cn(
           "break-words text-sm leading-5",
-          emphasis && "font-medium text-primary"
+          emphasis && "text-primary",
+          strong && "font-semibold",
+          quiet && "text-muted-foreground"
         )}
       >
         {value}
@@ -647,11 +604,185 @@ function DetailItem({
   )
 }
 
-function getClosingEmphasis(value?: string | null) {
-  if (!value) return false
+function getPrimaryDescription(tender: TenderDetail) {
+  return (
+    getMeaningfulText(tender.bid_description) ||
+    getMeaningfulText(tender.title) ||
+    getMeaningfulText(tender.title_snippet) ||
+    "Tender notice"
+  )
+}
+
+function getPrimaryBuyer(tender: TenderDetail) {
+  const buyer = getMeaningfulText(tender.buyer_name)
+  const department = getMeaningfulText(tender.department)
+
+  if (!buyer) return department
+  if (!department) return buyer
+  if (areEquivalent(buyer, department)) {
+    return buyer.length >= department.length ? buyer : department
+  }
+
+  return department
+}
+
+function getConditionItems(tender: TenderDetail) {
+  const specialConditions = getMeaningfulText(tender.special_conditions)
+  const eligibilityNotes = getMeaningfulText(tender.eligibility_notes)
+
+  if (!specialConditions && !eligibilityNotes) return []
+  if (!specialConditions) {
+    return [{ label: "Eligibility", value: eligibilityNotes }]
+  }
+  if (!eligibilityNotes) {
+    return [{ label: "Special conditions", value: specialConditions }]
+  }
+
+  const normalizedSpecial = normalizeForComparison(specialConditions)
+  const normalizedEligibility = normalizeForComparison(eligibilityNotes)
+
+  if (normalizedSpecial.includes(normalizedEligibility)) {
+    return [{ label: "Special conditions", value: specialConditions }]
+  }
+  if (normalizedEligibility.includes(normalizedSpecial)) {
+    return [{ label: "Eligibility", value: eligibilityNotes }]
+  }
+
+  return [
+    { label: "Special conditions", value: specialConditions },
+    { label: "Eligibility", value: eligibilityNotes },
+  ]
+}
+
+function hasMeaningfulBriefing(tender: TenderDetail) {
+  return Boolean(
+    tender.briefing_session === true ||
+      tender.compulsory_briefing === true ||
+      getMeaningfulText(tender.briefing_datetime) ||
+      getMeaningfulText(tender.briefing_venue)
+  )
+}
+
+function hasMeaningfulCriticalFacts(tender: TenderDetail) {
+  return Boolean(
+    formatTenderStatus(tender) === "closed" ||
+      formatAvailableDate(tender.closing_at, true) ||
+      formatAvailableDate(tender.opening_at) ||
+      formatAvailableDate(tender.published_at) ||
+      buildTenderLocation(tender) ||
+      formatAvailableDate(tender.modified_at)
+  )
+}
+
+function hasMeaningfulContact(tender: TenderDetail) {
+  const person = getMeaningfulText(tender.contact_person)
+  const role = getMeaningfulText(tender.contact_role)
+  const emailTarget = getEmailTarget(getMeaningfulText(tender.contact_email))
+  const telephoneTarget = getTelephoneTarget(
+    getMeaningfulText(tender.contact_tel)
+  )
+
+  return Boolean(
+    person ||
+      (role && !areEquivalent(role, person)) ||
+      emailTarget ||
+      telephoneTarget
+  )
+}
+
+function buildTenderLocation(tender: TenderDetail) {
+  const structuredParts = [
+    tender.address_line,
+    tender.suburb_or_area,
+    tender.city,
+    tender.province,
+    tender.postal_code,
+  ]
+    .map(normalizeLocationPart)
+    .filter(Boolean)
+  const structuredKeys = new Set(structuredParts.map(normalizeForComparison))
+  const placeParts = normalizeLocationPart(tender.place_raw)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(
+      (part) => part && !structuredKeys.has(normalizeForComparison(part))
+    )
+  const orderedParts = [...placeParts, ...structuredParts]
+
+  return orderedParts.filter(
+    (part, index) =>
+      orderedParts.findIndex(
+        (candidate) =>
+          normalizeForComparison(candidate) === normalizeForComparison(part)
+      ) === index
+  ).join(", ")
+}
+
+function normalizeLocationPart(value?: string | null) {
+  return getMeaningfulText(value)
+    .replace(/\s*[|;]+\s*/g, ", ")
+    .replace(/(?:\s*,\s*){2,}/g, ", ")
+    .replace(/^[\s,|;]+|[\s,|;]+$/g, "")
+}
+
+function formatAvailableDate(value?: string | null, includeTime = false) {
+  if (!value) return ""
 
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return false
+  if (Number.isNaN(date.getTime())) return ""
 
-  return date.getTime() > Date.now()
+  return includeTime ? formatDateTime(value) : formatDate(value)
+}
+
+function getVerifiedOriginalTenderUrl(value?: string | null) {
+  const candidate = getMeaningfulText(value)
+  if (!candidate) return ""
+
+  try {
+    const url = new URL(candidate)
+    const isEtendersHost =
+      url.hostname === "etenders.gov.za" ||
+      url.hostname.endsWith(".etenders.gov.za")
+
+    return ["http:", "https:"].includes(url.protocol) && isEtendersHost
+      ? url.toString()
+      : ""
+  } catch {
+    return ""
+  }
+}
+
+function getEmailTarget(value: string) {
+  return value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || ""
+}
+
+function getTelephoneTarget(value: string) {
+  const candidate = value.match(/\+?\d(?:[\d\s().-]{5,}\d)?/)?.[0] || ""
+  let normalized = candidate.replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "")
+
+  if (normalized.startsWith("00")) normalized = `+${normalized.slice(2)}`
+
+  return normalized.replace(/\D/g, "").length >= 7 ? normalized : ""
+}
+
+function getMeaningfulText(value?: string | null) {
+  const candidate = cleanText(value)
+
+  return ["not supplied", "not applicable", "n/a", "none", "-"].includes(
+    candidate.toLocaleLowerCase("en-ZA")
+  )
+    ? ""
+    : candidate
+}
+
+function areEquivalent(first: string, second: string) {
+  if (!first || !second) return false
+  return normalizeForComparison(first) === normalizeForComparison(second)
+}
+
+function normalizeForComparison(value: string) {
+  return value
+    .toLocaleLowerCase("en-ZA")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
 }
