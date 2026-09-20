@@ -1,23 +1,20 @@
 import {
   IconAlertTriangle,
-  IconArrowRight,
   IconChecks,
   IconClock,
   IconDatabase,
   IconFileText,
-  IconLogout,
 } from "@tabler/icons-react"
 import type { TablerIcon } from "@tabler/icons-react"
-import Link from "next/link"
 import type { Metadata } from "next"
 
+import { SyncActivityChart } from "@/components/admin/sync-activity-chart"
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardAction,
@@ -34,6 +31,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Separator } from "@/components/ui/separator"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import {
   Table,
   TableBody,
@@ -42,8 +40,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { signOutAdmin } from "@/lib/admin/actions"
-import { requireAdminSession } from "@/lib/admin/auth"
 import {
   type AdminMonitoringSnapshot,
   type AdminSyncRun,
@@ -82,7 +78,6 @@ type HealthState = {
 }
 
 export default async function AdminPage() {
-  const { user } = await requireAdminSession()
   const snapshot = await getAdminMonitoringSnapshot()
   const health = getHealthState(snapshot)
   const documentCoverage = getDocumentCoverage(snapshot)
@@ -90,42 +85,19 @@ export default async function AdminPage() {
   const checks = getSystemChecks(snapshot)
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 md:px-6 md:py-6">
-        <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="flex min-w-0 flex-col gap-1">
-            <p className="text-sm font-medium text-muted-foreground">Admin</p>
-            <h1 className="font-heading text-3xl font-medium tracking-normal">
-              Operations
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Last checked {formatDate(snapshot.checkedAt)}
-            </p>
+    <>
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4 lg:px-6">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="h-4" />
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate font-heading text-base font-medium">Operations</h1>
+            <p className="truncate text-xs text-muted-foreground">Last checked {formatDate(snapshot.checkedAt)}</p>
           </div>
-          <div className="flex flex-col items-start gap-2 md:items-end">
-            <div className="flex items-center gap-2">
-              <Badge variant={getHealthBadgeVariant(health.tone)}>
-                {health.label}
-              </Badge>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/">
-                  View site
-                  <IconArrowRight data-icon="inline-end" />
-                </Link>
-              </Button>
-              <form action={signOutAdmin}>
-                <Button type="submit" variant="outline" size="sm">
-                  <IconLogout data-icon="inline-start" />
-                  Sign out
-                </Button>
-              </form>
-            </div>
-            <p className="max-w-72 truncate text-sm text-muted-foreground">
-              {user.email}
-            </p>
-          </div>
-        </header>
-
+          <Badge variant={getHealthBadgeVariant(health.tone)}>{health.label}</Badge>
+        </div>
+      </header>
+      <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
         {health.tone !== "operational" ? (
           <Alert variant={health.tone === "syncing" ? "default" : "destructive"}>
             <IconAlertTriangle />
@@ -179,6 +151,29 @@ export default async function AdminPage() {
             icon={IconFileText}
           />
         </section>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent sync activity</CardTitle>
+            <CardDescription>
+              Existing fetched, tender, and document totals from the latest sync runs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {snapshot.latestRuns.length > 0 ? (
+              <SyncActivityChart runs={snapshot.latestRuns} />
+            ) : (
+              <Empty className="min-h-64">
+                <EmptyHeader>
+                  <EmptyTitle>No sync activity to chart</EmptyTitle>
+                  <EmptyDescription>
+                    The chart will use existing sync history when rows are available.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </CardContent>
+        </Card>
 
         <section
           aria-label="System checks"
@@ -262,7 +257,7 @@ export default async function AdminPage() {
               Most recent sync run records from Supabase.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             {snapshot.latestRuns.length > 0 ? (
               <SyncRunsTable runs={snapshot.latestRuns} />
             ) : (
@@ -278,7 +273,7 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </>
   )
 }
 
@@ -322,7 +317,7 @@ function StatBlock({ label, value }: { label: string; value: string }) {
 
 function SyncRunsTable({ runs }: { runs: AdminSyncRun[] }) {
   return (
-    <Table>
+    <Table className="min-w-240">
       <TableHeader>
         <TableRow>
           <TableHead>Status</TableHead>
