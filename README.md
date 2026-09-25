@@ -43,6 +43,11 @@ The production data path is Supabase-native:
 
 The manual `/api/sync` route is still useful for one-off backfills and recovery runs.
 
+Both import paths retain distinct complete OCDS and portal snapshots for later analysis.
+Apply the ingestion migration before deploying the updated importers. See the
+[API audit and rollout plan](docs/etenders-ingestion.md) for storage, reliability,
+coverage limits, validation, and staging/production deployment order.
+
 ## Development
 
 ```bash
