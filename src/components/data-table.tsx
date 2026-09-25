@@ -106,6 +106,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { AdminDashboardRow } from "@/lib/admin/dashboard"
+import { ADMIN_CHART_COLORS } from "@/lib/admin/theme"
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -149,8 +150,8 @@ function DragHandle({ id }: { id: string }) {
       {...attributes}
       {...listeners}
       variant="ghost"
-      size="icon"
-      className="size-7 text-muted-foreground hover:bg-transparent"
+      size="icon-sm"
+      className="text-muted-foreground hover:bg-transparent"
     >
       <IconGripVertical data-icon="inline-start" />
       <span className="sr-only">Drag to reorder</span>
@@ -238,8 +239,8 @@ const columns = columnHelper.columns([
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="flex size-8 text-muted-foreground data-[state=open]:bg-muted"
-            size="icon"
+            className="text-muted-foreground data-[state=open]:bg-muted"
+            size="icon-sm"
           >
             <IconDotsVertical data-icon="inline-start" />
             <span className="sr-only">Open menu</span>
@@ -270,12 +271,8 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <Badge
-      variant={isAttention ? "destructive" : isRunning ? "secondary" : "outline"}
-      className={
-        isAttention
-          ? "bg-red-50 px-1.5 text-red-700 dark:bg-red-950 dark:text-red-300"
-          : "px-1.5"
-      }
+      variant={isAttention ? "critical" : isRunning ? "secondary" : "outline"}
+      className="px-1.5"
     >
       {isAttention ? (
         <IconAlertTriangleFilled />
@@ -310,7 +307,7 @@ function DraggableRow({
       }}
     >
       {row.getVisibleCells().map((cell) => (
-        <TableCell key={cell.id}>
+        <TableCell key={cell.id} className="py-1.5">
           <FlexRender cell={cell} />
         </TableCell>
       ))}
@@ -399,7 +396,7 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
     <Tabs
       value={activeView}
       onValueChange={handleViewChange}
-      className="w-full flex-col justify-start gap-6"
+      className="w-full flex-col justify-start gap-4"
     >
       <div className="flex items-center justify-between px-4 lg:px-6">
         <Label htmlFor="view-selector" className="sr-only">
@@ -487,12 +484,16 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
             sensors={sensors}
             id={sortableId}
           >
-            <Table>
+            <Table className="text-xs">
               <TableHeader className="sticky top-0 z-10 bg-muted">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} colSpan={header.colSpan}>
+                      <TableHead
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        className="h-8"
+                      >
                         {header.isPlaceholder ? null : (
                           <FlexRender header={header} />
                         )}
@@ -526,13 +527,13 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
           </DndContext>
         </div>
         <div className="flex items-center justify-between px-4">
-          <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
+          <div className="hidden flex-1 text-xs text-muted-foreground lg:flex">
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
             {table.getFilteredRowModel().rows.length} row(s) selected.
           </div>
-          <div className="flex w-full items-center gap-8 lg:w-fit">
+          <div className="flex w-full items-center gap-4 lg:w-fit">
             <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
+              <Label htmlFor="rows-per-page" className="text-xs font-medium">
                 Rows per page
               </Label>
               <Select
@@ -553,25 +554,24 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex w-fit items-center justify-center text-sm font-medium">
+            <div className="flex w-fit items-center justify-center text-xs font-medium">
               Page {table.state.pagination.pageIndex + 1} of{" "}
               {Math.max(1, table.getPageCount())}
             </div>
             <div className="ml-auto flex items-center gap-2 lg:ml-0">
               <Button
                 variant="outline"
-                className="hidden size-8 p-0 lg:flex"
+                className="hidden lg:flex"
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
-                size="icon"
+                size="icon-sm"
               >
                 <span className="sr-only">Go to first page</span>
                 <IconChevronsLeft data-icon="inline-start" />
               </Button>
               <Button
                 variant="outline"
-                className="size-8"
-                size="icon"
+                size="icon-sm"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
               >
@@ -580,8 +580,7 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
               </Button>
               <Button
                 variant="outline"
-                className="size-8"
-                size="icon"
+                size="icon-sm"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
               >
@@ -590,8 +589,8 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
               </Button>
               <Button
                 variant="outline"
-                className="hidden size-8 lg:flex"
-                size="icon"
+                className="hidden lg:flex"
+                size="icon-sm"
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
               >
@@ -609,7 +608,7 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
 const detailChartConfig = {
   value: {
     label: "Count",
-    color: "#7c3aed",
+    color: ADMIN_CHART_COLORS.primary,
   },
 } satisfies ChartConfig
 
@@ -625,7 +624,11 @@ function TableCellViewer({ item }: { item: DashboardRow }) {
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
       <DrawerTrigger asChild>
-        <Button variant="link" className="w-fit px-0 text-left text-foreground">
+        <Button
+          variant="link"
+          size="sm"
+          className="w-fit px-0 text-left text-foreground"
+        >
           {item.name}
         </Button>
       </DrawerTrigger>
@@ -656,9 +659,9 @@ function TableCellViewer({ item }: { item: DashboardRow }) {
                     dataKey="value"
                     type="natural"
                     isAnimationActive={false}
-                    fill="var(--color-value)"
+                    fill={ADMIN_CHART_COLORS.primary}
                     fillOpacity={0.45}
-                    stroke="var(--color-value)"
+                    stroke={ADMIN_CHART_COLORS.primary}
                   />
                 </AreaChart>
               </ChartContainer>

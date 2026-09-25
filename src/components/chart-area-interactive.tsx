@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/toggle-group"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { AdminSyncRun } from "@/lib/admin/monitoring"
+import { ADMIN_CHART_COLORS } from "@/lib/admin/theme"
 
 export const description = "An interactive sync activity area chart"
 
@@ -40,15 +41,15 @@ const chartConfig = {
   },
   fetched: {
     label: "Fetched",
-    color: "#8b5cf6",
+    color: ADMIN_CHART_COLORS.fetched,
   },
   tenders: {
     label: "Tenders",
-    color: "#6d28d9",
+    color: ADMIN_CHART_COLORS.tenders,
   },
   documents: {
     label: "Documents",
-    color: "#c4b5fd",
+    color: ADMIN_CHART_COLORS.documents,
   },
 } satisfies ChartConfig
 
@@ -69,7 +70,7 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
     }))
 
   return (
-    <Card className="@container/card">
+    <Card size="sm" className="@container/card">
       <CardHeader>
         <CardTitle>Recent sync activity</CardTitle>
         <CardDescription>
@@ -84,7 +85,8 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
             value={effectiveTimeRange}
             onValueChange={(value) => value && setTimeRange(value)}
             variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
+            size="sm"
+            className="hidden @[767px]/card:flex"
           >
             <ToggleGroupItem value="15r">Last 15 runs</ToggleGroupItem>
             <ToggleGroupItem value="10r">Last 10 runs</ToggleGroupItem>
@@ -92,7 +94,7 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
           </ToggleGroup>
           <Select value={effectiveTimeRange} onValueChange={setTimeRange}>
             <SelectTrigger
-              className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
+              className="flex w-32 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
               size="sm"
               aria-label="Select sync run range"
             >
@@ -114,46 +116,46 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
           </Select>
         </CardAction>
       </CardHeader>
-      <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+      <CardContent className="px-2 sm:px-3">
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
+          className="aspect-auto h-[180px] w-full md:h-[200px]"
         >
           <AreaChart accessibilityLayer data={chartData}>
             <defs>
               <linearGradient id="fillFetched" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="var(--color-fetched)"
+                  stopColor={ADMIN_CHART_COLORS.fetched}
                   stopOpacity={1}
                 />
                 <stop
                   offset="95%"
-                  stopColor="var(--color-fetched)"
+                  stopColor={ADMIN_CHART_COLORS.fetched}
                   stopOpacity={0.1}
                 />
               </linearGradient>
               <linearGradient id="fillTenders" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="var(--color-tenders)"
+                  stopColor={ADMIN_CHART_COLORS.tenders}
                   stopOpacity={0.8}
                 />
                 <stop
                   offset="95%"
-                  stopColor="var(--color-tenders)"
+                  stopColor={ADMIN_CHART_COLORS.tenders}
                   stopOpacity={0.1}
                 />
               </linearGradient>
               <linearGradient id="fillDocuments" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="var(--color-documents)"
+                  stopColor={ADMIN_CHART_COLORS.documents}
                   stopOpacity={0.65}
                 />
                 <stop
                   offset="95%"
-                  stopColor="var(--color-documents)"
+                  stopColor={ADMIN_CHART_COLORS.documents}
                   stopOpacity={0.08}
                 />
               </linearGradient>
@@ -181,7 +183,7 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
               type="natural"
               isAnimationActive={false}
               fill="url(#fillDocuments)"
-              stroke="var(--color-documents)"
+              stroke={ADMIN_CHART_COLORS.documents}
               stackId="a"
             />
             <Area
@@ -189,7 +191,7 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
               type="natural"
               isAnimationActive={false}
               fill="url(#fillTenders)"
-              stroke="var(--color-tenders)"
+              stroke={ADMIN_CHART_COLORS.tenders}
               stackId="a"
             />
             <Area
@@ -197,7 +199,7 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
               type="natural"
               isAnimationActive={false}
               fill="url(#fillFetched)"
-              stroke="var(--color-fetched)"
+              stroke={ADMIN_CHART_COLORS.fetched}
               stackId="a"
             />
           </AreaChart>

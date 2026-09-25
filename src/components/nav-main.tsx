@@ -39,8 +39,8 @@ export function NavMain({
             </SidebarMenuButton>
             <Button
               asChild
-              size="icon"
-              className="size-8 group-data-[collapsible=icon]:opacity-0"
+              size="icon-sm"
+              className="group-data-[collapsible=icon]:opacity-0"
               variant="outline"
             >
               <Link href="#operations-data" aria-label="View operations data">

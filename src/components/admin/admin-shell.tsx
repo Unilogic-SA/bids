@@ -11,8 +11,8 @@ export function AdminShell({ children, email }: { children: ReactNode; email: st
       <SidebarProvider
         style={
           {
-            "--sidebar-width": "calc(var(--spacing) * 72)",
-            "--header-height": "calc(var(--spacing) * 12)",
+            "--sidebar-width": "calc(var(--spacing) * 68)",
+            "--header-height": "calc(var(--spacing) * 10)",
           } as CSSProperties
         }
       >

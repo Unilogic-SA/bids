@@ -20,28 +20,21 @@ import type { AdminSectionCards } from "@/lib/admin/dashboard"
 export function SectionCards({ cards }: { cards: AdminSectionCards }) {
   const healthVariant =
     cards.health.tone === "attention" || cards.health.tone === "offline"
-      ? "destructive"
+      ? "critical"
       : cards.health.tone === "syncing"
         ? "secondary"
         : "outline"
 
   return (
-    <div className="grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card">
-      <Card className="@container/card">
+    <div className="grid grid-cols-1 gap-3 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card">
+      <Card size="sm" className="@container/card">
         <CardHeader>
           <CardDescription>System status</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
             {cards.health.label}
           </CardTitle>
           <CardAction>
-            <Badge
-              variant={healthVariant}
-              className={
-                healthVariant === "destructive"
-                  ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-                  : undefined
-              }
-            >
+            <Badge variant={healthVariant}>
               {cards.health.tone === "operational" ? (
                 <IconChecks data-icon="inline-start" />
               ) : (
@@ -51,7 +44,7 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 text-xs">
           <div className="line-clamp-1 flex gap-2 font-medium">
             Checked {cards.checkedAt}
             <IconChecks data-icon="inline-end" />
@@ -62,10 +55,10 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card">
+      <Card size="sm" className="@container/card">
         <CardHeader>
           <CardDescription>Data freshness</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
             {cards.freshness}
           </CardTitle>
           <CardAction>
@@ -75,7 +68,7 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 text-xs">
           <div className="line-clamp-1 flex gap-2 font-medium">
             Successful sync freshness
             <IconClock data-icon="inline-end" />
@@ -86,10 +79,10 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card">
+      <Card size="sm" className="@container/card">
         <CardHeader>
           <CardDescription>Available tenders</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
             {cards.availableTenders}
           </CardTitle>
           <CardAction>
@@ -99,7 +92,7 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 text-xs">
           <div className="line-clamp-1 flex gap-2 font-medium">
             Current catalog availability
             <IconDatabase data-icon="inline-end" />
@@ -110,10 +103,10 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card">
+      <Card size="sm" className="@container/card">
         <CardHeader>
           <CardDescription>Tender documents</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
             {cards.totalDocuments}
           </CardTitle>
           <CardAction>
@@ -123,7 +116,7 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 text-xs">
           <div className="line-clamp-1 flex gap-2 font-medium">
             Documents attached to open tenders
             <IconFileText data-icon="inline-end" />

@@ -79,7 +79,7 @@ export function AppSidebar({
             >
               <Link href="/admin" aria-label="OpenBids Admin">
                 <IconGavel />
-                <span className="text-base font-semibold">OpenBids Admin</span>
+                <span className="text-sm font-semibold">OpenBids Admin</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
