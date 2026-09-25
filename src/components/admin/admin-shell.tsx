@@ -1,13 +1,25 @@
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 
-import { AppSidebar } from "@/components/admin/app-sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export function AdminShell({ children, email }: { children: ReactNode; email: string }) {
   return (
-    <SidebarProvider>
-      <AppSidebar email={email} />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+    <TooltipProvider>
+      <SidebarProvider
+        style={
+          {
+            "--sidebar-width": "calc(var(--spacing) * 72)",
+            "--header-height": "calc(var(--spacing) * 12)",
+          } as CSSProperties
+        }
+      >
+        <AppSidebar email={email} variant="inset" />
+        <SidebarInset>{children}</SidebarInset>
+      </SidebarProvider>
+      <Toaster />
+    </TooltipProvider>
   )
 }
