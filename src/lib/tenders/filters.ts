@@ -25,6 +25,7 @@ export const REGION_OPTIONS: FilterOption[] = [
 ]
 
 export const SORT_OPTIONS: FilterOption<ListingSort>[] = [
+  { value: "relevance", label: "Best match" },
   { value: "closing_at_asc", label: "Closing soonest" },
   { value: "closing_at_desc", label: "Closing latest" },
   { value: "published_at_desc", label: "Newest published" },

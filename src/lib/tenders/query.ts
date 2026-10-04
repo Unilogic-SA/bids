@@ -103,19 +103,8 @@ const SITEMAP_COLUMNS = [
   "documents_count",
 ].join(",")
 
-const SEARCH_COLUMNS = [
-  "tender_no",
-  "title",
-  "bid_description",
-  "buyer_name",
-  "department",
-  "industry",
-  "province",
-  "tender_type",
-] as const
-
 const SORT_CONFIG: Record<
-  ListingSort,
+  Exclude<ListingSort, "relevance">,
   { column: "published_at" | "closing_at"; ascending: boolean }
 > = {
   published_at_asc: { column: "published_at", ascending: true },
@@ -138,19 +127,16 @@ export async function getTenderListing(params: ListingSearchParams) {
   const from = (page - 1) * LISTING_PAGE_SIZE
   const to = from + LISTING_PAGE_SIZE - 1
   const supabase = createPublicClient()
+  if (params.q) {
+    return getTenderSearchListing(supabase, params, from)
+  }
+
   const availabilityCutoff = getAvailabilityCutoff()
   let query = supabase
     .from("tenders")
     .select(LISTING_COLUMNS, { count: "exact" })
     .eq("derived_status", "open")
     .gte("closing_at", availabilityCutoff)
-
-  if (params.q) {
-    const pattern = `%${params.q}%`
-    query = query.or(
-      SEARCH_COLUMNS.map((column) => `${column}.ilike.${pattern}`).join(",")
-    )
-  }
 
   if (params.region) {
     query = query.eq("province", params.region)
@@ -170,7 +156,9 @@ export async function getTenderListing(params: ListingSearchParams) {
     query = query.in("tender_type", tenderTypeRawValues)
   }
 
-  const sort = SORT_CONFIG[params.sort]
+  const sort = SORT_CONFIG[
+    params.sort === "relevance" ? "closing_at_asc" : params.sort
+  ]
   const { data, error, count } = await query
     .order(sort.column, {
       ascending: sort.ascending,
@@ -187,6 +175,42 @@ export async function getTenderListing(params: ListingSearchParams) {
 
   return {
     items: (data || []) as unknown as TenderListingItem[],
+    totalCount,
+    pageCount: Math.ceil(totalCount / LISTING_PAGE_SIZE),
+    configMissing: false,
+  }
+}
+
+type PublicClient = ReturnType<typeof createPublicClient>
+
+type TenderSearchResponse = {
+  items: TenderListingItem[]
+  totalCount: number
+}
+
+async function getTenderSearchListing(
+  supabase: PublicClient,
+  params: ListingSearchParams,
+  offset: number
+) {
+  const { data, error } = await supabase.rpc("search_open_tenders", {
+    p_query: params.q,
+    p_province: params.region ?? null,
+    p_buyer: params.buyer ?? null,
+    p_industries: getIndustryRawValues(params.industry) ?? null,
+    p_tender_types: getTenderTypeRawValues(params.tenderType) ?? null,
+    p_sort: params.sort,
+    p_limit: LISTING_PAGE_SIZE,
+    p_offset: offset,
+  })
+
+  if (error) throw new Error(error.message)
+
+  const result = data as unknown as TenderSearchResponse | null
+  const totalCount = result?.totalCount ?? 0
+
+  return {
+    items: result?.items ?? [],
     totalCount,
     pageCount: Math.ceil(totalCount / LISTING_PAGE_SIZE),
     configMissing: false,

@@ -41,6 +41,7 @@ import {
   TENDER_TYPE_FILTERS,
 } from "@/lib/tenders/filters"
 import type { ListingSearchParams } from "@/lib/tenders/types"
+import { getDefaultListingSort } from "@/lib/tenders/navigation"
 import { trackUmamiEvent } from "@/lib/analytics"
 
 type ListingFilterIslandProps = {
@@ -197,7 +198,9 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             <SheetFooter>
               <Button asChild variant="outline">
                 <Link
-                  href={buildFilterHref(filters, { sort: DEFAULT_LISTING_SORT })}
+                  href={buildFilterHref(filters, {
+                    sort: getDefaultListingSort(filters.q),
+                  })}
                   onClick={() =>
                     trackUmamiEvent("tender_filter_reset", {
                       surface: "mobile_sort",
@@ -390,7 +393,7 @@ function buildFilterHref(
   appendParam(
     next,
     "sort",
-    merged.sort !== DEFAULT_LISTING_SORT ? merged.sort : undefined
+    merged.sort !== getDefaultListingSort(merged.q) ? merged.sort : undefined
   )
 
   const query = next.toString()

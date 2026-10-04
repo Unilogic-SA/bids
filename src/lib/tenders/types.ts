@@ -1,4 +1,5 @@
 export type ListingSort =
+  | "relevance"
   | "published_at_asc"
   | "published_at_desc"
   | "closing_at_asc"
