@@ -29,6 +29,10 @@ export type AdminSectionCards = {
   freshnessDescription: string
   availableTenders: string
   availableTendersDescription: string
+  totalTenders: string
+  expiredTenders: string
+  addedTenders: string
+  closingTenders: string
   totalDocuments: string
   documentCoverage: number
 }
@@ -58,7 +62,7 @@ export function createAdminDashboard(snapshot: AdminMonitoringSnapshot) {
   const cards: AdminSectionCards = {
     health,
     checkedAt: formatDate(snapshot.checkedAt),
-    freshness: getLatestSuccessfulAge(snapshot) || "No success",
+    freshness: snapshot.queryErrors.length || snapshot.configMissing ? "Unavailable" : getLatestSuccessfulAge(snapshot) || "No success",
     freshnessDescription: snapshot.latestSuccessfulRun?.completed_at
       ? `Last success ${formatDate(snapshot.latestSuccessfulRun.completed_at)}`
       : "No completed sync run is available.",
@@ -66,6 +70,10 @@ export function createAdminDashboard(snapshot: AdminMonitoringSnapshot) {
     availableTendersDescription: `${formatNumber(
       snapshot.metrics.availableOpenTenderWithDocumentCount
     )} have documents attached.`,
+    totalTenders: formatNumber(snapshot.metrics.totalTenderCount),
+    expiredTenders: formatNumber(snapshot.metrics.expiredTenderCount),
+    addedTenders: formatNumber(snapshot.metrics.addedTenderCountLastDay),
+    closingTenders: formatNumber(snapshot.metrics.closingTenderCountNextDay),
     totalDocuments: formatNumber(snapshot.metrics.totalDocumentCount),
     documentCoverage,
   }
@@ -76,6 +84,9 @@ export function createAdminDashboard(snapshot: AdminMonitoringSnapshot) {
     ...getRunnerRows(snapshot),
   ]
 
+  if (snapshot.queryErrors.length || snapshot.configMissing) {
+    for (const key of ["availableTenders", "totalTenders", "expiredTenders", "addedTenders", "closingTenders", "totalDocuments"] as const) cards[key] = "—"
+  }
   return { cards, health, rows }
 }
 
@@ -84,14 +95,16 @@ function toSyncRunRow(run: AdminSyncRun, checkedAt: string): AdminDashboardRow {
     id: `sync-${run.id}`,
     name: `${formatStatus(run.mode)} sync`,
     category: "Sync run",
-    status: formatStatus(run.status),
+    status: run.status === "running" && new Date(checkedAt).getTime() - new Date(run.started_at).getTime() > STUCK_SYNC_AFTER_MINUTES * 60_000
+      ? "Stalled" : run.raw_summary?.sourceMode === "portal_active_fallback" && run.status === "completed"
+        ? "Recovered · portal" : formatStatus(run.status),
     observedAt: formatDate(run.started_at),
     duration: formatRunDuration(run, checkedAt),
     volume: `${formatNumber(run.fetched_count)} fetched · ${formatNumber(
       run.upserted_tender_count
     )} tenders`,
     documents: formatNumber(run.upserted_document_count),
-    detail: `${formatSyncWindow(run)}. ${run.message || "No run message."}`,
+    detail: `${formatSyncWindow(run)}. ${run.message || ""} ${(run.raw_summary?.warnings || []).join(" ")}`.trim(),
     reference: run.id,
     metrics: {
       fetched: run.fetched_count,
@@ -112,6 +125,16 @@ function getSystemCheckRows(
   const staleAfterMs = SYNC_FRESHNESS_WINDOW_HOURS * 60 * 60 * 1_000
 
   return [
+    {
+      id: "check-source-coverage",
+      name: "Source coverage",
+      status: snapshot.latestSuccessfulRun?.raw_summary?.sourceMode === "portal_active_fallback" ? "Degraded" : "OCDS",
+      detail: snapshot.latestSuccessfulRun?.raw_summary?.sourceMode === "portal_active_fallback"
+        ? `The latest portal refresh reported ${formatNumber(snapshot.latestSuccessfulRun.raw_summary.portalTenderCount || 0)} active listings. Historical OCDS reconciliation is unavailable; older catalog records remain preserved for source re-verification.`
+        : "Latest completed coverage is an OCDS publication window; this does not prove whole-source completeness.",
+      volume: snapshot.latestSuccessfulRun?.raw_summary?.portalTenderCount != null
+        ? `${formatNumber(snapshot.latestSuccessfulRun.raw_summary.portalTenderCount)} portal listings` : "Not reported",
+    },
     {
       id: "check-supabase-reads",
       name: "Supabase reads",
@@ -278,6 +301,16 @@ function getHealthState(snapshot: AdminMonitoringSnapshot): AdminHealthState {
       tone: "attention",
       title: "Tender data is stale",
       description: `The latest successful refresh is older than ${SYNC_FRESHNESS_WINDOW_HOURS} hours.`,
+    }
+  }
+
+  const sourceWarnings = snapshot.latestSuccessfulRun?.raw_summary?.warnings || []
+  if (sourceWarnings.length) {
+    return {
+      label: "Degraded", tone: "attention",
+      title: snapshot.latestSuccessfulRun?.raw_summary?.sourceMode === "portal_active_fallback"
+        ? "Active portal recovery" : "Source warnings",
+      description: sourceWarnings.join(" "),
     }
   }
 

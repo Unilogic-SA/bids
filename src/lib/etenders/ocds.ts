@@ -1,3 +1,4 @@
+import { resolveCatalogSources, portalCatalogRelease, preserveOcdsPayload, type ActivePortalTender } from "../../../supabase/functions/_shared/portal-fallback"
 import {
   fetchReleasePages,
   fetchPortalPages,
@@ -102,7 +103,7 @@ type PortalDocument = {
   dateModified?: string
 }
 
-type PortalTender = {
+type PortalTender = ActivePortalTender & {
   id?: number | string
   supportDocument?: PortalDocument[] | null
   sd?: PortalDocument[] | null
@@ -165,7 +166,14 @@ export async function runTenderSync(options: SyncOptions = {}) {
     throw new Error(syncRunError.message)
   }
 
+  let phase = "expire_interrupted_runs"
   try {
+    const { error: abandonedError } = await service.from("tender_sync_runs")
+      .update({ status: "abandoned", completed_at: startedAt.toISOString(),
+        message: "Worker did not record completion within 10 minutes; partial writes may have occurred." })
+      .eq("status", "running")
+      .lt("started_at", new Date(startedAt.getTime() - 10 * 60_000).toISOString())
+    if (abandonedError) throw new Error(abandonedError.message)
     const onPage = async (items: OcdsRelease[], metadata: Record<string, unknown>, url: string) => {
       // Archive every observed version before collapsing releases into the current catalog.
       for (let index = 0; index < items.length; index += 100) {
@@ -176,29 +184,39 @@ export async function runTenderSync(options: SyncOptions = {}) {
       }
     }
     const allReleases: OcdsRelease[] = []
-    const windowSummaries = []
+    const windowSummaries: Array<{ dateFrom: string; dateTo: string; fetchedCount: number }> = []
     let fetchedCount = 0
 
-    for (const window of windows) {
-      const releases = await fetchReleasePages<OcdsRelease>({
-        baseUrl: ETENDERS_BASE_URL, fetchJson: fetchJsonWithRetry, onPage,
-        dateFrom: window.dateFrom,
-        dateTo: window.dateTo,
-        pageSize,
-        maxPages,
-      })
-      fetchedCount += releases.length
-      windowSummaries.push({
-        ...window,
-        fetchedCount: releases.length,
-      })
-
-      allReleases.push(...releases)
-    }
-
-    const releases = latestReleases(allReleases)
-    const portal = await fetchPortalTendersById()
-    const portalTendersById = portal.tenders
+    phase = "fetch_sources"
+    const sources = await resolveCatalogSources({
+      fetchOcds: async () => {
+        for (const window of windows) {
+          const releases = await fetchReleasePages<OcdsRelease>({
+            baseUrl: ETENDERS_BASE_URL, fetchJson: fetchJsonWithRetry, onPage,
+            dateFrom: window.dateFrom, dateTo: window.dateTo, pageSize, maxPages,
+          })
+          fetchedCount += releases.length
+          windowSummaries.push({ ...window, fetchedCount: releases.length })
+          allReleases.push(...releases)
+        }
+        return allReleases
+      },
+      fetchPortal: fetchPortalTendersById,
+      allowPortalFallback: mode !== "backfill",
+    })
+    const portalTendersById = sources.portal.tenders
+    const fallback = sources.sourceMode === "portal_active_fallback"
+    const releases: OcdsRelease[] = fallback
+      ? [...portalTendersById.values()].map(portalCatalogRelease)
+      : latestReleases(sources.releases)
+    if (fallback) fetchedCount = releases.length
+    const { error: fetchedError } = await service.from("tender_sync_runs").update({
+      fetched_count: fallback ? releases.length : fetchedCount,
+      raw_summary: { sourceMode: sources.sourceMode, coverage: fallback ? "active_portal_only" : "ocds_window",
+        warnings: sources.warnings, portalTenderCount: portalTendersById.size },
+    }).eq("id", syncRun.id)
+    if (fetchedError) throw new Error(fetchedError.message)
+    phase = "archive_portal"
     for (let index = 0; index < releases.length; index += 100) {
       const rows = await Promise.all(releases.slice(index, index + 100).flatMap(release => {
         const payload = portalTendersById.get(readTenderId(release) || "")
@@ -210,13 +228,27 @@ export async function runTenderSync(options: SyncOptions = {}) {
       }))
       await archiveSources(service, rows)
     }
-    const tenders = releases.map((release) =>
-      mapReleaseToTender(
-        release,
-        startedAt,
-        portalTendersById.get(readTenderId(release) || "")
-      )
-    )
+    phase = "read_existing_catalog"
+    const existing = new Map<string, Record<string, unknown> & { release_id: string; raw_release: unknown; raw_tender: unknown }>()
+    if (fallback) {
+      for (let index = 0; index < releases.length; index += 100) {
+        const { data, error } = await service.from("tenders")
+          .select("*")
+          .in("ocid", releases.slice(index, index + 100).map(release => release.ocid!))
+        if (error) throw new Error(error.message)
+        for (const row of data || []) existing.set(row.ocid, row)
+      }
+    }
+    const tenders = releases.map((release) => {
+      const row = mapReleaseToTender(release, startedAt, portalTendersById.get(readTenderId(release) || ""))
+      if (fallback) {
+        const prior = existing.get(release.ocid!)
+        // Portal adapters are not OCDS releases. Keep the last original OCDS payload intact.
+        preserveOcdsPayload(row, prior)
+        row.original_source_url = `${ETENDERS_PORTAL_BASE_URL}/Home/Details/${readTenderId(release)}`
+      }
+      return row
+    })
     const documents = releases.flatMap((release) =>
       mapReleaseToDocuments(
         release,
@@ -231,22 +263,32 @@ export async function runTenderSync(options: SyncOptions = {}) {
       isReleaseOpen(release, startedAt)
     ).length
 
-    await upsertInChunks(service, "tenders", tenders, "ocid", 500)
-    for (let index = 0; index < releaseOcids.length; index += 100) {
-      const ocids = releaseOcids.slice(index, index + 100)
+    phase = "upsert_catalog"
+    await upsertInChunks(service, "tenders", tenders, "ocid", 50, async count => {
+      const { error } = await service.from("tender_sync_runs")
+        .update({ upserted_tender_count: count }).eq("id", syncRun.id)
+      if (error) throw new Error(error.message)
+    })
+    phase = "reconcile_documents"
+    for (let index = 0; index < releaseOcids.length; index += 25) {
+      const ocids = releaseOcids.slice(index, index + 25)
       const selected = new Set(ocids)
       const { error } = await service.rpc("reconcile_tender_documents", {
         p_ocids: ocids,
         p_documents: documents.filter(document => selected.has(document.tender_ocid as string)),
         // The active portal does not cover closed or missing tenders: preserve their known documents.
         p_preserve_ocids: releases.filter(release => selected.has(release.ocid!) &&
-          !portalTendersById.has(readTenderId(release) || "")).map(release => release.ocid),
+          (fallback || !portalTendersById.has(readTenderId(release) || ""))).map(release => release.ocid),
         p_captured_at: startedAt.toISOString(),
       })
       if (error) throw new Error(error.message)
     }
 
-    await markExpiredTenders(service, startedAt)
+    const { error: documentProgressError } = await service.from("tender_sync_runs")
+      .update({ open_count: openCount, upserted_document_count: documents.length }).eq("id", syncRun.id)
+    if (documentProgressError) throw new Error(documentProgressError.message)
+    phase = "mark_expired"
+    const expiry = await markExpiredTenders(service, startedAt)
 
     const completedAt = new Date()
     const result = {
@@ -262,7 +304,10 @@ export async function runTenderSync(options: SyncOptions = {}) {
       maxPages,
       windows: windowSummaries,
       portalTenderCount: portalTendersById.size,
-      warnings: portal.warning ? [portal.warning] : [],
+      sourceMode: sources.sourceMode,
+      coverage: fallback ? "active_portal_only" : "ocds_window",
+      expiredStatusUpdated: expiry.updated,
+      warnings: [...sources.warnings, ...(expiry.pending ? ["Expired status maintenance continues on the next run; deadline filters remain current."] : [])],
     }
 
     const { error: completionError } = await service
@@ -281,7 +326,7 @@ export async function runTenderSync(options: SyncOptions = {}) {
     if (completionError) throw new Error(completionError.message)
     return result
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = `${phase}: ${error instanceof Error ? error.message : String(error)}`
     await service
       .from("tender_sync_runs")
       .update({
@@ -599,26 +644,35 @@ async function upsertInChunks(
   table: "tenders" | "tender_documents",
   rows: TenderUpsert[] | DocumentUpsert[],
   onConflict: string,
-  chunkSize: number
+  chunkSize: number,
+  onProgress?: (count: number) => Promise<void>
 ) {
   for (let index = 0; index < rows.length; index += chunkSize) {
     const chunk = rows.slice(index, index + chunkSize)
     const { error } = await service.from(table).upsert(chunk, { onConflict })
     if (error) throw new Error(error.message)
+    if (onProgress) await onProgress(Math.min(index + chunkSize, rows.length))
   }
 }
 
-async function markExpiredTenders(
-  service: ReturnType<typeof createServiceClient>,
-  now: Date
-) {
-  const { error } = await service
-    .from("tenders")
-    .update({ derived_status: "closed" })
-    .lt("closing_at", now.toISOString())
-    .neq("derived_status", "closed")
-
-  if (error) throw new Error(error.message)
+async function markExpiredTenders(service: ReturnType<typeof createServiceClient>, now: Date) {
+  // Avoid a full-catalog UPDATE under the short PostgREST statement timeout.
+  // Deadline filters already exclude expired rows; bounded maintenance resumes next run.
+  let updated = 0
+  for (let batch = 0; batch < 80; batch++) {
+    const { data, error: readError } = await service.from("tenders").select("ocid")
+      .lt("closing_at", now.toISOString()).neq("derived_status", "closed")
+      .order("ocid", { ascending: true }).limit(25)
+    if (readError) throw new Error(readError.message)
+    if (!data?.length) return { updated, pending: false }
+    const { error } = await service.from("tenders").update({ derived_status: "closed" })
+      .in("ocid", data.map(row => row.ocid))
+      // A concurrent refresh may have extended a deadline since the select.
+      .lt("closing_at", now.toISOString()).neq("derived_status", "closed")
+    if (error) throw new Error(error.message)
+    updated += data.length
+  }
+  return { updated, pending: true }
 }
 
 function parseDeliveryLocation(value: string | null) {
