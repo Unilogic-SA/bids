@@ -1,3 +1,11 @@
+import {
+  fetchReleasePages,
+  fetchPortalPages,
+  latestReleases,
+  sourceSnapshot,
+  mergeDocuments,
+  fetchJsonWithRetry as fetchSourceJson
+} from "../../../supabase/functions/_shared/ingestion"
 import { createServiceClient } from "@/lib/supabase/server"
 import { buildTenderPath } from "@/lib/tenders/format"
 import { isSameSastDay } from "@/lib/sast-date"
@@ -19,8 +27,8 @@ const DEFAULT_BACKFILL_MONTHS = Number(
 const DEFAULT_DAILY_LOOKBACK_DAYS = Number(
   process.env.ETENDERS_DAILY_LOOKBACK_DAYS || "14"
 )
-const RETRY_ATTEMPTS = Number(process.env.ETENDERS_RETRY_ATTEMPTS || "5")
-const RETRY_DELAY_MS = Number(process.env.ETENDERS_RETRY_DELAY_MS || "3000")
+const RETRY_ATTEMPTS = Number(process.env.ETENDERS_RETRY_ATTEMPTS || "2")
+const RETRY_DELAY_MS = Number(process.env.ETENDERS_RETRY_DELAY_MS || "1000")
 const FETCH_TIMEOUT_MS = Number(process.env.ETENDERS_FETCH_TIMEOUT_MS || "30000")
 
 type OcdsDocument = {
@@ -85,14 +93,6 @@ type OcdsRelease = {
   }
 }
 
-type OcdsPayload = {
-  releases?: OcdsRelease[]
-  links?: {
-    next?: string
-    prev?: string
-  }
-}
-
 type PortalDocument = {
   supportDocumentID?: string
   fileName?: string
@@ -107,12 +107,6 @@ type PortalTender = {
   supportDocument?: PortalDocument[] | null
   sd?: PortalDocument[] | null
 }
-
-type PortalPayload =
-  | PortalTender[]
-  | {
-      data?: PortalTender[]
-    }
 
 type NormalizedDocument = {
   title: string | null
@@ -172,12 +166,22 @@ export async function runTenderSync(options: SyncOptions = {}) {
   }
 
   try {
-    const releasesByOcid = new Map<string, OcdsRelease>()
+    const onPage = async (items: OcdsRelease[], metadata: Record<string, unknown>, url: string) => {
+      // Archive every observed version before collapsing releases into the current catalog.
+      for (let index = 0; index < items.length; index += 100) {
+        await archiveSources(service, await Promise.all(items.slice(index, index + 100).map(release => sourceSnapshot({
+          ocid: release.ocid!, source: "ocds", payload: release, sourceUrl: url,
+          metadata, syncRunId: syncRun.id, capturedAt: startedAt.toISOString(),
+        }))))
+      }
+    }
+    const allReleases: OcdsRelease[] = []
     const windowSummaries = []
     let fetchedCount = 0
 
     for (const window of windows) {
-      const releases = await fetchAllReleasesForRange({
+      const releases = await fetchReleasePages<OcdsRelease>({
+        baseUrl: ETENDERS_BASE_URL, fetchJson: fetchJsonWithRetry, onPage,
         dateFrom: window.dateFrom,
         dateTo: window.dateTo,
         pageSize,
@@ -189,14 +193,23 @@ export async function runTenderSync(options: SyncOptions = {}) {
         fetchedCount: releases.length,
       })
 
-      for (const release of releases) {
-        if (!release.ocid) continue
-        releasesByOcid.set(release.ocid, release)
-      }
+      allReleases.push(...releases)
     }
 
-    const releases = Array.from(releasesByOcid.values())
-    const portalTendersById = await fetchPortalTendersById()
+    const releases = latestReleases(allReleases)
+    const portal = await fetchPortalTendersById()
+    const portalTendersById = portal.tenders
+    for (let index = 0; index < releases.length; index += 100) {
+      const rows = await Promise.all(releases.slice(index, index + 100).flatMap(release => {
+        const payload = portalTendersById.get(readTenderId(release) || "")
+        return payload ? [sourceSnapshot({
+          ocid: release.ocid!, source: "portal", payload,
+          sourceUrl: new URL("/Home/PaginatedTenderOpportunities?status=1", ETENDERS_PORTAL_BASE_URL).href,
+          syncRunId: syncRun.id, capturedAt: startedAt.toISOString(),
+        })] : []
+      }))
+      await archiveSources(service, rows)
+    }
     const tenders = releases.map((release) =>
       mapReleaseToTender(
         release,
@@ -219,15 +232,18 @@ export async function runTenderSync(options: SyncOptions = {}) {
     ).length
 
     await upsertInChunks(service, "tenders", tenders, "ocid", 500)
-    await deleteDocumentsInChunks(service, releaseOcids, 500)
-    if (documents.length > 0) {
-      await upsertInChunks(
-        service,
-        "tender_documents",
-        documents,
-        "tender_ocid,document_url",
-        1000
-      )
+    for (let index = 0; index < releaseOcids.length; index += 100) {
+      const ocids = releaseOcids.slice(index, index + 100)
+      const selected = new Set(ocids)
+      const { error } = await service.rpc("reconcile_tender_documents", {
+        p_ocids: ocids,
+        p_documents: documents.filter(document => selected.has(document.tender_ocid as string)),
+        // The active portal does not cover closed or missing tenders: preserve their known documents.
+        p_preserve_ocids: releases.filter(release => selected.has(release.ocid!) &&
+          !portalTendersById.has(readTenderId(release) || "")).map(release => release.ocid),
+        p_captured_at: startedAt.toISOString(),
+      })
+      if (error) throw new Error(error.message)
     }
 
     await markExpiredTenders(service, startedAt)
@@ -246,9 +262,10 @@ export async function runTenderSync(options: SyncOptions = {}) {
       maxPages,
       windows: windowSummaries,
       portalTenderCount: portalTendersById.size,
+      warnings: portal.warning ? [portal.warning] : [],
     }
 
-    await service
+    const { error: completionError } = await service
       .from("tender_sync_runs")
       .update({
         status: "completed",
@@ -261,6 +278,7 @@ export async function runTenderSync(options: SyncOptions = {}) {
       })
       .eq("id", syncRun.id)
 
+    if (completionError) throw new Error(completionError.message)
     return result
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -277,103 +295,35 @@ export async function runTenderSync(options: SyncOptions = {}) {
   }
 }
 
-async function fetchAllReleasesForRange({
-  dateFrom,
-  dateTo,
-  pageSize,
-  maxPages,
-}: {
-  dateFrom: string
-  dateTo: string
-  pageSize: number
-  maxPages: number
-}) {
-  const releases: OcdsRelease[] = []
-
-  for (let page = 1; page <= maxPages; page += 1) {
-    const url = new URL(ETENDERS_BASE_URL)
-    url.searchParams.set("PageNumber", String(page))
-    url.searchParams.set("PageSize", String(pageSize))
-    url.searchParams.set("dateFrom", dateFrom)
-    url.searchParams.set("dateTo", dateTo)
-
-    const payload = await fetchJsonWithRetry(url)
-    const pageReleases = Array.isArray(payload.releases)
-      ? payload.releases
-      : []
-
-    releases.push(...pageReleases)
-
-    if (!pageReleases.length || !payload.links?.next) break
-  }
-
-  return releases
-}
-
-async function fetchJsonWithRetry<T = OcdsPayload>(url: URL): Promise<T> {
-  let lastError: unknown
-
-  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt += 1) {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-
-    try {
-      const response = await fetch(url, {
-        headers: {
-          accept: "application/json,text/plain",
-        },
-        cache: "no-store",
-        signal: controller.signal,
-      })
-
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`HTTP ${response.status}: ${text.slice(0, 300)}`)
-      }
-
-      return (await response.json()) as T
-    } catch (error) {
-      lastError = error
-      if (attempt < RETRY_ATTEMPTS) {
-        await delay(RETRY_DELAY_MS * attempt)
-      }
-    } finally {
-      clearTimeout(timeout)
-    }
-  }
-
-  throw lastError
+async function fetchJsonWithRetry(url: URL): Promise<unknown> {
+  return fetchSourceJson(url, { attempts: RETRY_ATTEMPTS, timeoutMs: FETCH_TIMEOUT_MS, delayMs: RETRY_DELAY_MS })
 }
 
 async function fetchPortalTendersById() {
-  const tendersById = new Map<string, PortalTender>()
-
   try {
-    const url = new URL(
-      "/Home/PaginatedTenderOpportunities",
-      ETENDERS_PORTAL_BASE_URL
-    )
-    url.searchParams.set("draw", "1")
-    url.searchParams.set("start", "0")
-    url.searchParams.set("length", String(DEFAULT_PORTAL_PAGE_SIZE))
-    url.searchParams.set("status", "1")
-
-    const payload = await fetchJsonWithRetry<PortalPayload>(url)
-    const tenders = Array.isArray(payload) ? payload : payload.data || []
-
-    for (const tender of tenders) {
-      const id = cleanText(String(tender.id || ""))
-      if (id) tendersById.set(id, tender)
-    }
+    return { tenders: await fetchPortalPages<PortalTender>({
+      baseUrl: ETENDERS_PORTAL_BASE_URL,
+      pageSize: DEFAULT_PORTAL_PAGE_SIZE,
+      maxPages: DEFAULT_MAX_PAGES,
+      fetchJson: fetchJsonWithRetry,
+    }), warning: null }
   } catch (error) {
-    console.warn(
-      `Unable to fetch eTenders portal support documents: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    )
+    const warning = error instanceof Error ? error.message : String(error)
+    console.warn("Unable to fetch eTenders portal: " + warning)
+    return { tenders: new Map<string, PortalTender>(), warning }
   }
+}
 
-  return tendersById
+async function archiveSources(
+  service: ReturnType<typeof createServiceClient>,
+  rows: Awaited<ReturnType<typeof sourceSnapshot>>[]
+) {
+  for (let index = 0; index < rows.length; index += 100) {
+    const { error } = await service.from("tender_source_snapshots").upsert(rows.slice(index, index + 100), {
+      onConflict: "tender_ocid,source,content_hash", ignoreDuplicates: true,
+    })
+    if (error) throw new Error(error.message)
+  }
 }
 
 function mapReleaseToTender(
@@ -461,7 +411,6 @@ function mapReleaseToTender(
     special_conditions: specialConditions,
     has_special_conditions: hasMeaningfulText(specialConditions),
     eligibility_notes: eligibilityNotes,
-    documents_count: documents.length,
     raw_release: release,
     raw_tender: tender,
     captured_at: capturedAt.toISOString(),
@@ -516,9 +465,7 @@ function collectTenderDocuments(
   portalTender?: PortalTender
 ): NormalizedDocument[] {
   const portalDocuments = normalizePortalDocuments(portalTender)
-  if (portalDocuments.length > 0) return portalDocuments
-
-  return (release.tender?.documents || [])
+  const ocdsDocuments = (release.tender?.documents || [])
     .map((document) => {
       const documentUrl = document.url || document.downloadUrl || null
       return {
@@ -532,6 +479,7 @@ function collectTenderDocuments(
       }
     })
     .filter((document) => Boolean(document.documentUrl))
+  return mergeDocuments(ocdsDocuments, portalDocuments)
 }
 
 function normalizePortalDocuments(portalTender?: PortalTender) {
@@ -656,22 +604,6 @@ async function upsertInChunks(
   for (let index = 0; index < rows.length; index += chunkSize) {
     const chunk = rows.slice(index, index + chunkSize)
     const { error } = await service.from(table).upsert(chunk, { onConflict })
-    if (error) throw new Error(error.message)
-  }
-}
-
-async function deleteDocumentsInChunks(
-  service: ReturnType<typeof createServiceClient>,
-  tenderOcids: string[],
-  chunkSize: number
-) {
-  for (let index = 0; index < tenderOcids.length; index += chunkSize) {
-    const chunk = tenderOcids.slice(index, index + chunkSize)
-    const { error } = await service
-      .from("tender_documents")
-      .delete()
-      .in("tender_ocid", chunk)
-
     if (error) throw new Error(error.message)
   }
 }
@@ -864,8 +796,4 @@ function clampNumber(
 ) {
   if (!Number.isFinite(value)) return fallback
   return Math.min(max, Math.max(min, Math.floor(value || fallback)))
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
