@@ -29,7 +29,7 @@ Rollback the importer code to the previous revision while retaining source snaps
 ## Validation
 
 - npm ci, lint, typecheck and production build.
-- 40 application/ingestion regression tests and 8 repository automation tests.
+- 43 application/ingestion regression tests and 8 repository automation tests.
 - All 2,121 fetched live portal payloads pass the adapter validation.
 - Deno check passes on a temporary copy using Deno built-ins and installed, matching Supabase 2.105.4 type declarations. The canonical network-based check could not download its unchanged JSR runtime declaration; the Supabase deployment service also validates bundling.
 - Deployed recovery evidence recorded below after final verification.
@@ -37,3 +37,7 @@ Rollback the importer code to the previous revision while retaining source snaps
 ## Production recovery verified
 
 Edge Function version 12 completed recovery run `6057b7be-7be4-4318-b1d4-20de986780a9` at 18:17:11 UTC (20:17 SAST) in 53 seconds. It fetched/upserted 2,121 active portal tenders, reconciled 7,292 document records and updated 198 expired statuses in bounded batches. Catalog totals: 17,757 stored, 2,134 open now, 923 new tenders recovered. All 2,121 portal identities matched catalog records; none missing; zero document-count mismatches across the catalog. Original archived OCDS snapshots are retained. Thirteen additional older open catalog records remain awaiting source re-verification; absence from the active portal alone is not used to cancel/delete them. Coverage remains explicitly degraded while OCDS is down.
+
+## Review hardening
+
+The merge gate surfaced a valid review finding: absent portal flags and delivery values could become false/zero mapper defaults and replace richer existing enrichment. Both importers now pass the original portal payload to the shared preservation helper. It preserves briefing flags, special-condition fields and the entire delivery group when their underlying source value is absent or blank, honors explicit false and supplied values, and rebuilds briefing text from the effective fields. Three regression tests cover absent/null/blank enrichment, explicit false and new values, and partially supplied flags.

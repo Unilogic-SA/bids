@@ -18,8 +18,8 @@ export type ActivePortalTender = {
   contactPerson?: string
   email?: string
   telephone?: string
-  briefingSession?: boolean
-  briefingCompulsory?: boolean
+  briefingSession?: boolean | null
+  briefingCompulsory?: boolean | null
   compulsory_briefing_session?: string | null
   briefingVenue?: string | null
 }
@@ -61,7 +61,7 @@ export function portalCatalogRelease(portal: ActivePortalTender) {
       procuringEntity: { name: portal.department || portal.organ_of_State },
       contactPerson: { name: portal.contactPerson, email: portal.email, telephoneNumber: portal.telephone },
       briefingSession: {
-        isSession: portal.briefingSession, compulsory: portal.briefingCompulsory,
+        isSession: portal.briefingSession ?? undefined, compulsory: portal.briefingCompulsory ?? undefined,
         date: portalDate(portal.compulsory_briefing_session), venue: portal.briefingVenue || undefined,
       },
     },
@@ -87,15 +87,34 @@ export async function resolveCatalogSources<T, P extends ActivePortalTender>(opt
 
 export function preserveOcdsPayload(
   row: Record<string, unknown>,
-  prior?: Record<string, unknown> & { release_id: string; raw_release: unknown; raw_tender: unknown },
+  prior: (Record<string, unknown> & { release_id: string; raw_release: unknown; raw_tender: unknown }) | undefined,
+  portal: ActivePortalTender,
 ) {
   row.raw_release = prior?.raw_release || {}
   row.raw_tender = prior?.raw_tender || {}
   row.release_id = prior?.release_id || row.release_id
   row.listing_type = "portal_active_fallback"
+  const conditionsFields = ["special_conditions", "has_special_conditions", "eligibility_notes"]
+  const deliveryFields = ["place_raw", "address_line", "suburb_or_area", "city", "postal_code", "delivery_location_confidence"]
+  const sourcePresenceFields = new Set([...conditionsFields, ...deliveryFields, "briefing_session", "compulsory_briefing"])
   // Missing optional portal fields must not clear richer existing OCDS fields.
   for (const key of Object.keys(row)) {
-    if (row[key] === null && prior?.[key] != null) row[key] = prior[key]
+    if (!sourcePresenceFields.has(key) && row[key] === null && prior?.[key] != null) row[key] = prior[key]
   }
+  if (!prior) return row
+  // Mappers default absent flags to false and absent location confidence to zero.
+  // Preserve those groups by source presence; explicit false remains authoritative.
+  const preserve = (keys: string[]) => {
+    for (const key of keys) if (prior[key] != null) row[key] = prior[key]
+  }
+  if (typeof portal.briefingSession !== "boolean") preserve(["briefing_session"])
+  if (typeof portal.briefingCompulsory !== "boolean") preserve(["compulsory_briefing"])
+  row.briefing_raw = [
+    row.briefing_session ? "Yes" : "No",
+    row.compulsory_briefing ? "Compulsory" : "Not compulsory",
+    row.briefing_datetime, row.briefing_venue,
+  ].filter(Boolean).join(" | ")
+  if (!portal.conditions?.trim()) preserve(conditionsFields)
+  if (!portal.delivery?.trim()) preserve(deliveryFields)
   return row
 }

@@ -244,7 +244,7 @@ export async function runTenderSync(options: SyncOptions = {}) {
       if (fallback) {
         const prior = existing.get(release.ocid!)
         // Portal adapters are not OCDS releases. Keep the last original OCDS payload intact.
-        preserveOcdsPayload(row, prior)
+        preserveOcdsPayload(row, prior, portalTendersById.get(readTenderId(release) || "")!)
         row.original_source_url = `${ETENDERS_PORTAL_BASE_URL}/Home/Details/${readTenderId(release)}`
       }
       return row
