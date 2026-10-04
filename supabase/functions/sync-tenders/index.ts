@@ -627,12 +627,13 @@ async function upsertInChunks(
 
 async function markExpiredTenders(service: SupabaseClient, now: Date) {
   // Avoid a full-catalog UPDATE under the short PostgREST statement timeout.
+  // Positive status filters use the existing index; ordering by OCID can scan the whole catalog.
   // Deadline filters already exclude expired rows; bounded maintenance resumes next run.
   let updated = 0
   for (let batch = 0; batch < 80; batch++) {
     const { data, error: readError } = await service.from("tenders").select("ocid")
-      .lt("closing_at", now.toISOString()).neq("derived_status", "closed")
-      .order("ocid", { ascending: true }).limit(25)
+      .in("derived_status", ["open", "closing_today"])
+      .lt("closing_at", now.toISOString()).limit(25)
     if (readError) throw new Error(readError.message)
     if (!data?.length) return { updated, pending: false }
     const { error } = await service.from("tenders").update({ derived_status: "closed" })

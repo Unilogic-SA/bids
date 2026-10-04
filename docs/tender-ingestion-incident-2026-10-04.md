@@ -41,3 +41,7 @@ Edge Function version 12 completed recovery run `6057b7be-7be4-4318-b1d4-20de986
 ## Review hardening
 
 The merge gate surfaced a valid review finding: absent portal flags and delivery values could become false/zero mapper defaults and replace richer existing enrichment. Both importers now pass the original portal payload to the shared preservation helper. It preserves briefing flags, special-condition fields and the entire delivery group when their underlying source value is absent or blank, honors explicit false and supplied values, and rebuilds briefing text from the effective fields. Three regression tests cover absent/null/blank enrichment, explicit false and new values, and partially supplied flags.
+
+## Repeat-run verification
+
+The 18:50 UTC scheduled run encountered a transient portal gateway HTTP 502 while OCDS remained HTTP 404. A subsequent recovery retry fetched and upserted all 2,121 tenders and 7,292 documents, but expiry housekeeping timed out even though no stale open rows remained. EXPLAIN showed the OCID ordering combined with a negative status predicate selected a primary-key scan over the catalog. The bounded selection now uses positive open/closing_today predicates without OCID ordering, allowing the existing derived-status index to be used. The deadline is rechecked when updating each bounded batch. No schema, timeout, policy or schedule changes are required.
