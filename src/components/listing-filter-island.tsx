@@ -4,6 +4,7 @@ import Link from "next/link"
 import { IconChevronDown } from "@tabler/icons-react"
 import { RotateCcwIcon, SearchIcon } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import {
@@ -81,6 +82,17 @@ export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
 }
 
 export function MobileListingControls({ filters }: ListingFilterIslandProps) {
+  const activeFilterCount = countActiveFilters({
+    buyer: filters.buyer,
+    industry: filters.industry,
+    q: filters.q,
+    region: filters.region,
+    tenderType: filters.tenderType,
+  })
+  const selectedSort =
+    SORT_OPTIONS.find((option) => option.value === filters.sort) ||
+    SORT_OPTIONS.find((option) => option.value === DEFAULT_LISTING_SORT)
+
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] overflow-hidden rounded-md border bg-card">
       <Sheet>
@@ -93,6 +105,14 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             variant="ghost"
           >
             Search
+            {activeFilterCount > 0 ? (
+              <Badge
+                aria-label={`${activeFilterCount} active ${activeFilterCount === 1 ? "filter" : "filters"}`}
+                className="min-w-5 px-1.5"
+              >
+                {activeFilterCount}
+              </Badge>
+            ) : null}
             <IconChevronDown data-icon="inline-end" />
           </Button>
         </SheetTrigger>
@@ -150,7 +170,7 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             }
             variant="ghost"
           >
-            Sort By
+            {selectedSort?.label || "Sort By"}
             <IconChevronDown data-icon="inline-end" />
           </Button>
         </SheetTrigger>
