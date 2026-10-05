@@ -3,7 +3,6 @@ import {
   IconChecks,
   IconClock,
   IconDatabase,
-  IconFileText,
 } from "@tabler/icons-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -64,7 +63,7 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
           <CardAction>
             <Badge variant="outline">
               <IconClock data-icon="inline-start" />
-              Latest success
+              Last import
             </Badge>
           </CardAction>
         </CardHeader>
@@ -81,7 +80,7 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
 
       <Card size="sm" className="@container/card">
         <CardHeader>
-          <CardDescription>Available tenders</CardDescription>
+          <CardDescription>Open tenders</CardDescription>
           <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
             {cards.availableTenders}
           </CardTitle>
@@ -98,34 +97,23 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
             <IconDatabase data-icon="inline-end" />
           </div>
           <div className="text-muted-foreground">
-            {cards.availableTendersDescription}
+            {cards.availableTendersDescription} {cards.closingTenders} close in the next 24 hours.
           </div>
         </CardFooter>
       </Card>
 
       <Card size="sm" className="@container/card">
         <CardHeader>
-          <CardDescription>Tender documents</CardDescription>
-          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
-            {cards.totalDocuments}
-          </CardTitle>
-          <CardAction>
-            <Badge variant="outline">
-              <IconFileText data-icon="inline-start" />
-              {cards.documentCoverage}% coverage
-            </Badge>
-          </CardAction>
+          <CardDescription>Stored tenders</CardDescription>
+          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">{cards.totalTenders}</CardTitle>
+          <CardAction><Badge variant="outline"><IconDatabase data-icon="inline-start" />Full catalog</Badge></CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-xs">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Documents attached to open tenders
-            <IconFileText data-icon="inline-end" />
-          </div>
-          <div className="text-muted-foreground">
-            {cards.documentCoverage}% of available tenders include documents.
-          </div>
+          <div className="font-medium">{cards.addedTenders} added in the last 24 hours</div>
+          <div className="text-muted-foreground">{cards.expiredTenders} past deadline · {cards.totalDocuments} documents</div>
         </CardFooter>
       </Card>
+
     </div>
   )
 }

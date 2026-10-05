@@ -124,13 +124,14 @@ const SORT_CONFIG: Record<
   closing_at_desc: { column: "closing_at", ascending: false },
 }
 
-export async function getTenderListing(params: ListingSearchParams) {
+export async function getTenderListing(params: ListingSearchParams): Promise<{ items: TenderListingItem[]; totalCount: number; pageCount: number; configMissing: boolean; resolvedPage: number }> {
   if (!hasSupabasePublicConfig()) {
     return {
       items: [] as TenderListingItem[],
       totalCount: 0,
       pageCount: 0,
       configMissing: true,
+      resolvedPage: params.page,
     }
   }
 
@@ -142,7 +143,7 @@ export async function getTenderListing(params: ListingSearchParams) {
   let query = supabase
     .from("tenders")
     .select(LISTING_COLUMNS, { count: "exact" })
-    .eq("derived_status", "open")
+    .in("derived_status", ["open", "closing_today"])
     .gte("closing_at", availabilityCutoff)
 
   if (params.q) {
@@ -179,9 +180,12 @@ export async function getTenderListing(params: ListingSearchParams) {
     .order("ocid", { ascending: true })
     .range(from, to)
 
-  if (error) {
-    throw new Error(error.message)
+  if (error?.code === "PGRST103" && page > 1) {
+    // A saved page can fall outside the catalog as deadlines pass.
+    const firstPage = await getTenderListing({ ...params, page: 1 })
+    return { ...firstPage, resolvedPage: 1 }
   }
+  if (error) throw new Error(error.message)
 
   const totalCount = count || 0
 
@@ -190,6 +194,7 @@ export async function getTenderListing(params: ListingSearchParams) {
     totalCount,
     pageCount: Math.ceil(totalCount / LISTING_PAGE_SIZE),
     configMissing: false,
+    resolvedPage: page,
   }
 }
 
@@ -235,7 +240,7 @@ export async function getTenderSitemapItems(limit = 5000) {
   const { data, error } = await supabase
     .from("tenders")
     .select(SITEMAP_COLUMNS)
-    .eq("derived_status", "open")
+    .in("derived_status", ["open", "closing_today"])
     .gte("closing_at", availabilityCutoff)
     .order("modified_at", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false, nullsFirst: false })

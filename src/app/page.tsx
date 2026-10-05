@@ -4,6 +4,7 @@ import {
   FileSearchIcon,
 } from "lucide-react"
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 
 import {
   ListingFilterIsland,
@@ -105,6 +106,7 @@ export default async function Home({ searchParams }: HomeProps) {
     getLatestSuccessfulSyncRun(),
     getRecentSyncRuns(),
   ])
+  if (listing.resolvedPage !== page) redirect(buildListingHref({ ...filters, page: listing.resolvedPage }))
   const syncHealth = getSyncHealth(latestSuccessfulSync, recentSyncRuns)
   const activeFilterCount = countActiveListingFilters(filters)
   const websiteJsonLd = {

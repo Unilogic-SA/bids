@@ -17,6 +17,7 @@ const SYNC_RUN_COLUMNS = [
   "started_at",
   "completed_at",
   "message",
+  "raw_summary",
 ].join(",")
 
 export type AdminSyncRun = {
@@ -33,6 +34,7 @@ export type AdminSyncRun = {
   started_at: string
   completed_at: string | null
   message: string | null
+  raw_summary?: { sourceMode?: string; coverage?: string; warnings?: string[]; portalTenderCount?: number }
 }
 
 export type AdminMonitoringSnapshot = {
@@ -43,6 +45,10 @@ export type AdminMonitoringSnapshot = {
   latestSuccessfulRun: AdminSyncRun | null
   latestRun: AdminSyncRun | null
   metrics: {
+    totalTenderCount: number
+    expiredTenderCount: number
+    addedTenderCountLastDay: number
+    closingTenderCountNextDay: number
     availableOpenTenderCount: number
     availableOpenTenderWithDocumentCount: number
     totalDocumentCount: number
@@ -74,6 +80,10 @@ export async function getAdminMonitoringSnapshot(): Promise<AdminMonitoringSnaps
   ).toISOString()
 
   const [
+    totalTenderResult,
+    expiredTenderResult,
+    addedTenderResult,
+    closingTenderResult,
     latestRunsResult,
     latestSuccessfulRunResult,
     openTenderCountResult,
@@ -84,6 +94,13 @@ export async function getAdminMonitoringSnapshot(): Promise<AdminMonitoringSnaps
     completedSyncCountResult,
     failedSyncCountResult,
   ] = await Promise.all([
+    supabase.from("tenders").select("ocid", { count: "exact", head: true }),
+    supabase.from("tenders").select("ocid", { count: "exact", head: true }).lt("closing_at", checkedAt),
+    supabase.from("tenders").select("ocid", { count: "exact", head: true })
+      .gte("created_at", new Date(checkedAtDate.getTime() - 86_400_000).toISOString()),
+    supabase.from("tenders").select("ocid", { count: "exact", head: true })
+      .in("derived_status", ["open", "closing_today"]).gte("closing_at", checkedAt)
+      .lt("closing_at", new Date(checkedAtDate.getTime() + 86_400_000).toISOString()),
     supabase
       .from("tender_sync_runs")
       .select(SYNC_RUN_COLUMNS)
@@ -99,12 +116,12 @@ export async function getAdminMonitoringSnapshot(): Promise<AdminMonitoringSnaps
     supabase
       .from("tenders")
       .select("ocid", { count: "exact", head: true })
-      .eq("derived_status", "open")
+      .in("derived_status", ["open", "closing_today"])
       .gte("closing_at", checkedAt),
     supabase
       .from("tenders")
       .select("ocid", { count: "exact", head: true })
-      .eq("derived_status", "open")
+      .in("derived_status", ["open", "closing_today"])
       .gte("closing_at", checkedAt)
       .gt("documents_count", 0),
     supabase
@@ -132,6 +149,7 @@ export async function getAdminMonitoringSnapshot(): Promise<AdminMonitoringSnaps
   ])
 
   const queryErrors = [
+    totalTenderResult.error, expiredTenderResult.error, addedTenderResult.error, closingTenderResult.error,
     latestRunsResult.error,
     latestSuccessfulRunResult.error,
     openTenderCountResult.error,
@@ -154,6 +172,10 @@ export async function getAdminMonitoringSnapshot(): Promise<AdminMonitoringSnaps
       (latestSuccessfulRunResult.data as unknown as AdminSyncRun | null) || null,
     latestRun: latestRuns[0] || null,
     metrics: {
+      totalTenderCount: totalTenderResult.count || 0,
+      expiredTenderCount: expiredTenderResult.count || 0,
+      addedTenderCountLastDay: addedTenderResult.count || 0,
+      closingTenderCountNextDay: closingTenderResult.count || 0,
       availableOpenTenderCount: openTenderCountResult.count || 0,
       availableOpenTenderWithDocumentCount:
         openTenderWithDocumentCountResult.count || 0,
@@ -183,6 +205,10 @@ function emptySnapshot({
     latestSuccessfulRun: null,
     latestRun: null,
     metrics: {
+      totalTenderCount: 0,
+      expiredTenderCount: 0,
+      addedTenderCountLastDay: 0,
+      closingTenderCountNextDay: 0,
       availableOpenTenderCount: 0,
       availableOpenTenderWithDocumentCount: 0,
       totalDocumentCount: 0,
