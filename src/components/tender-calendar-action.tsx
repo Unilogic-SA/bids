@@ -1,8 +1,16 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { IconCalendarEvent, IconChevronDown } from "@tabler/icons-react"
-
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,97 +18,206 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { trackUmamiEvent } from "@/lib/analytics"
 import {
   buildTenderCalendar,
+  buildTenderCalendarProviderUrl,
   getTenderCalendarFilename,
-  isValidTenderTimestamp,
+  getUpcomingTenderEvents,
   type TenderCalendarDetails,
-  type TenderCalendarSelection,
+  type TenderCalendarEventType,
+  type TenderCalendarProvider,
 } from "@/lib/tenders/calendar"
+
+const providers: Array<{ provider: TenderCalendarProvider; label: string }> = [
+  { provider: "google", label: "Google Calendar" },
+  { provider: "outlook", label: "Outlook.com — personal accounts" },
+  { provider: "microsoft365", label: "Microsoft 365 — work/school accounts" },
+]
+const labels = { closing: "Closing deadline", briefing: "Briefing session" }
 
 export function TenderCalendarAction({
   tender,
 }: {
   tender: TenderCalendarDetails
 }) {
-  const hasClosing = isValidTenderTimestamp(tender.closingAt)
-  const hasBriefing = isValidTenderTimestamp(tender.briefingAt)
-  const options: Array<{
-    label: string
-    selection: TenderCalendarSelection
-  }> = []
+  const [now, setNow] = useState<Date | null>(null)
+  const [selected, setSelected] = useState<TenderCalendarEventType>("closing")
+  // Avoid server/browser clock hydration differences and expire actions while
+  // a tender page stays open. The click handlers also recheck the exact instant.
+  useEffect(() => {
+    const refresh = () => setNow(new Date())
+    refresh()
+    const timer = window.setInterval(refresh, 30_000)
+    window.addEventListener("focus", refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener("focus", refresh)
+    }
+  }, [])
+  const events = now ? getUpcomingTenderEvents(tender, now) : []
+  const selection = events.includes(selected) ? selected : events[0]
+  if (!selection) return null
 
-  if (hasClosing) {
-    options.push({ label: "Closing deadline", selection: "closing" })
-  }
-
-  if (hasBriefing) {
-    options.push({ label: "Briefing session", selection: "briefing" })
-  }
-
-  if (hasClosing && hasBriefing) {
-    options.push({
-      label: "Closing deadline and briefing",
-      selection: "combined",
-    })
-  }
-
-  if (options.length === 0) return null
-
-  function downloadCalendar(selection: TenderCalendarSelection) {
+  function downloadCalendar() {
+    if (!getUpcomingTenderEvents(tender).includes(selection)) return
     const calendar = buildTenderCalendar(tender, selection)
     if (!calendar) return
-
-    const blob = new Blob([calendar], {
-      type: "text/calendar;charset=utf-8",
-    })
+    const blob = new Blob([calendar], { type: "text/calendar;charset=utf-8" })
     const objectUrl = URL.createObjectURL(blob)
-    const downloadLink = document.createElement("a")
-
-    downloadLink.href = objectUrl
-    downloadLink.download = getTenderCalendarFilename(
-      tender.tenderNumber,
-      selection
-    )
-    downloadLink.hidden = true
-    document.body.append(downloadLink)
-    downloadLink.click()
-    downloadLink.remove()
+    const link = document.createElement("a")
+    link.href = objectUrl
+    link.download = getTenderCalendarFilename(tender.tenderNumber, selection)
+    link.hidden = true
+    document.body.append(link)
+    link.click()
+    link.remove()
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000)
-
     trackUmamiEvent("tender_calendar_download", {
       event_type: selection,
       ocid: tender.ocid,
     })
   }
 
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          className="min-h-11 sm:min-h-7"
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <IconCalendarEvent data-icon="inline-start" />
-          Add to calendar
-          <IconChevronDown data-icon="inline-end" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuGroup>
-          {options.map((option) => (
-            <DropdownMenuItem
-              key={option.selection}
-              onSelect={() => downloadCalendar(option.selection)}
-            >
-              {option.label}
+  function trackProvider(
+    provider: TenderCalendarProvider,
+    event: React.MouseEvent<HTMLAnchorElement>
+  ) {
+    if (!getUpcomingTenderEvents(tender).includes(selection)) {
+      event.preventDefault()
+      return
+    }
+    trackUmamiEvent("tender_calendar_open", {
+      provider,
+      event_type: selection,
+      ocid: tender.ocid,
+    })
+  }
+
+  const trigger = (
+    <Button
+      className="min-h-11 sm:min-h-7"
+      size="sm"
+      type="button"
+      variant="outline"
+    >
+      <IconCalendarEvent data-icon="inline-start" />
+      Add to calendar
+      <IconChevronDown data-icon="inline-end" />
+    </Button>
+  )
+
+  if (events.length === 1)
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
+          <DropdownMenuGroup>
+            {providers.map(({ provider, label }) => {
+              const href = buildTenderCalendarProviderUrl(
+                tender,
+                selection,
+                provider,
+                now!
+              )
+              return href ? (
+                <DropdownMenuItem asChild key={provider}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(event) => trackProvider(provider, event)}
+                  >
+                    {label}
+                  </a>
+                </DropdownMenuItem>
+              ) : null
+            })}
+            <DropdownMenuItem onSelect={downloadCalendar}>
+              Download calendar file (.ics)
             </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add to calendar</DialogTitle>
+          <DialogDescription>
+            Choose an event, then review and save it in your calendar.
+          </DialogDescription>
+        </DialogHeader>
+        <Select
+          value={selection}
+          onValueChange={(value) =>
+            setSelected(value as TenderCalendarEventType)
+          }
+        >
+          <SelectTrigger
+            aria-label="Calendar event"
+            className="min-h-11 w-full"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {events.map((event) => (
+              <SelectItem key={event} value={event}>
+                {labels[event]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex flex-col gap-2">
+          {providers.map(({ provider, label }) => {
+            const href = buildTenderCalendarProviderUrl(
+              tender,
+              selection,
+              provider,
+              now!
+            )
+            return href ? (
+              <Button
+                asChild
+                key={provider}
+                variant="outline"
+                className="min-h-11 justify-start"
+              >
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => trackProvider(provider, event)}
+                >
+                  {label}
+                </a>
+              </Button>
+            ) : null
+          })}
+          <Button
+            variant="ghost"
+            className="min-h-11 justify-start"
+            onClick={downloadCalendar}
+          >
+            Download calendar file (.ics)
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {selection === "closing"
+            ? "The five-minute calendar placeholder does not extend the closing deadline."
+            : "Briefing end time was not supplied; a thirty-minute calendar placeholder is used."}
+        </p>
+      </DialogContent>
+    </Dialog>
   )
 }

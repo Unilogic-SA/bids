@@ -4,17 +4,13 @@ import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { trackUmamiEvent } from "@/lib/analytics"
-import { differenceInSastCalendarDays, SAST_TIME_ZONE } from "@/lib/sast-date"
+import {
+  formatClosingUrgency,
+  normalizeTenderTitle,
+} from "@/lib/tenders/presentation"
 import { cn } from "@/lib/utils"
 
 const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1_000
-
-const dayFormatter = new Intl.DateTimeFormat("en-ZA", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: SAST_TIME_ZONE,
-})
 
 type TenderListItemProps = {
   title?: string | null
@@ -56,7 +52,8 @@ export function TenderListItem({
   const displayBuyer = cleanText(buyer) || "Buyer not supplied"
   const displayProvince = cleanText(province)
   const displayIndustry = cleanText(industry)
-  const displayTenderNumber = cleanText(tenderNumber) || "Reference not supplied"
+  const displayTenderNumber =
+    cleanText(tenderNumber) || "Reference not supplied"
   const closing = formatClosingUrgency(closingDate)
   const showNewBadge = Boolean(isNew && isRecentlyPublished(publishedAt))
 
@@ -91,9 +88,7 @@ export function TenderListItem({
 
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex min-w-0 items-center gap-3">
-          <p
-            className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground"
-          >
+          <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
             {displayBuyer}
           </p>
           <p className="max-w-[42%] shrink-0 truncate text-xs font-medium text-muted-foreground">
@@ -145,108 +140,10 @@ function cleanText(value?: string | null) {
   return text || null
 }
 
-function normalizeTenderTitle(value?: string | null) {
-  if (!value) return null
-
-  const title = value.replace(/\s+/g, " ").trim()
-  const letters = title.match(/\p{L}/gu) || []
-  if (!letters.length) return title
-
-  const uppercaseLetters = letters.filter(
-    (letter) => letter === letter.toLocaleUpperCase("en-ZA")
-  )
-  const isMostlyUppercase = uppercaseLetters.length / letters.length > 0.75
-
-  if (!isMostlyUppercase) return title
-
-  const sentenceCase = title
-    .toLocaleLowerCase("en-ZA")
-    .replace(/(^|[.!?]\s+)(\p{L})/gu, (_, prefix: string, letter: string) => {
-      return `${prefix}${letter.toLocaleUpperCase("en-ZA")}`
-    })
-
-  return sentenceCase.replace(
-    /\b(rfq|rfp|rfi|eoi|ict|sita|scm|cidb|vat|bbbee|b-bbee|csd|ppe|hvac|ups|cctv|nersa|soc|ltd|pty)\b/giu,
-    (match) => match.toLocaleUpperCase("en-ZA")
-  )
-}
-
 function compact(values: Array<string | null | undefined>) {
   return values
     .map((value) => cleanText(value))
     .filter((value): value is string => Boolean(value))
-}
-
-function formatClosingUrgency(value?: string | null) {
-  if (!value) {
-    return {
-      className: "text-muted-foreground",
-      label: "Closing date TBC",
-    }
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return {
-      className: "text-muted-foreground",
-      label: "Closing date TBC",
-    }
-  }
-
-  const diffMs = date.getTime() - Date.now()
-  if (diffMs <= 0) {
-    return {
-      className: "text-muted-foreground",
-      label: "Closed",
-    }
-  }
-
-  const dayMs = 24 * 60 * 60 * 1_000
-  const hourMs = 60 * 60 * 1_000
-  const minuteMs = 60 * 1_000
-
-  if (diffMs < hourMs) {
-    const minutesLeft = Math.max(1, Math.ceil(diffMs / minuteMs))
-    return {
-      className: "text-primary",
-      label: `Closing in ${minutesLeft} ${
-        minutesLeft === 1 ? "minute" : "minutes"
-      }`,
-    }
-  }
-
-  if (diffMs < dayMs) {
-    const hoursLeft = Math.max(1, Math.ceil(diffMs / hourMs))
-    return {
-      className: "text-primary",
-      label: `Closing in ${hoursLeft} ${hoursLeft === 1 ? "hour" : "hours"}`,
-    }
-  }
-
-  const calendarDaysLeft = differenceInSastCalendarDays(date, Date.now())
-
-  if (calendarDaysLeft === 1) {
-    return {
-      className: "text-primary",
-      label: "Closes tomorrow",
-    }
-  }
-
-  if (
-    calendarDaysLeft !== null &&
-    calendarDaysLeft >= 2 &&
-    calendarDaysLeft <= 5
-  ) {
-    return {
-      className: "text-primary",
-      label: `Closes in ${calendarDaysLeft} days`,
-    }
-  }
-
-  return {
-    className: "text-muted-foreground",
-    label: `Closes ${dayFormatter.format(date)}`,
-  }
 }
 
 function isRecentlyPublished(value?: string | null) {

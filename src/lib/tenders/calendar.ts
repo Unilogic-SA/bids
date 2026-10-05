@@ -15,6 +15,92 @@ export type TenderCalendarDetails = {
   briefingCompulsory?: boolean | null
 }
 
+export type TenderCalendarEventType = Exclude<
+  TenderCalendarSelection,
+  "combined"
+>
+export type TenderCalendarProvider = "google" | "outlook" | "microsoft365"
+
+export function isElapsedTenderTimestamp(
+  value?: string | null,
+  now = Date.now()
+) {
+  const date = parseTenderTimestamp(value)
+  return date !== null && date.getTime() <= now
+}
+
+export function getUpcomingTenderEvents(
+  tender: TenderCalendarDetails,
+  now = new Date()
+) {
+  return (["closing", "briefing"] as const).filter((eventType) => {
+    const start = parseTenderTimestamp(
+      eventType === "closing" ? tender.closingAt : tender.briefingAt
+    )
+    return start !== null && start.getTime() > now.getTime()
+  })
+}
+
+export function buildTenderCalendarProviderUrl(
+  tender: TenderCalendarDetails,
+  eventType: TenderCalendarEventType,
+  provider: TenderCalendarProvider,
+  now = new Date()
+) {
+  if (!getUpcomingTenderEvents(tender, now).includes(eventType)) return null
+  const start = parseTenderTimestamp(
+    eventType === "closing" ? tender.closingAt : tender.briefingAt
+  )!
+  const end = new Date(
+    start.getTime() + (eventType === "closing" ? 5 : 30) * 60_000
+  )
+  const title = `Tender ${eventType === "closing" ? "closes" : "briefing"} — ${cleanText(tender.tenderNumber) || "Tender notice"}`
+  const details = [
+    cleanText(tender.description),
+    `Issued by: ${cleanText(tender.buyer)}`,
+    `${eventType === "closing" ? "Exact closing deadline" : "Briefing starts"}: ${start.toISOString()}`,
+    eventType === "closing"
+      ? "Five-minute calendar placeholder only. The actual closing deadline is the event start time; it is not extended."
+      : "Briefing end time was not supplied. Thirty-minute calendar placeholder only.",
+    eventType === "briefing" && tender.briefingCompulsory != null
+      ? `Compulsory: ${tender.briefingCompulsory ? "Yes" : "No"}`
+      : "",
+    cleanText(tender.canonicalUrl),
+  ]
+    .filter(Boolean)
+    .join("\n")
+  const location =
+    eventType === "briefing" ? cleanText(tender.briefingVenue) : ""
+  const url = new URL(
+    provider === "google"
+      ? "https://calendar.google.com/calendar/render"
+      : `https://${provider === "outlook" ? "outlook.live.com" : "outlook.office.com"}/calendar/deeplink/compose`
+  )
+  const params =
+    provider === "google"
+      ? {
+          action: "TEMPLATE",
+          text: title,
+          dates: `${formatUtcTimestamp(start)}/${formatUtcTimestamp(end)}`,
+          details,
+          location,
+          ctz: "Africa/Johannesburg",
+        }
+      : {
+          path: "/calendar/action/compose",
+          rru: "addevent",
+          subject: title,
+          startdt: start.toISOString(),
+          enddt: end.toISOString(),
+          body: details,
+          location,
+          allday: "false",
+        }
+  for (const [key, value] of Object.entries(params))
+    url.searchParams.set(key, value)
+  return url.toString()
+}
+
 export function isValidTenderTimestamp(value?: string | null) {
   return parseTenderTimestamp(value) !== null
 }
@@ -96,7 +182,10 @@ function buildCalendarEvent(
   ].filter(Boolean)
   const lines = [
     "BEGIN:VEVENT",
-    formatProperty("UID", `${eventType}-${stableHash(tender.ocid)}@${ICS_DOMAIN}`),
+    formatProperty(
+      "UID",
+      `${eventType}-${stableHash(tender.ocid)}@${ICS_DOMAIN}`
+    ),
     formatProperty(
       "DTSTAMP",
       formatUtcTimestamp(
@@ -121,7 +210,7 @@ function buildCalendarEvent(
   return lines
 }
 
-function parseTenderTimestamp(value?: string | null) {
+export function parseTenderTimestamp(value?: string | null) {
   const candidate = cleanText(value)
   const match = candidate.match(
     /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:?\d{2})?$/i

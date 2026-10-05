@@ -93,3 +93,82 @@ test("creates a safe calendar filename", () => {
     "openbids-scm-12-2026-dates.ics"
   )
 })
+
+test("provider URLs preserve the instant, encoded text and placeholder durations", async () => {
+  const { buildTenderCalendarProviderUrl } = await import("./calendar")
+  const now = new Date("2026-08-01T00:00:00Z")
+  for (const provider of ["google", "outlook", "microsoft365"] as const) {
+    for (const event of ["closing", "briefing"] as const) {
+      const url = new URL(
+        buildTenderCalendarProviderUrl(tender, event, provider, now)!
+      )
+      const params = url.searchParams
+      const start =
+        event === "closing"
+          ? "2026-09-09T08:00:00.000Z"
+          : "2026-09-01T07:30:00.000Z"
+      const end =
+        event === "closing"
+          ? "2026-09-09T08:05:00.000Z"
+          : "2026-09-01T08:00:00.000Z"
+      if (provider === "google") {
+        assert.equal(
+          params.get("dates"),
+          `${start.replace(/[-:]/g, "").replace(".000", "")}/${end.replace(/[-:]/g, "").replace(".000", "")}`
+        )
+        assert.equal(params.get("ctz"), "Africa/Johannesburg")
+      } else {
+        assert.equal(params.get("startdt"), start)
+        assert.equal(params.get("enddt"), end)
+        assert.equal(url.pathname, "/calendar/deeplink/compose")
+      }
+      const details = params.get(provider === "google" ? "details" : "body")!
+      assert.ok(details.includes(tender.canonicalUrl))
+      assert.ok(details.includes("Supply, install; and test\\commission"))
+      assert.ok(
+        details.includes(
+          event === "closing" ? "not extended" : "end time was not supplied"
+        )
+      )
+      assert.equal(
+        params.get("location"),
+        event === "briefing" ? tender.briefingVenue : ""
+      )
+      assert.equal(
+        params.get(provider === "google" ? "text" : "subject"),
+        `Tender ${event === "closing" ? "closes" : "briefing"} — ${tender.tenderNumber}`
+      )
+    }
+  }
+})
+
+test("calendar handoffs exclude elapsed, boundary, missing and impossible events", async () => {
+  const { getUpcomingTenderEvents, buildTenderCalendarProviderUrl } =
+    await import("./calendar")
+  const now = new Date("2026-09-09T08:00:00Z")
+  assert.deepEqual(getUpcomingTenderEvents(tender, now), [])
+  assert.equal(
+    buildTenderCalendarProviderUrl(tender, "closing", "google", now),
+    null
+  )
+  assert.deepEqual(
+    getUpcomingTenderEvents(
+      { ...tender, briefingAt: null, closingAt: "2026-02-31T12:00:00" },
+      now
+    ),
+    []
+  )
+  assert.deepEqual(
+    getUpcomingTenderEvents(tender, new Date("2026-09-02T00:00:00Z")),
+    ["closing"]
+  )
+  const url = new URL(
+    buildTenderCalendarProviderUrl(
+      { ...tender, closingAt: "2026-09-09 10:00:00" },
+      "closing",
+      "outlook",
+      new Date("2026-08-01")
+    )!
+  )
+  assert.equal(url.searchParams.get("startdt"), "2026-09-09T08:00:00.000Z")
+})

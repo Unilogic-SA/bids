@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useSyncExternalStore } from "react"
+import { useCallback, useState, useSyncExternalStore } from "react"
 import { IconBookmark } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
@@ -12,15 +12,23 @@ import {
 import { trackUmamiEvent } from "@/lib/analytics"
 
 export function TenderBookmarkButton({ ocid }: { ocid: string }) {
-  const storedBookmark = useSyncExternalStore(
-    subscribeToBookmarkChanges,
-    () => readTenderBookmarks(getBrowserStorage()).includes(ocid),
-    () => false
-  )
   const [sessionBookmark, setSessionBookmark] = useState<{
     ocid: string
     value: boolean
   } | null>(null)
+  const subscribe = useCallback(
+    (onChange: () => void) =>
+      subscribeToBookmarkChanges(() => {
+        setSessionBookmark(null)
+        onChange()
+      }),
+    []
+  )
+  const storedBookmark = useSyncExternalStore(
+    subscribe,
+    () => readTenderBookmarks(getBrowserStorage()).includes(ocid),
+    () => false
+  )
   const bookmarked =
     sessionBookmark?.ocid === ocid ? sessionBookmark.value : storedBookmark
 
@@ -32,11 +40,17 @@ export function TenderBookmarkButton({ ocid }: { ocid: string }) {
       nextBookmarked
     )
 
-    setSessionBookmark({
-      ocid,
-      value: nextBookmarked ? nextBookmarks.includes(ocid) : false,
-    })
     window.dispatchEvent(new Event(BOOKMARK_CHANGE_EVENT))
+    // A session override is needed only if persistence is blocked. External
+    // changes clear it, so a successful local toggle never masks storage.
+    setSessionBookmark(
+      readTenderBookmarks(getBrowserStorage()).includes(ocid) === nextBookmarked
+        ? null
+        : {
+            ocid,
+            value: nextBookmarked ? nextBookmarks.includes(ocid) : false,
+          }
+    )
     trackUmamiEvent(
       nextBookmarked ? "tender_bookmark_added" : "tender_bookmark_removed",
       { ocid }

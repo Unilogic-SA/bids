@@ -9,11 +9,7 @@ import {
   IconExternalLink,
 } from "@tabler/icons-react"
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -42,6 +38,11 @@ import { parseListingReturnHref } from "@/lib/tenders/navigation"
 import { getTenderDetail } from "@/lib/tenders/query"
 import type { TenderDetail, TenderDocument } from "@/lib/tenders/types"
 import { cn } from "@/lib/utils"
+import {
+  formatClosingUrgency,
+  normalizeTenderTitle,
+} from "@/lib/tenders/presentation"
+import { isElapsedTenderTimestamp } from "@/lib/tenders/calendar"
 
 export const dynamic = "force-dynamic"
 
@@ -141,11 +142,13 @@ export default async function TenderPage({
     )
   }
 
-  const description = getPrimaryDescription(tender)
+  const description =
+    normalizeTenderTitle(getPrimaryDescription(tender)) || "Tender notice"
   const buyer = getPrimaryBuyer(tender)
   const canonicalPath =
     tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
   const canonicalUrl = absoluteUrl(canonicalPath)
+  const location = buildTenderLocation(tender)
   const hasCriticalFacts = hasMeaningfulCriticalFacts(tender)
   const hasBriefing = hasMeaningfulBriefing(tender)
   const conditionItems = getConditionItems(tender)
@@ -154,7 +157,11 @@ export default async function TenderPage({
     tender.original_source_url
   )
   const hasRemainingContent =
-    conditionItems.length > 0 || hasContact || Boolean(originalTenderUrl)
+    Boolean(location) ||
+    hasBriefing ||
+    conditionItems.length > 0 ||
+    hasContact ||
+    Boolean(originalTenderUrl)
   const jsonLd = buildTenderJsonLd(tender, documents)
 
   return (
@@ -165,32 +172,18 @@ export default async function TenderPage({
       />
       <header className="border-b bg-background">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:py-5 md:px-6">
-          <Button
-            asChild
-            className="min-h-11 w-fit sm:min-h-7"
-            size="sm"
-            variant="ghost"
-          >
-            <Link href={listingHref}>
-              <IconArrowLeft data-icon="inline-start" />
-              Tenders
-            </Link>
-          </Button>
-
-          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex min-w-0 max-w-5xl flex-col gap-2">
-              <TenderReference tender={tender} />
-              <h1 className="break-words text-2xl font-semibold leading-tight tracking-normal sm:text-3xl">
-                {description}
-              </h1>
-              {buyer ? (
-                <p className="break-words text-sm font-medium leading-6 sm:text-base">
-                  {buyer}
-                </p>
-              ) : null}
-              <TenderBadges tender={tender} />
-            </div>
-
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              asChild
+              className="min-h-11 w-fit sm:min-h-7"
+              size="sm"
+              variant="ghost"
+            >
+              <Link href={listingHref}>
+                <IconArrowLeft data-icon="inline-start" />
+                Tenders
+              </Link>
+            </Button>
             <div className="flex shrink-0 flex-wrap gap-2">
               <TenderBookmarkButton ocid={tender.ocid} />
               <TenderCalendarAction
@@ -202,13 +195,26 @@ export default async function TenderPage({
                   buyer,
                   canonicalUrl,
                   closingAt: tender.closing_at,
-                  briefingAt: hasBriefing
-                    ? tender.briefing_datetime
-                    : null,
+                  briefingAt: hasBriefing ? tender.briefing_datetime : null,
                   briefingVenue: getMeaningfulText(tender.briefing_venue),
                   briefingCompulsory: tender.compulsory_briefing,
                 }}
               />
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 max-w-5xl flex-col gap-2">
+              <TenderReference tender={tender} />
+              <h1 className="break-words text-2xl font-semibold leading-tight tracking-normal sm:text-[1.75rem]">
+                {description}
+              </h1>
+              {buyer ? (
+                <p className="break-words text-sm font-medium leading-6 sm:text-base">
+                  {buyer}
+                </p>
+              ) : null}
+              <TenderBadges tender={tender} />
             </div>
           </div>
         </div>
@@ -217,12 +223,6 @@ export default async function TenderPage({
       <main className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="order-1 flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
           {hasCriticalFacts ? <TenderCriticalFacts tender={tender} /> : null}
-          {hasBriefing ? (
-            <>
-              {hasCriticalFacts ? <Separator /> : null}
-              <TenderBriefing tender={tender} />
-            </>
-          ) : null}
         </div>
 
         <aside className="order-2 min-w-0 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
@@ -232,6 +232,16 @@ export default async function TenderPage({
         {hasRemainingContent ? (
           <div className="order-3 flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-2">
             <Separator />
+            {location ? (
+              <section className="flex min-w-0 flex-col gap-2">
+                <h2 className="text-base font-medium">Delivery location</h2>
+                <p className="break-words text-sm leading-6">{location}</p>
+              </section>
+            ) : null}
+            {hasBriefing ? <TenderBriefing tender={tender} /> : null}
+            {(location || hasBriefing) && conditionItems.length > 0 ? (
+              <Separator />
+            ) : null}
             {conditionItems.length > 0 ? (
               <TenderConditions items={conditionItems} />
             ) : null}
@@ -375,8 +385,16 @@ function TenderBadges({ tender }: { tender: TenderDetail }) {
 
   return (
     <div className="flex flex-wrap gap-2 pt-1">
-      {province ? <Badge variant="secondary">{province}</Badge> : null}
-      {industry ? <Badge variant="outline">{industry}</Badge> : null}
+      {province ? (
+        <Badge className="rounded-md" variant="secondary">
+          {province}
+        </Badge>
+      ) : null}
+      {industry ? (
+        <Badge className="rounded-md" variant="outline">
+          {industry}
+        </Badge>
+      ) : null}
     </div>
   )
 }
@@ -386,14 +404,14 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
   const closing = formatAvailableDate(tender.closing_at, true)
   const opening = formatAvailableDate(tender.opening_at)
   const published = formatAvailableDate(tender.published_at)
-  const location = buildTenderLocation(tender)
+  const urgency = formatClosingUrgency(tender.closing_at)
   const lastUpdated = formatAvailableDate(tender.modified_at)
   const facts = [
     closing
       ? {
-          label: isClosed ? "Closed" : "Closing",
+          label: isClosed ? "Closed" : urgency.label,
           value: closing,
-          emphasis: !isClosed,
+          emphasis: !isClosed && urgency.className === "text-primary",
           strong: true,
         }
       : null,
@@ -402,7 +420,6 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
       : published
         ? { label: "Published", value: published }
         : null,
-    location ? { label: "Required at", value: location } : null,
     lastUpdated
       ? { label: "Last updated", value: lastUpdated, quiet: true }
       : null,
@@ -441,9 +458,27 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
 function TenderBriefing({ tender }: { tender: TenderDetail }) {
   const date = formatAvailableDate(tender.briefing_datetime, true)
   const venue = getMeaningfulText(tender.briefing_venue)
+  const ended = isElapsedTenderTimestamp(tender.briefing_datetime)
+  const venueUrl = getHttpUrl(venue)
   const facts = [
     date ? { label: "Date and time", value: date } : null,
-    venue ? { label: "Venue", value: venue } : null,
+    venue
+      ? {
+          label: "Venue",
+          value: venueUrl ? (
+            <a
+              className="underline underline-offset-4"
+              href={venueUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Join online briefing
+            </a>
+          ) : (
+            venue
+          ),
+        }
+      : null,
   ].filter((fact) => fact !== null)
   const content = facts.length ? (
     <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
@@ -461,7 +496,9 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
     return (
       <Alert>
         <IconAlertTriangle />
-        <AlertTitle>Compulsory briefing</AlertTitle>
+        <AlertTitle>
+          {ended ? "Compulsory briefing — ended" : "Compulsory briefing"}
+        </AlertTitle>
         <AlertDescription>{content}</AlertDescription>
       </Alert>
     )
@@ -470,7 +507,9 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
   return (
     <section className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-medium">Briefing</h2>
+        <h2 className="text-base font-medium">
+          {ended ? "Briefing — ended" : "Briefing"}
+        </h2>
         {tender.compulsory_briefing === false ? (
           <Badge variant="outline">Non-compulsory</Badge>
         ) : null}
@@ -657,20 +696,19 @@ function getConditionItems(tender: TenderDetail) {
 function hasMeaningfulBriefing(tender: TenderDetail) {
   return Boolean(
     tender.briefing_session === true ||
-      tender.compulsory_briefing === true ||
-      getMeaningfulText(tender.briefing_datetime) ||
-      getMeaningfulText(tender.briefing_venue)
+    tender.compulsory_briefing === true ||
+    getMeaningfulText(tender.briefing_datetime) ||
+    getMeaningfulText(tender.briefing_venue)
   )
 }
 
 function hasMeaningfulCriticalFacts(tender: TenderDetail) {
   return Boolean(
     formatTenderStatus(tender) === "closed" ||
-      formatAvailableDate(tender.closing_at, true) ||
-      formatAvailableDate(tender.opening_at) ||
-      formatAvailableDate(tender.published_at) ||
-      buildTenderLocation(tender) ||
-      formatAvailableDate(tender.modified_at)
+    formatAvailableDate(tender.closing_at, true) ||
+    formatAvailableDate(tender.opening_at) ||
+    formatAvailableDate(tender.published_at) ||
+    formatAvailableDate(tender.modified_at)
   )
 }
 
@@ -684,9 +722,9 @@ function hasMeaningfulContact(tender: TenderDetail) {
 
   return Boolean(
     person ||
-      (role && !areEquivalent(role, person)) ||
-      emailTarget ||
-      telephoneTarget
+    (role && !areEquivalent(role, person)) ||
+    emailTarget ||
+    telephoneTarget
   )
 }
 
@@ -700,22 +738,14 @@ function buildTenderLocation(tender: TenderDetail) {
   ]
     .map(normalizeLocationPart)
     .filter(Boolean)
-  const structuredKeys = new Set(structuredParts.map(normalizeForComparison))
-  const placeParts = normalizeLocationPart(tender.place_raw)
-    .split(",")
-    .map((part) => part.trim())
-    .filter(
-      (part) => part && !structuredKeys.has(normalizeForComparison(part))
-    )
-  const orderedParts = [...placeParts, ...structuredParts]
-
-  return orderedParts.filter(
-    (part, index) =>
-      orderedParts.findIndex(
-        (candidate) =>
-          normalizeForComparison(candidate) === normalizeForComparison(part)
-      ) === index
-  ).join(", ")
+  const raw = normalizeLocationPart(tender.place_raw)
+  const structured = [...new Set(structuredParts)].join(", ")
+  // Do not concatenate overlapping raw and structured addresses. An actual
+  // street plus city/area is sufficient; sparse structured fields use raw text.
+  return normalizeLocationPart(tender.address_line) &&
+    (normalizeLocationPart(tender.city) || normalizeLocationPart(tender.suburb_or_area))
+    ? structured
+    : raw || structured
 }
 
 function normalizeLocationPart(value?: string | null) {
@@ -732,6 +762,15 @@ function formatAvailableDate(value?: string | null, includeTime = false) {
   if (Number.isNaN(date.getTime())) return ""
 
   return includeTime ? formatDateTime(value) : formatDate(value)
+}
+
+function getHttpUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return ["https:", "http:"].includes(url.protocol) ? url.toString() : ""
+  } catch {
+    return ""
+  }
 }
 
 function getVerifiedOriginalTenderUrl(value?: string | null) {
@@ -762,7 +801,8 @@ function getTelephoneTarget(value: string) {
 
   if (normalized.startsWith("00")) normalized = `+${normalized.slice(2)}`
 
-  return normalized.replace(/\D/g, "").length >= 7 ? normalized : ""
+  const digits = normalized.replace(/\D/g, "")
+  return digits.length >= 7 && !/^0+$/.test(digits) ? normalized : ""
 }
 
 function getMeaningfulText(value?: string | null) {
