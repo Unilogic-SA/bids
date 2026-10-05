@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import { AlertTriangleIcon } from "lucide-react"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { DataTable } from "@/components/data-table"
@@ -34,6 +36,18 @@ export default async function AdminPage() {
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-3 py-3 md:gap-4 md:py-4">
+            {dashboard.health.tone === "attention" || dashboard.health.tone === "offline" ? (
+              <div className="px-4 lg:px-6">
+                <Alert variant="destructive">
+                  <AlertTriangleIcon />
+                  <AlertTitle>{dashboard.health.title}</AlertTitle>
+                  <AlertDescription>
+                    {dashboard.health.description} Open counts decrease as deadlines pass; imports must replenish them.
+                    {snapshot.latestRun?.message ? ` Latest failure: ${snapshot.latestRun.message}` : ""}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            ) : null}
             <SectionCards cards={dashboard.cards} />
             <div id="sync-activity" className="scroll-mt-16 px-4 lg:px-6">
               <ChartAreaInteractive runs={snapshot.latestRuns} />

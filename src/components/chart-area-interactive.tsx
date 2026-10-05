@@ -75,7 +75,7 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
         <CardTitle>Recent sync activity</CardTitle>
         <CardDescription>
           <span className="hidden @[540px]/card:block">
-            Fetched, tender, and document totals from recent sync runs
+            Processed records per run; these are updates, not newly added tenders
           </span>
           <span className="@[540px]/card:hidden">Recent sync totals</span>
         </CardDescription>
@@ -180,27 +180,24 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
             />
             <Area
               dataKey="documents"
-              type="natural"
+              type="linear"
               isAnimationActive={false}
               fill="url(#fillDocuments)"
               stroke={ADMIN_CHART_COLORS.documents}
-              stackId="a"
             />
             <Area
               dataKey="tenders"
-              type="natural"
+              type="linear"
               isAnimationActive={false}
               fill="url(#fillTenders)"
               stroke={ADMIN_CHART_COLORS.tenders}
-              stackId="a"
             />
             <Area
               dataKey="fetched"
-              type="natural"
+              type="linear"
               isAnimationActive={false}
               fill="url(#fillFetched)"
               stroke={ADMIN_CHART_COLORS.fetched}
-              stackId="a"
             />
           </AreaChart>
         </ChartContainer>
