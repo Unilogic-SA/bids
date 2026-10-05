@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState, useSyncExternalStore } from "react"
-import { IconBookmark } from "@tabler/icons-react"
+import { IconBookmark, IconBookmarkFilled } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -60,14 +60,22 @@ export function TenderBookmarkButton({ ocid }: { ocid: string }) {
   return (
     <Button
       aria-pressed={bookmarked}
-      className="min-h-11 sm:min-h-7"
+      aria-label={bookmarked ? "Remove bookmark" : "Bookmark tender"}
+      className="h-8 min-w-18 sm:h-7 sm:min-w-28"
       onClick={toggleBookmark}
       size="sm"
       type="button"
-      variant="outline"
+      variant={bookmarked ? "default" : "outline"}
     >
-      <IconBookmark data-icon="inline-start" />
-      {bookmarked ? "Bookmarked" : "Bookmark"}
+      {bookmarked ? (
+        <IconBookmarkFilled data-icon="inline-start" />
+      ) : (
+        <IconBookmark data-icon="inline-start" />
+      )}
+      <span className="sm:hidden">{bookmarked ? "Saved" : "Save"}</span>
+      <span className="hidden sm:inline">
+        {bookmarked ? "Bookmarked" : "Bookmark"}
+      </span>
     </Button>
   )
 }

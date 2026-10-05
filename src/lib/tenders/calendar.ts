@@ -73,7 +73,7 @@ export function buildTenderCalendarProviderUrl(
     eventType === "briefing" ? cleanText(tender.briefingVenue) : ""
   const url = new URL(
     provider === "google"
-      ? "https://calendar.google.com/calendar/render"
+      ? "https://calendar.google.com/calendar/r/eventedit"
       : `https://${provider === "outlook" ? "outlook.live.com" : "outlook.office.com"}/calendar/deeplink/compose`
   )
   const params =
@@ -84,7 +84,8 @@ export function buildTenderCalendarProviderUrl(
           dates: `${formatUtcTimestamp(start)}/${formatUtcTimestamp(end)}`,
           details,
           location,
-          ctz: "Africa/Johannesburg",
+          stz: "Africa/Johannesburg",
+          etz: "Africa/Johannesburg",
         }
       : {
           path: "/calendar/action/compose",
@@ -98,7 +99,9 @@ export function buildTenderCalendarProviderUrl(
         }
   for (const [key, value] of Object.entries(params))
     url.searchParams.set(key, value)
-  return url.toString()
+  // Google documents the event editor route rather than the legacy render
+  // redirect. Use percent-encoded spaces for mobile deep-link parsers too.
+  return url.toString().replace(/\+/g, "%20")
 }
 
 export function isValidTenderTimestamp(value?: string | null) {

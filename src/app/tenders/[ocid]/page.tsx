@@ -42,6 +42,7 @@ import {
   formatClosingUrgency,
   normalizeTenderTitle,
 } from "@/lib/tenders/presentation"
+import { formatTenderLocation } from "@/lib/tenders/location"
 import { isElapsedTenderTimestamp } from "@/lib/tenders/calendar"
 
 export const dynamic = "force-dynamic"
@@ -148,7 +149,7 @@ export default async function TenderPage({
   const canonicalPath =
     tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
   const canonicalUrl = absoluteUrl(canonicalPath)
-  const location = buildTenderLocation(tender)
+  const location = formatTenderLocation(tender)
   const hasCriticalFacts = hasMeaningfulCriticalFacts(tender)
   const hasBriefing = hasMeaningfulBriefing(tender)
   const conditionItems = getConditionItems(tender)
@@ -172,10 +173,10 @@ export default async function TenderPage({
       />
       <header className="border-b bg-background">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:py-5 md:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
             <Button
               asChild
-              className="min-h-11 w-fit sm:min-h-7"
+              className="h-8 w-fit px-1 sm:h-7"
               size="sm"
               variant="ghost"
             >
@@ -184,7 +185,7 @@ export default async function TenderPage({
                 Tenders
               </Link>
             </Button>
-            <div className="flex shrink-0 flex-wrap gap-2">
+            <div className="flex shrink-0 items-center gap-1.5">
               <TenderBookmarkButton ocid={tender.ocid} />
               <TenderCalendarAction
                 tender={{
@@ -206,7 +207,7 @@ export default async function TenderPage({
           <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex min-w-0 max-w-5xl flex-col gap-2">
               <TenderReference tender={tender} />
-              <h1 className="break-words text-2xl font-semibold leading-tight tracking-normal sm:text-[1.75rem]">
+              <h1 className="break-words text-xl font-semibold leading-snug tracking-normal sm:text-[1.75rem]">
                 {description}
               </h1>
               {buyer ? (
@@ -253,7 +254,7 @@ export default async function TenderPage({
             {originalTenderUrl ? (
               <Button
                 asChild
-                className="min-h-11 w-full sm:min-h-7 sm:w-fit"
+                className="h-8 w-fit max-w-full sm:h-7"
                 size="sm"
                 variant="outline"
               >
@@ -266,7 +267,7 @@ export default async function TenderPage({
                   target="_blank"
                 >
                   <IconExternalLink data-icon="inline-start" />
-                  View original tender on eTenders
+                  View on eTenders
                 </a>
               </Button>
             ) : null}
@@ -386,12 +387,18 @@ function TenderBadges({ tender }: { tender: TenderDetail }) {
   return (
     <div className="flex flex-wrap gap-2 pt-1">
       {province ? (
-        <Badge className="rounded-md" variant="secondary">
+        <Badge
+          className="h-auto max-w-full rounded-md whitespace-normal text-left leading-4"
+          variant="secondary"
+        >
           {province}
         </Badge>
       ) : null}
       {industry ? (
-        <Badge className="rounded-md" variant="outline">
+        <Badge
+          className="h-auto max-w-full rounded-md whitespace-normal text-left leading-4"
+          variant="outline"
+        >
           {industry}
         </Badge>
       ) : null}
@@ -428,9 +435,10 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
   return (
     <section aria-label="Critical tender facts" className="flex flex-col gap-4">
       {facts.length > 0 ? (
-        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-3">
           {facts.map((fact) => (
             <DetailItem
+              className={fact.strong ? "col-span-2 xl:col-span-1" : undefined}
               emphasis={fact.emphasis}
               key={fact.label}
               label={fact.label}
@@ -609,12 +617,14 @@ function TenderContact({ tender }: { tender: TenderDetail }) {
 }
 
 function DetailItem({
+  className,
   emphasis,
   label,
   quiet,
   strong,
   value,
 }: {
+  className?: string
   emphasis?: boolean
   label: string
   quiet?: boolean
@@ -625,6 +635,7 @@ function DetailItem({
     <div
       className={cn(
         "flex min-w-0 flex-col gap-1",
+        className,
         emphasis && "rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
       )}
     >
@@ -726,33 +737,6 @@ function hasMeaningfulContact(tender: TenderDetail) {
     emailTarget ||
     telephoneTarget
   )
-}
-
-function buildTenderLocation(tender: TenderDetail) {
-  const structuredParts = [
-    tender.address_line,
-    tender.suburb_or_area,
-    tender.city,
-    tender.province,
-    tender.postal_code,
-  ]
-    .map(normalizeLocationPart)
-    .filter(Boolean)
-  const raw = normalizeLocationPart(tender.place_raw)
-  const structured = [...new Set(structuredParts)].join(", ")
-  // Do not concatenate overlapping raw and structured addresses. An actual
-  // street plus city/area is sufficient; sparse structured fields use raw text.
-  return normalizeLocationPart(tender.address_line) &&
-    (normalizeLocationPart(tender.city) || normalizeLocationPart(tender.suburb_or_area))
-    ? structured
-    : raw || structured
-}
-
-function normalizeLocationPart(value?: string | null) {
-  return getMeaningfulText(value)
-    .replace(/\s*[|;]+\s*/g, ", ")
-    .replace(/(?:\s*,\s*){2,}/g, ", ")
-    .replace(/^[\s,|;]+|[\s,|;]+$/g, "")
 }
 
 function formatAvailableDate(value?: string | null, includeTime = false) {

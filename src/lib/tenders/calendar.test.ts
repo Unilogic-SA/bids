@@ -116,7 +116,10 @@ test("provider URLs preserve the instant, encoded text and placeholder durations
           params.get("dates"),
           `${start.replace(/[-:]/g, "").replace(".000", "")}/${end.replace(/[-:]/g, "").replace(".000", "")}`
         )
-        assert.equal(params.get("ctz"), "Africa/Johannesburg")
+        assert.equal(url.pathname, "/calendar/r/eventedit")
+        assert.equal(params.get("stz"), "Africa/Johannesburg")
+        assert.equal(params.get("etz"), "Africa/Johannesburg")
+        assert.equal(url.search.includes("+"), false)
       } else {
         assert.equal(params.get("startdt"), start)
         assert.equal(params.get("enddt"), end)

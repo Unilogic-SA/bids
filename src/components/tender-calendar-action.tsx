@@ -103,13 +103,15 @@ export function TenderCalendarAction({
 
   const trigger = (
     <Button
-      className="min-h-11 sm:min-h-7"
+      className="h-8 sm:h-7"
       size="sm"
       type="button"
+      aria-label="Add to calendar"
       variant="outline"
     >
       <IconCalendarEvent data-icon="inline-start" />
-      Add to calendar
+      <span className="sm:hidden">Calendar</span>
+      <span className="hidden sm:inline">Add to calendar</span>
       <IconChevronDown data-icon="inline-end" />
     </Button>
   )
@@ -118,7 +120,10 @@ export function TenderCalendarAction({
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
+        <DropdownMenuContent
+          align="end"
+          className="w-72 max-w-[calc(100vw-2rem)]"
+        >
           <DropdownMenuGroup>
             {providers.map(({ provider, label }) => {
               const href = buildTenderCalendarProviderUrl(

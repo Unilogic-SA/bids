@@ -29,7 +29,7 @@ export function normalizeTenderTitle(value?: string | null) {
     })
 
   return sentenceCase.replace(
-    /\b(rfq|rfp|rfi|eoi|ict|sita|scm|cidb|vat|bbbee|b-bbee|csd|ppe|hvac|ups|cctv|nersa|soc|ltd|pty)\b/giu,
+    /\b(rfq|rfp|rfi|eoi|ict|ot|ntcsa|sita|scm|cidb|vat|bbbee|b-bbee|csd|ppe|hvac|ups|cctv|nersa|soc|ltd|pty)\b/giu,
     (match) => match.toLocaleUpperCase("en-ZA")
   )
 }
