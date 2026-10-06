@@ -159,6 +159,9 @@ export default async function TenderPage({
   const originalTenderUrl = getVerifiedOriginalTenderUrl(
     tender.original_source_url
   )
+  const sourceLabel =
+    getMeaningfulText(tender.source_label).replace(/^source\s*:\s*/i, "") ||
+    "National Treasury eTenders"
   const jsonLd = buildTenderJsonLd(tender, documents)
 
   return (
@@ -266,11 +269,7 @@ export default async function TenderPage({
           <Separator />
           <footer className="flex flex-col items-start gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 flex-col gap-1">
-              <p>
-                Source:{" "}
-                {getMeaningfulText(tender.source_label) ||
-                  "National Treasury eTenders"}
-              </p>
+              <p>Source: {sourceLabel}</p>
               {formatAvailableDate(tender.modified_at) ? (
                 <p>Last updated {formatDate(tender.modified_at)}</p>
               ) : null}
