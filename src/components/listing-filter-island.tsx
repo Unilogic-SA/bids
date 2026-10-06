@@ -344,6 +344,7 @@ function SortField({
         className="w-full"
         defaultValue={filters.sortExplicit ? filters.sort : ""}
         id={id}
+        key={filters.sortExplicit ? filters.sort : "default"}
         name="sort"
         size="sm"
       >
