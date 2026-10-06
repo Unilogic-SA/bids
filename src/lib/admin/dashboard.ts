@@ -128,8 +128,11 @@ function getSystemCheckRows(
     {
       id: "check-source-coverage",
       name: "Source coverage",
-      status: snapshot.latestSuccessfulRun?.raw_summary?.sourceMode === "portal_active_fallback" ? "Degraded" : "OCDS",
-      detail: snapshot.latestSuccessfulRun?.raw_summary?.sourceMode === "portal_active_fallback"
+      status: !snapshot.latestSuccessfulRun || snapshot.configMissing || snapshot.queryErrors.length ? "Unavailable"
+        : snapshot.latestSuccessfulRun.raw_summary?.sourceMode === "portal_active_fallback" ? "Degraded" : "OCDS",
+      detail: !snapshot.latestSuccessfulRun || snapshot.configMissing || snapshot.queryErrors.length
+        ? "Source coverage could not be established from a completed sync. Refresh monitoring and inspect sync history."
+        : snapshot.latestSuccessfulRun.raw_summary?.sourceMode === "portal_active_fallback"
         ? `The latest portal refresh reported ${formatNumber(snapshot.latestSuccessfulRun.raw_summary.portalTenderCount || 0)} active listings. Historical OCDS reconciliation is unavailable; older catalog records remain preserved for source re-verification.`
         : "Latest completed coverage is an OCDS publication window; this does not prove whole-source completeness.",
       volume: snapshot.latestSuccessfulRun?.raw_summary?.portalTenderCount != null

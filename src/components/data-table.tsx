@@ -2,25 +2,6 @@
 
 import * as React from "react"
 import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type UniqueIdentifier,
-} from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
-import {
   columnFilteringFeature,
   columnVisibilityFeature,
   createColumnHelper,
@@ -35,7 +16,6 @@ import {
   useTable,
   type ColumnFiltersState,
   type ColumnVisibilityState,
-  type Row,
   type SortingState,
 } from "@tanstack/react-table"
 import {
@@ -48,15 +28,23 @@ import {
   IconCircleCheckFilled,
   IconCopy,
   IconDotsVertical,
-  IconGripVertical,
   IconLayoutColumns,
   IconLoader,
   IconRefresh,
 } from "@tabler/icons-react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { toast } from "sonner"
 import { z } from "zod"
+
+import { Input } from "@/components/ui/input"
+import {
+  boundedPageIndex,
+  filterOperations,
+  isAttentionStatus,
+  operationsCsv,
+  type OperationStatusFilter,
+} from "@/lib/admin/operations"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -142,29 +130,7 @@ type DashboardView = "all" | "sync-runs" | "system-checks" | "runner"
 
 const columnHelper = createColumnHelper<typeof features, DashboardRow>()
 
-function DragHandle({ id }: { id: string }) {
-  const { attributes, listeners } = useSortable({ id })
-
-  return (
-    <Button
-      {...attributes}
-      {...listeners}
-      variant="ghost"
-      size="icon-sm"
-      className="text-muted-foreground hover:bg-transparent"
-    >
-      <IconGripVertical data-icon="inline-start" />
-      <span className="sr-only">Drag to reorder</span>
-    </Button>
-  )
-}
-
 const columns = columnHelper.columns([
-  columnHelper.display({
-    id: "drag",
-    header: () => null,
-    cell: ({ row }) => <DragHandle id={row.original.id} />,
-  }),
   columnHelper.display({
     id: "select",
     header: ({ table }) => (
@@ -263,7 +229,7 @@ const columns = columnHelper.columns([
 
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toLowerCase()
-  const isAttention = ["attention", "failed", "offline"].includes(normalized)
+  const isAttention = isAttentionStatus(normalized)
   const isRunning = ["running", "syncing"].includes(normalized)
   const isHealthy = ["ok", "completed", "operational", "idle"].includes(
     normalized
@@ -286,69 +252,35 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function DraggableRow({
-  row,
-}: {
-  row: Row<typeof features, DashboardRow>
-}) {
-  const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: row.original.id,
-  })
-
-  return (
-    <TableRow
-      data-state={row.getIsSelected() && "selected"}
-      data-dragging={isDragging}
-      ref={setNodeRef}
-      className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-    >
-      {row.getVisibleCells().map((cell) => (
-        <TableCell key={cell.id} className="py-1.5">
-          <FlexRender cell={cell} />
-        </TableCell>
-      ))}
-    </TableRow>
-  )
-}
-
-export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) {
-  const [data, setData] = React.useState<DashboardRow[]>(() => initialData)
+export function DataTable({ data }: { data: AdminDashboardRow[] }) {
+  const router = useRouter()
+  const [isRefreshing, startRefresh] = React.useTransition()
+  const [search, setSearch] = React.useState("")
+  const [statusFilter, setStatusFilter] =
+    React.useState<OperationStatusFilter>("all")
   const [activeView, setActiveView] = React.useState<DashboardView>("all")
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
     React.useState<ColumnVisibilityState>({})
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  )
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
   })
-  const sortableId = React.useId()
-  const sensors = useSensors(
-    useSensor(MouseSensor, {}),
-    useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {})
-  )
-
   const filteredData = React.useMemo(
     () =>
-      data.filter((row) => {
+      filterOperations(data, search, statusFilter).filter((row) => {
         if (activeView === "sync-runs") return row.category === "Sync run"
-        if (activeView === "system-checks") return row.category === "System check"
+        if (activeView === "system-checks")
+          return row.category === "System check"
         if (activeView === "runner") return row.category === "Runner"
         return true
       }),
-    [activeView, data]
+    [activeView, data, search, statusFilter]
   )
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => filteredData.map(({ id }) => id),
-    [filteredData]
-  )
-
   const table = useTable({
     features,
     data: filteredData,
@@ -358,7 +290,14 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
       columnVisibility,
       rowSelection,
       columnFilters,
-      pagination,
+      pagination: {
+        ...pagination,
+        pageIndex: boundedPageIndex(
+          pagination.pageIndex,
+          filteredData.length,
+          pagination.pageSize
+        ),
+      },
     },
     getRowId: (row) => row.id,
     enableRowSelection: true,
@@ -375,15 +314,20 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
     setRowSelection({})
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (active && over && active.id !== over.id) {
-      setData((rows) => {
-        const oldIndex = rows.findIndex((row) => row.id === active.id)
-        const newIndex = rows.findIndex((row) => row.id === over.id)
-        return arrayMove(rows, oldIndex, newIndex)
-      })
-    }
+  function exportRows(selected: boolean) {
+    const rows = selected
+      ? table.getFilteredSelectedRowModel().rows.map((row) => row.original)
+      : filteredData
+    if (!rows.length) return
+    const url = URL.createObjectURL(
+      new Blob([operationsCsv(rows)], { type: "text/csv;charset=utf-8" })
+    )
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `openbids-operations-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success(`CSV download started for ${rows.length} operations`)
   }
 
   const counts = {
@@ -398,7 +342,7 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
       onValueChange={handleViewChange}
       className="w-full flex-col justify-start gap-4"
     >
-      <div className="flex items-center justify-between px-4 lg:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 lg:px-6">
         <Label htmlFor="view-selector" className="sr-only">
           View
         </Label>
@@ -425,7 +369,8 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
             Sync runs <Badge variant="secondary">{counts.syncRuns}</Badge>
           </TabsTrigger>
           <TabsTrigger value="system-checks">
-            System checks <Badge variant="secondary">{counts.systemChecks}</Badge>
+            System checks{" "}
+            <Badge variant="secondary">{counts.systemChecks}</Badge>
           </TabsTrigger>
           <TabsTrigger value="runner">
             Runner <Badge variant="secondary">{counts.runner}</Badge>
@@ -464,75 +409,160 @@ export function DataTable({ data: initialData }: { data: AdminDashboardRow[] }) 
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin" aria-label="Refresh data">
-              <IconRefresh data-icon="inline-start" />
-              <span className="hidden lg:inline">Refresh data</span>
-            </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Refresh data"
+            disabled={isRefreshing}
+            onClick={() => startRefresh(() => router.refresh())}
+          >
+            <IconRefresh
+              className={isRefreshing ? "animate-spin" : ""}
+              data-icon="inline-start"
+            />
+            <span className="hidden sm:inline">
+              {isRefreshing ? "Refreshing…" : "Refresh data"}
+            </span>
           </Button>
         </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 px-4 lg:px-6">
+        <Input
+          aria-label="Search operations"
+          placeholder="Search details or run reference…"
+          value={search}
+          className="w-full sm:max-w-xs"
+          onChange={(event) => {
+            setSearch(event.target.value)
+            setPagination((p) => ({ ...p, pageIndex: 0 }))
+            setRowSelection({})
+          }}
+        />
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => {
+            setStatusFilter(value as OperationStatusFilter)
+            setPagination((p) => ({ ...p, pageIndex: 0 }))
+            setRowSelection({})
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="w-36"
+            aria-label="Filter by status"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="attention">Needs attention</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="running">Running / stalled</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        {search || statusFilter !== "all" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("")
+              setStatusFilter("all")
+              setPagination((p) => ({ ...p, pageIndex: 0 }))
+              setRowSelection({})
+            }}
+          >
+            Clear filters
+          </Button>
+        ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={!filteredData.length}>
+              Export CSV
+              <IconChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => exportRows(false)}>
+                Export filtered rows ({filteredData.length})
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!table.getFilteredSelectedRowModel().rows.length}
+                onSelect={() => exportRows(true)}
+              >
+                Export selected rows (
+                {table.getFilteredSelectedRowModel().rows.length})
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <p className="w-full text-xs text-muted-foreground" role="status">
+          {filteredData.length} matching operations · latest {counts.syncRuns}{" "}
+          sync runs loaded (maximum 100). Search and exports cover this loaded
+          history.
+        </p>
       </div>
       <TabsContent
         value={activeView}
         className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
       >
         <div className="overflow-hidden rounded-lg border">
-          <DndContext
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEnd}
-            sensors={sensors}
-            id={sortableId}
-          >
-            <Table className="text-xs">
-              <TableHeader className="sticky top-0 z-10 bg-muted">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        colSpan={header.colSpan}
-                        className="h-8"
-                      >
-                        {header.isPlaceholder ? null : (
-                          <FlexRender header={header} />
-                        )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                {table.getRowModel().rows.length ? (
-                  <SortableContext
-                    items={dataIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
-                    ))}
-                  </SortableContext>
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
+          <Table className="text-xs">
+            <TableHeader className="sticky top-0 z-10 bg-muted">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      className="h-8"
                     >
-                      No operational data is available for this view.
-                    </TableCell>
+                      {header.isPlaceholder ? null : (
+                        <FlexRender header={header} />
+                      )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody className="**:data-[slot=table-cell]:first:w-8">
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-1.5">
+                        <FlexRender cell={cell} />
+                      </TableCell>
+                    ))}
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DndContext>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={table.getVisibleLeafColumns().length}
+                    className="h-24 text-center"
+                  >
+                    {search || statusFilter !== "all"
+                      ? "No operations match your filters. Clear filters to see the loaded history."
+                      : "No operational data is available for this view."}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-        <div className="flex items-center justify-between px-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="hidden flex-1 text-xs text-muted-foreground lg:flex">
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
             {table.getFilteredRowModel().rows.length} row(s) selected.
           </div>
-          <div className="flex w-full items-center gap-4 lg:w-fit">
-            <div className="hidden items-center gap-2 lg:flex">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
               <Label htmlFor="rows-per-page" className="text-xs font-medium">
                 Rows per page
               </Label>
@@ -689,7 +719,9 @@ function TableCellViewer({ item }: { item: DashboardRow }) {
           <Separator />
           <div className="flex flex-col gap-2">
             <p className="font-medium">Details</p>
-            <p className="text-muted-foreground">{item.detail}</p>
+            <p className="break-words whitespace-pre-wrap text-muted-foreground">
+              {item.detail}
+            </p>
           </div>
           <div className="flex flex-col gap-2">
             <p className="font-medium">Reference</p>
