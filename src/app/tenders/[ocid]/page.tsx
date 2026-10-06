@@ -245,7 +245,296 @@ export default async function TenderPage({
           ) : null}
           {hasBriefing ? (
             <>
-           …2469 tokens truncated…ertDescription>{content}</AlertDescription>
+              <TenderBriefing tender={tender} />
+            </>
+          ) : null}
+          {conditionItems.length > 0 ? (
+            <>
+              <TenderConditions items={conditionItems} />
+            </>
+          ) : null}
+          {hasContact ? (
+            <>
+              <TenderContact tender={tender} />
+            </>
+          ) : null}
+          <footer className="text-xs text-muted-foreground">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p>Source: {sourceLabel}</p>
+              {formatAvailableDate(tender.modified_at) ? (
+                <p>Last updated {formatDate(tender.modified_at)}</p>
+              ) : null}
+            </div>
+
+          </footer>
+        </div>
+
+        <aside
+          id="tender-documents"
+          tabIndex={-1}
+          aria-label="Tender documents"
+          className="min-w-0 scroll-mt-16 lg:sticky lg:top-16 lg:col-start-2 lg:row-start-1"
+        >
+          <TenderDocuments
+            documents={documents}
+            sourceUrl={originalTenderUrl}
+            tender={tender}
+          />
+        </aside>
+      </main>
+    </div>
+  )
+}
+
+function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
+  const canonicalUrl = absoluteUrl(
+    tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
+  )
+  const title = getTenderTitle(tender)
+  const description = getTenderDescription(tender)
+  const lastModified = getTenderLastModified(tender, documents)
+  const buyer = cleanText(tender.buyer_name || tender.department)
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": canonicalUrl,
+        url: canonicalUrl,
+        name: title,
+        description,
+        inLanguage: "en-ZA",
+        datePublished: tender.published_at || undefined,
+        dateModified: lastModified?.toISOString(),
+        isPartOf: {
+          "@type": "WebSite",
+          name: "Bids ZA",
+          url: absoluteUrl("/"),
+        },
+      },
+      {
+        "@type": "CreativeWork",
+        "@id": `${canonicalUrl}#tender-notice`,
+        name: title,
+        headline: tender.tender_no || title,
+        description: summarizeTender(tender),
+        identifier: tender.tender_no || tender.ocid,
+        datePublished: tender.published_at || undefined,
+        dateModified: lastModified?.toISOString(),
+        expires: tender.closing_at || undefined,
+        about: [
+          tender.industry,
+          tender.procurement_category,
+          tender.procurement_method_details,
+        ].filter(Boolean),
+        provider: buyer
+          ? {
+              "@type": "GovernmentOrganization",
+              name: buyer,
+            }
+          : undefined,
+        spatialCoverage: tender.province
+          ? {
+              "@type": "Place",
+              name: tender.province,
+              address: [tender.address_line, tender.city, tender.postal_code]
+                .filter(Boolean)
+                .join(", "),
+            }
+          : undefined,
+        mainEntityOfPage: canonicalUrl,
+      },
+      documents.length
+        ? {
+            "@type": "ItemList",
+            "@id": `${canonicalUrl}#documents`,
+            name: `${title} documents`,
+            itemListElement: documents.map((document, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              item: {
+                "@type": "DigitalDocument",
+                name:
+                  document.document_title ||
+                  document.file_name ||
+                  "Tender document",
+                url: document.document_url,
+                encodingFormat: document.file_extension || undefined,
+                datePublished: document.date_published || undefined,
+                dateModified: document.date_modified || undefined,
+              },
+            })),
+          }
+        : undefined,
+    ].filter(Boolean),
+  }
+}
+
+function TenderReference({ tender }: { tender: TenderDetail }) {
+  const reference = getMeaningfulText(tender.tender_no)
+  const status = formatTenderStatus(tender)
+  const hasKnownStatus = Boolean(
+    formatAvailableDate(tender.closing_at) ||
+    getMeaningfulText(tender.derived_status) ||
+    getMeaningfulText(tender.status)
+  )
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <Badge
+        variant={
+          status === "closing_today"
+            ? "default"
+            : status === "closed"
+              ? "destructive"
+              : "secondary"
+        }
+      >
+        {hasKnownStatus ? statusLabel(status) : "Status not supplied"}
+      </Badge>
+      {reference ? (
+        <p className="min-w-0 break-all font-mono text-xs text-muted-foreground">
+          {reference}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
+  const isClosed = formatTenderStatus(tender) === "closed"
+  const closing = formatAvailableDate(tender.closing_at, true)
+  const opening = formatAvailableDate(tender.opening_at)
+  const published = formatAvailableDate(tender.published_at)
+  const urgency = formatClosingUrgency(tender.closing_at)
+  const isUrgent = !isClosed && urgency.className === "text-primary"
+
+  return (
+    <section
+      aria-label="Tender dates"
+      className="flex flex-col gap-3"
+    >
+      <dl className="grid grid-cols-2 items-start gap-x-6 gap-y-3 sm:grid-cols-3">
+        <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
+          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <IconClock aria-hidden="true" className="size-3.5" />
+            {isClosed ? "Closing date" : "Closing deadline"}
+          </dt>
+          <dd className="break-words text-sm font-semibold leading-6">
+            {closing || "Not supplied"}
+          </dd>
+          {isUrgent ? (
+            <p className="text-xs font-medium text-primary">{urgency.label}</p>
+          ) : null}
+        </div>
+        {opening ? <DetailItem label="Opening date" value={opening} /> : null}
+        {published ? <DetailItem label="Published" value={published} /> : null}
+      </dl>
+      {isClosed ? (
+        <p className="text-sm text-muted-foreground">
+          This tender has closed. Details and documents are available for
+          reference.
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function TenderOverview({ tender }: { tender: TenderDetail }) {
+  const type = getMeaningfulText(tender.tender_type)
+  const industry = getMeaningfulText(tender.industry)
+  const category = getMeaningfulText(tender.procurement_category)
+  const method = getMeaningfulText(tender.procurement_method_details)
+  const facts = [
+    type ? { label: "Tender type", value: type } : null,
+    getMeaningfulText(tender.province)
+      ? { label: "Province", value: getMeaningfulText(tender.province) }
+      : null,
+    industry ? { label: "Industry", value: industry } : null,
+    category && !areEquivalent(category, industry)
+      ? { label: "Procurement category", value: category }
+      : null,
+    method && !areEquivalent(method, type)
+      ? { label: "Procurement method", value: method }
+      : null,
+  ].filter((fact) => fact !== null)
+
+  return (
+    <section
+      aria-labelledby="overview-heading"
+      className="flex min-w-0 flex-col gap-2"
+    >
+      <h2 id="overview-heading" className="text-base font-semibold">
+        Tender details
+      </h2>
+      {facts.length ? (
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
+          {facts.map((fact) => (
+            <DetailItem
+              key={fact.label}
+              label={fact.label}
+              value={fact.value}
+            />
+          ))}
+        </dl>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Additional bid details were not supplied. Check the tender documents
+          or original notice.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function TenderBriefing({ tender }: { tender: TenderDetail }) {
+  const date = formatAvailableDate(tender.briefing_datetime, true)
+  const venue = getMeaningfulText(tender.briefing_venue)
+  const ended = isElapsedTenderTimestamp(tender.briefing_datetime)
+  const venueUrl = getHttpUrl(venue)
+  const facts = [
+    date ? { label: "Date and time", value: date } : null,
+    venue
+      ? {
+          label: "Venue",
+          value: venueUrl ? (
+            <a
+              className="underline underline-offset-4"
+              href={venueUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {ended ? "View online briefing link" : "Join online briefing"}
+            </a>
+          ) : (
+            venue
+          ),
+        }
+      : null,
+  ].filter((fact) => fact !== null)
+  const content = facts.length ? (
+    <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+      {facts.map((fact) => (
+        <DetailItem key={fact.label} label={fact.label} value={fact.value} />
+      ))}
+    </dl>
+  ) : (
+    <p className="text-sm text-muted-foreground">
+      A briefing session applies. Date and venue were not supplied.
+    </p>
+  )
+
+  if (tender.compulsory_briefing) {
+    return (
+      <Alert>
+        <IconAlertTriangle />
+        <AlertTitle>
+          <h2 className="text-base font-semibold">
+            {ended ? "Compulsory briefing — ended" : "Compulsory briefing"}
+          </h2>
+        </AlertTitle>
+        <AlertDescription>{content}</AlertDescription>
       </Alert>
     )
   }
