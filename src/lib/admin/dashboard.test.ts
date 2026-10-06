@@ -31,3 +31,14 @@ test("interrupted running rows are labelled stalled without inventing completion
   const row = createAdminDashboard(input).rows[0]
   assert.equal(row.status, "Stalled")
 })
+test("missing or failed source reads never imply verified OCDS coverage", () => {
+  const input = snapshot()
+  input.latestSuccessfulRun = null
+  let row = createAdminDashboard(input).rows.find((row) => row.id === "check-source-coverage")!
+  assert.equal(row.status, "Unavailable")
+  assert.match(row.detail, /could not be established/)
+  input.latestSuccessfulRun = snapshot().latestSuccessfulRun
+  input.queryErrors = ["read failed"]
+  row = createAdminDashboard(input).rows.find((row) => row.id === "check-source-coverage")!
+  assert.equal(row.status, "Unavailable")
+})

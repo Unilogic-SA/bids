@@ -15,6 +15,8 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart"
 import {
@@ -25,10 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { AdminSyncRun } from "@/lib/admin/monitoring"
 import { ADMIN_CHART_COLORS } from "@/lib/admin/theme"
@@ -75,7 +74,8 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
         <CardTitle>Recent sync activity</CardTitle>
         <CardDescription>
           <span className="hidden @[540px]/card:block">
-            Processed records per run; these are updates, not newly added tenders
+            Processed records per run; these are updates, not newly added
+            tenders
           </span>
           <span className="@[540px]/card:hidden">Recent sync totals</span>
         </CardDescription>
@@ -117,99 +117,115 @@ export function ChartAreaInteractive({ runs }: { runs: AdminSyncRun[] }) {
         </CardAction>
       </CardHeader>
       <CardContent className="px-2 sm:px-3">
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[180px] w-full md:h-[200px]"
-        >
-          <AreaChart accessibilityLayer data={chartData}>
-            <defs>
-              <linearGradient id="fillFetched" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor={ADMIN_CHART_COLORS.fetched}
-                  stopOpacity={1}
-                />
-                <stop
-                  offset="95%"
-                  stopColor={ADMIN_CHART_COLORS.fetched}
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-              <linearGradient id="fillTenders" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor={ADMIN_CHART_COLORS.tenders}
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor={ADMIN_CHART_COLORS.tenders}
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-              <linearGradient id="fillDocuments" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor={ADMIN_CHART_COLORS.documents}
-                  stopOpacity={0.65}
-                />
-                <stop
-                  offset="95%"
-                  stopColor={ADMIN_CHART_COLORS.documents}
-                  stopOpacity={0.08}
-                />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={formatRunDate}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) => formatRunDate(String(value))}
-                  indicator="dot"
-                />
-              }
-            />
-            <Area
-              dataKey="documents"
-              type="linear"
-              isAnimationActive={false}
-              fill="url(#fillDocuments)"
-              stroke={ADMIN_CHART_COLORS.documents}
-            />
-            <Area
-              dataKey="tenders"
-              type="linear"
-              isAnimationActive={false}
-              fill="url(#fillTenders)"
-              stroke={ADMIN_CHART_COLORS.tenders}
-            />
-            <Area
-              dataKey="fetched"
-              type="linear"
-              isAnimationActive={false}
-              fill="url(#fillFetched)"
-              stroke={ADMIN_CHART_COLORS.fetched}
-            />
-          </AreaChart>
-        </ChartContainer>
+        {!chartData.length ? (
+          <p className="px-3 py-8 text-sm text-muted-foreground">
+            No sync runs are available yet.
+          </p>
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[180px] w-full md:h-[200px]"
+          >
+            <AreaChart accessibilityLayer data={chartData}>
+              <defs>
+                <linearGradient id="fillFetched" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor={ADMIN_CHART_COLORS.fetched}
+                    stopOpacity={1}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={ADMIN_CHART_COLORS.fetched}
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+                <linearGradient id="fillTenders" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor={ADMIN_CHART_COLORS.tenders}
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={ADMIN_CHART_COLORS.tenders}
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+                <linearGradient id="fillDocuments" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor={ADMIN_CHART_COLORS.documents}
+                    stopOpacity={0.65}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={ADMIN_CHART_COLORS.documents}
+                    stopOpacity={0.08}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tickFormatter={formatRunDate}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) =>
+                      formatRunTimestamp(String(value))
+                    }
+                    indicator="dot"
+                  />
+                }
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Area
+                dataKey="documents"
+                type="linear"
+                isAnimationActive={false}
+                fill="url(#fillDocuments)"
+                stroke={ADMIN_CHART_COLORS.documents}
+              />
+              <Area
+                dataKey="tenders"
+                type="linear"
+                isAnimationActive={false}
+                fill="url(#fillTenders)"
+                stroke={ADMIN_CHART_COLORS.tenders}
+              />
+              <Area
+                dataKey="fetched"
+                type="linear"
+                isAnimationActive={false}
+                fill="url(#fillFetched)"
+                stroke={ADMIN_CHART_COLORS.fetched}
+              />
+            </AreaChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )
 }
 
 function formatRunDate(value: string) {
-  return new Date(value).toLocaleDateString("en-ZA", {
+  return new Date(value).toLocaleString("en-ZA", {
     day: "numeric",
     month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
     timeZone: "Africa/Johannesburg",
   })
+}
+
+function formatRunTimestamp(value: string) {
+  return `${formatRunDate(value)} SAST`
 }

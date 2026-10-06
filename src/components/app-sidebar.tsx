@@ -57,8 +57,8 @@ const navigation = {
       icon: <IconListDetails />,
     },
     {
-      name: "Data source",
-      url: "#operations-data",
+      name: "Data source & quality",
+      url: "#catalog-quality",
       icon: <IconDatabase />,
     },
   ],
