@@ -8,7 +8,7 @@ export default function TenderLoading() {
         Loading tender details…
       </span>
       <div className="border-b">
-        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-4 sm:py-6 md:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:py-6 md:px-6">
           <div className="flex items-center justify-between gap-2">
             <Skeleton className="h-8 w-20" />
             <div className="flex gap-2">
@@ -22,16 +22,29 @@ export default function TenderLoading() {
             <Skeleton className="h-7 w-3/4" />
             <Skeleton className="h-5 w-56" />
           </div>
-          <div className="grid grid-cols-2 gap-3 border-t pt-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Skeleton className="col-span-2 h-12 sm:col-span-1" />
             <Skeleton className="h-12" />
             <Skeleton className="h-12" />
           </div>
         </div>
       </div>
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10">
+      <div className="mx-auto grid max-w-6xl gap-4 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10">
+        <Skeleton className="h-8 w-32 lg:hidden" />
+        <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-1">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div className="flex flex-col gap-2" key={index}>
+              <Skeleton className="h-5 w-36" />
+              <div className="grid grid-cols-2 gap-2">
+                <Skeleton className="h-12" />
+                <Skeleton className="h-12" />
+              </div>
+            </div>
+          ))}
+          <Skeleton className="h-8 w-40" />
+        </div>
         <Card className="gap-0 self-start shadow-none lg:col-start-2 lg:row-start-1">
-          <CardHeader className="border-b">
+          <CardHeader>
             <Skeleton className="h-5 w-28" />
             <Skeleton className="h-3 w-5/6" />
           </CardHeader>
@@ -48,21 +61,6 @@ export default function TenderLoading() {
             ))}
           </CardContent>
         </Card>
-        <div className="flex flex-col gap-8 lg:col-start-1 lg:row-start-1">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div className="flex flex-col gap-4" key={index}>
-              <Skeleton className="h-5 w-36" />
-              <div className="grid grid-cols-2 gap-4">
-                <Skeleton className="h-12" />
-                <Skeleton className="h-12" />
-              </div>
-            </div>
-          ))}
-          <div className="flex justify-between gap-4">
-            <Skeleton className="h-8 w-40" />
-            <Skeleton className="h-8 w-32" />
-          </div>
-        </div>
       </div>
     </div>
   )

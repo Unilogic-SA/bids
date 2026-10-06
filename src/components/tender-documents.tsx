@@ -110,7 +110,7 @@ export function TenderDocuments({
   return (
     <>
       <Card className="gap-0 shadow-none">
-        <CardHeader className="border-b">
+        <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-base font-semibold">Documents</h2>
             <Badge variant="secondary">{documents.length}</Badge>

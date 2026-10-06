@@ -7,7 +7,6 @@ import {
   IconArrowLeft,
   IconClock,
   IconDatabaseOff,
-  IconExternalLink,
 } from "@tabler/icons-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -170,7 +169,7 @@ export default async function TenderPage({
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(jsonLd) }}
       />
       <header className="border-b bg-background">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-4 sm:py-6 md:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:py-6 md:px-6">
           <div className="flex items-center justify-between gap-2">
             <Button
               asChild
@@ -202,7 +201,7 @@ export default async function TenderPage({
             </div>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-2">
             <div className="flex min-w-0 max-w-4xl flex-col gap-2">
               <TenderReference tender={tender} />
               <h1 className="break-words text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
@@ -219,19 +218,17 @@ export default async function TenderPage({
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
-        <aside
-          aria-label="Tender documents"
-          className="min-w-0 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
+      <main className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
+        <Button
+          asChild
+          size="sm"
+          variant="secondary"
+          className="h-8 w-fit text-primary lg:hidden"
         >
-          <TenderDocuments
-            documents={documents}
-            sourceUrl={originalTenderUrl}
-            tender={tender}
-          />
-        </aside>
+          <a href="#tender-documents">Go to Documents</a>
+        </Button>
 
-        <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">
+        <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
           <TenderOverview tender={tender} />
           {location ? (
             <>
@@ -261,35 +258,29 @@ export default async function TenderPage({
               <TenderContact tender={tender} />
             </>
           ) : null}
-          <footer className="flex flex-col items-start gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-col gap-1">
+          <footer className="text-xs text-muted-foreground">
+            <div className="flex min-w-0 flex-col gap-0.5">
               <p>Source: {sourceLabel}</p>
               {formatAvailableDate(tender.modified_at) ? (
                 <p>Last updated {formatDate(tender.modified_at)}</p>
               ) : null}
             </div>
-            {originalTenderUrl ? (
-              <Button
-                asChild
-                className="h-8 w-fit max-w-full sm:h-7"
-                size="sm"
-                variant="outline"
-              >
-                <a
-                  data-umami-event="tender_source_open"
-                  data-umami-event-location="detail_page"
-                  data-umami-event-ocid={tender.ocid}
-                  href={originalTenderUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  <IconExternalLink data-icon="inline-start" />
-                  View on eTenders
-                </a>
-              </Button>
-            ) : null}
+
           </footer>
         </div>
+
+        <aside
+          id="tender-documents"
+          tabIndex={-1}
+          aria-label="Tender documents"
+          className="min-w-0 scroll-mt-4 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
+        >
+          <TenderDocuments
+            documents={documents}
+            sourceUrl={originalTenderUrl}
+            tender={tender}
+          />
+        </aside>
       </main>
     </div>
   )
@@ -422,7 +413,7 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
   return (
     <section
       aria-label="Tender dates"
-      className="flex flex-col gap-3 border-t pt-4"
+      className="flex flex-col gap-3"
     >
       <dl className="grid grid-cols-2 items-start gap-x-6 gap-y-3 sm:grid-cols-3">
         <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
@@ -472,13 +463,13 @@ function TenderOverview({ tender }: { tender: TenderDetail }) {
   return (
     <section
       aria-labelledby="overview-heading"
-      className="flex min-w-0 flex-col gap-4"
+      className="flex min-w-0 flex-col gap-2"
     >
       <h2 id="overview-heading" className="text-base font-semibold">
         Tender details
       </h2>
       {facts.length ? (
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
           {facts.map((fact) => (
             <DetailItem
               key={fact.label}
@@ -523,7 +514,7 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
       : null,
   ].filter((fact) => fact !== null)
   const content = facts.length ? (
-    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+    <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
       {facts.map((fact) => (
         <DetailItem key={fact.label} label={fact.label} value={fact.value} />
       ))}
@@ -549,7 +540,7 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
   }
 
   return (
-    <section className="flex min-w-0 flex-col gap-3">
+    <section className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold">
           {ended ? "Briefing — ended" : "Briefing"}
@@ -571,7 +562,7 @@ function TenderConditions({ items }: { items: TenderConditionItem[] }) {
     )
 
   return (
-    <section className="flex min-w-0 flex-col gap-3">
+    <section className="flex min-w-0 flex-col gap-2">
       <h2 className="text-base font-semibold">Conditions</h2>
       {isLong ? (
         <TenderConditionsDisclosure items={items} />
@@ -584,9 +575,9 @@ function TenderConditions({ items }: { items: TenderConditionItem[] }) {
 
 function ConditionItems({ items }: { items: TenderConditionItem[] }) {
   return (
-    <dl className="flex flex-col gap-4">
+    <dl className="flex flex-col gap-3">
       {items.map((item) => (
-        <div className="flex min-w-0 flex-col gap-1" key={item.label}>
+        <div className="flex min-w-0 flex-col gap-0.5" key={item.label}>
           <dt className="text-xs font-medium text-muted-foreground">
             {item.label}
           </dt>
@@ -608,9 +599,9 @@ function TenderContact({ tender }: { tender: TenderDetail }) {
   const telephoneTarget = getTelephoneTarget(telephone)
 
   return (
-    <section className="flex min-w-0 flex-col gap-3">
+    <section className="flex min-w-0 flex-col gap-2">
       <h2 className="text-base font-semibold">Contact</h2>
-      <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+      <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
         {person ? <DetailItem label="Contact person" value={person} /> : null}
         {role && !areEquivalent(role, person) ? (
           <DetailItem label="Role" value={role} />
@@ -654,7 +645,7 @@ function TenderContact({ tender }: { tender: TenderDetail }) {
 
 function DetailItem({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="break-words text-sm leading-6">{value}</dd>
     </div>
