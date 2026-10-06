@@ -273,7 +273,7 @@ export default async function TenderPage({
           id="tender-documents"
           tabIndex={-1}
           aria-label="Tender documents"
-          className="min-w-0 scroll-mt-4 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
+          className="min-w-0 scroll-mt-16 lg:sticky lg:top-16 lg:col-start-2 lg:row-start-1"
         >
           <TenderDocuments
             documents={documents}

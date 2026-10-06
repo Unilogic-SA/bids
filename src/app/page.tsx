@@ -112,13 +112,13 @@ export default async function Home({ searchParams }: HomeProps) {
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(websiteJsonLd) }}
       />
       <main className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-4 md:px-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
-        <div className="sticky top-0 z-20 bg-background/95 py-1.5 backdrop-blur lg:hidden">
+        <div className="sticky top-12 z-20 bg-background/95 py-1.5 backdrop-blur lg:hidden">
           <MobileListingControls filters={filters} />
         </div>
 
         <aside
           aria-label="Tender filters"
-          className="hidden lg:sticky lg:top-4 lg:block lg:self-start"
+          className="hidden lg:sticky lg:top-16 lg:block lg:self-start"
         >
           <ListingFilterIsland filters={filters} />
         </aside>
