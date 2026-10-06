@@ -16,14 +16,16 @@ export function parseListingSearchParams(
   const industry = readParam(input.industry)
   const tenderType = readParam(input.type) || readParam(input.tender_type)
   const sort = readParam(input.sort)
+  const q = sanitizeFreeText(readParam(input.q))
 
   return {
-    q: sanitizeFreeText(readParam(input.q)),
+    q,
     region: isRegion(region) ? region : undefined,
     buyer: sanitizeFreeText(readParam(input.buyer)),
     industry: isIndustryFilter(industry) ? industry : undefined,
     tenderType: isTenderTypeFilter(tenderType) ? tenderType : undefined,
-    sort: isListingSort(sort) ? sort : DEFAULT_LISTING_SORT,
+    sort: isListingSort(sort) ? sort : q ? "relevance" : DEFAULT_LISTING_SORT,
+    sortExplicit: isListingSort(sort),
     page: parsePage(readParam(input.page)),
   }
 }
@@ -34,6 +36,9 @@ export function buildListingHref(
 ) {
   const next = new URLSearchParams()
   const merged = { ...params, ...patch }
+  const sortExplicit = patch.sortExplicit ?? (
+    patch.sort !== undefined ? true : params.sortExplicit ?? false
+  )
 
   appendParam(next, "q", merged.q)
   appendParam(next, "region", merged.region)
@@ -43,7 +48,7 @@ export function buildListingHref(
   appendParam(
     next,
     "sort",
-    merged.sort !== DEFAULT_LISTING_SORT ? merged.sort : undefined
+    sortExplicit ? merged.sort : undefined
   )
   appendParam(
     next,
@@ -53,6 +58,10 @@ export function buildListingHref(
 
   const query = next.toString()
   return query ? `/?${query}` : "/"
+}
+
+export function getDefaultListingSort(q?: string): ListingSearchParams["sort"] {
+  return q ? "relevance" : DEFAULT_LISTING_SORT
 }
 
 export function buildTenderDetailHref(
