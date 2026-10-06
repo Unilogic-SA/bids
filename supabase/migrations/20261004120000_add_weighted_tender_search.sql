@@ -30,7 +30,7 @@ declare
   v_web_query tsquery;
   v_prefix_query tsquery;
 begin
-  if p_sort not in (
+  if p_sort is null or p_sort not in (
     'relevance',
     'closing_at_asc',
     'closing_at_desc',
@@ -46,7 +46,8 @@ begin
       using errcode = '22023';
   end if;
 
-  if p_limit < 1 or p_limit > 100 or p_offset < 0 then
+  if p_limit is null or p_offset is null
+    or p_limit < 1 or p_limit > 100 or p_offset < 0 then
     raise exception 'Invalid tender search pagination'
       using errcode = '22023';
   end if;
@@ -90,12 +91,15 @@ begin
         lower(btrim(t.tender_no)) = lower(btrim(p_query)) as exact_tender_no,
         ts_rank_cd(t.search_vector_v2, v_web_query, 32) as relevance
       from public.tenders as t
-      where t.derived_status = 'open'
+      where t.derived_status in ('open', 'closing_today')
         and t.closing_at >= now()
         and (
           t.search_vector_v2 @@ v_web_query
           or (
             p_query ~ '[0-9]'
+            -- Only plain identifiers get prefix matching; preserve websearch
+            -- phrases, OR and exclusion semantics for normal text queries.
+            and p_query ~ '^[[:alnum:]][[:alnum:]_./-]*$'
             and t.search_vector_v2 @@ v_prefix_query
           )
         )

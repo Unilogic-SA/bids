@@ -16,19 +16,21 @@ Closes #<!-- originating Issue number in Unilogic-SA/bids -->
 ## Security / auth impact
 <!-- None, or describe. -->
 
-## Testing completed
-<!-- Actual commands and results; no application test suite currently exists. -->
+## Testing / verification completed
+<!-- Actual commands, results, and behaviour verified; disclose checks that could not run. -->
 
 ## Preview / screenshots
 <!-- Current commit's Vercel preview URL and relevant screenshots. -->
 
-## Known limitations
+## Known limitations / follow-up work
 <!-- None, or follow-ups. -->
 
 ## Checklist
-- [ ] Acceptance criteria addressed; changes limited to this Issue
-- [ ] Lint, typecheck and production build pass
-- [ ] No secrets committed or production credentials copied to preview
-- [ ] Migration/security impact recorded
-- [ ] Owner must test the latest preview and explicitly approve before merging
+- [ ] Issue acceptance criteria addressed; changes limited to this Issue
+- [ ] Relevant checks passed (npm ci, npm test, lint, typecheck, build), or limitations disclosed
+- [ ] No secrets exposed or production credentials copied to Preview
+- [ ] Database/migration and security/auth impact documented
+- [ ] Latest Preview verified where runtime/UI behaviour requires it, or limitations disclosed
+- [ ] Ready for owner review
+- [ ] Codex has not merged or enabled auto-merge
 

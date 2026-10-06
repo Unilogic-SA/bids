@@ -65,6 +65,14 @@ test("weighted public tender full-text search", async t => {
     assert.ok((await search("laptops")).items.some(item => item.ocid === "title"))
   })
 
+  await t.test("websearch phrases, OR and exclusions are preserved even with reference digits", async () => {
+    assert.deepEqual((await search('"laptop fleet"')).items.map(item => item.ocid), ["title", "description"])
+    assert.equal((await search("software OR laptop")).totalCount, 5)
+    assert.deepEqual((await search("laptop -ABC-123-2026")).items.map(item => item.ocid), ["title", "buyer"])
+    assert.equal((await search("nonexistent")).totalCount, 0)
+    assert.equal((await search("the")).totalCount, 0)
+  })
+
   await t.test("exact and partial tender references remain useful", async () => {
     const exactResults = await search("ABC-123-2026")
     assert.equal(exactResults.items[0].ocid, "exact")
@@ -96,6 +104,43 @@ test("weighted public tender full-text search", async t => {
     assert.equal((await search("laptop", { sort: "closing_at_asc" })).items[0].ocid, "exact")
     assert.equal((await search("laptop", { sort: "published_at_desc" })).items[0].ocid, "exact")
     await assert.rejects(search("laptop", { sort: "drop table tenders" }), /Unsupported tender search sort/)
+  })
+
+  await t.test("null and out-of-bounds pagination is rejected for anonymous callers", async () => {
+    await db.exec("set role anon;")
+    try {
+      for (const [limit, offset] of [[null, 0], [12, null], [null, null], [0, 0], [101, 0], [12, -1]]) {
+        await assert.rejects(
+          db.query("select public.search_open_tenders('laptop', p_limit => $1, p_offset => $2)", [limit, offset]),
+          /Invalid tender search pagination/
+        )
+      }
+      await assert.rejects(db.query("select public.search_open_tenders('laptop', p_sort => null)"), /Unsupported tender search sort/)
+      await assert.rejects(db.query("select public.search_open_tenders(null)"), /non-empty tender search query/)
+    } finally {
+      await db.exec("reset role;")
+    }
+  })
+
+  await t.test("closing-today tenders remain searchable and expired or closed tenders are excluded", async () => {
+    await db.exec(`
+      insert into public.tenders (ocid, release_id, tender_no, title, derived_status, closing_at) values
+        ('today', 'r6', 'STATUS-1', 'Status fixture', 'closing_today', now() + interval '1 hour'),
+        ('expired', 'r7', 'STATUS-2', 'Status fixture', 'open', now() - interval '1 hour'),
+        ('closed', 'r8', 'STATUS-3', 'Status fixture', 'closed', now() + interval '1 hour');
+    `)
+    assert.deepEqual((await search("status fixture")).items.map(item => item.ocid), ["today"])
+  })
+
+  await t.test("anonymous results and counts obey row-level security", async () => {
+    await db.exec(`alter policy "Public tenders are readable" on public.tenders using (ocid <> 'exact'); set role anon;`)
+    try {
+      const result = await search("ABC-123-2026")
+      assert.deepEqual(result.items.map(item => item.ocid), ["description"])
+      assert.equal(result.totalCount, 1)
+    } finally {
+      await db.exec(`reset role; alter policy "Public tenders are readable" on public.tenders using (true);`)
+    }
   })
 
   await t.test("the public RPC uses invoker rights and its GIN predicate is indexable", async () => {

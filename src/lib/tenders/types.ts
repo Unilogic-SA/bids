@@ -34,6 +34,7 @@ export type ListingSearchParams = {
   industry?: IndustryFilter
   tenderType?: TenderTypeFilter
   sort: ListingSort
+  sortExplicit?: boolean
   page: number
 }
 

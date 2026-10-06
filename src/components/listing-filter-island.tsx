@@ -41,7 +41,7 @@ import {
   TENDER_TYPE_FILTERS,
 } from "@/lib/tenders/filters"
 import type { ListingSearchParams } from "@/lib/tenders/types"
-import { getDefaultListingSort } from "@/lib/tenders/navigation"
+import { buildListingHref, getDefaultListingSort } from "@/lib/tenders/navigation"
 import { trackUmamiEvent } from "@/lib/analytics"
 
 type ListingFilterIslandProps = {
@@ -131,7 +131,7 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             <HiddenInput
               name="sort"
               value={
-                filters.sort !== DEFAULT_LISTING_SORT ? filters.sort : undefined
+                filters.sortExplicit ? filters.sort : undefined
               }
             />
             <div className="px-4">
@@ -198,8 +198,9 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             <SheetFooter>
               <Button asChild variant="outline">
                 <Link
-                  href={buildFilterHref(filters, {
-                    sort: getDefaultListingSort(filters.q),
+                  href={buildListingHref(filters, {
+                    sortExplicit: false,
+                    page: 1,
                   })}
                   onClick={() =>
                     trackUmamiEvent("tender_filter_reset", {
@@ -341,11 +342,12 @@ function SortField({
       <FieldLabel htmlFor={id}>Sort</FieldLabel>
       <NativeSelect
         className="w-full"
-        defaultValue={filters.sort || DEFAULT_LISTING_SORT}
+        defaultValue={filters.sortExplicit ? filters.sort : ""}
         id={id}
         name="sort"
         size="sm"
       >
+        <NativeSelectOption value="">Default order</NativeSelectOption>
         {SORT_OPTIONS.map((sort) => (
           <NativeSelectOption key={sort.value} value={sort.value}>
             {sort.label}
@@ -378,28 +380,6 @@ function HiddenInput({
   return value ? <input name={name} type="hidden" value={value} /> : null
 }
 
-function buildFilterHref(
-  filters: ListingSearchParams,
-  patch: Partial<ListingSearchParams> = {}
-) {
-  const next = new URLSearchParams()
-  const merged = { ...filters, ...patch }
-
-  appendParam(next, "q", merged.q)
-  appendParam(next, "region", merged.region)
-  appendParam(next, "buyer", merged.buyer)
-  appendParam(next, "industry", merged.industry)
-  appendParam(next, "type", merged.tenderType)
-  appendParam(
-    next,
-    "sort",
-    merged.sort !== getDefaultListingSort(merged.q) ? merged.sort : undefined
-  )
-
-  const query = next.toString()
-  return query ? `/?${query}` : "/"
-}
-
 function trackFilterApply(surface: string, form: HTMLFormElement) {
   const formData = new FormData(form)
   const query = String(formData.get("q") || "").trim()
@@ -407,7 +387,7 @@ function trackFilterApply(surface: string, form: HTMLFormElement) {
   const region = String(formData.get("region") || "")
   const industry = String(formData.get("industry") || "")
   const tenderType = String(formData.get("type") || "")
-  const sort = String(formData.get("sort") || DEFAULT_LISTING_SORT)
+  const sort = String(formData.get("sort") || getDefaultListingSort(query))
 
   trackUmamiEvent("tender_filter_apply", {
     active_filters: countActiveFilters({
@@ -436,8 +416,4 @@ function countActiveFilters(filters: {
   tenderType?: string
 }) {
   return Object.values(filters).filter(Boolean).length
-}
-
-function appendParam(params: URLSearchParams, key: string, value?: string) {
-  if (value) params.set(key, value)
 }
