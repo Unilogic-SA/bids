@@ -3,6 +3,10 @@
 import { useMemo, useState } from "react"
 import {
   IconDownload,
+  IconChevronDown,
+  IconChevronRight,
+  IconExternalLink,
+  IconFileText,
   IconFileOff,
   IconZoomIn,
   IconZoomOut,
@@ -10,6 +14,12 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -25,11 +35,14 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Separator } from "@/components/ui/separator"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { formatDate } from "@/lib/tenders/format"
 import type { TenderDetail, TenderDocument } from "@/lib/tenders/types"
 import { cn } from "@/lib/utils"
@@ -78,12 +91,15 @@ type PreviewMode =
 
 export function TenderDocuments({
   documents,
+  sourceUrl,
   tender,
 }: {
   documents: TenderDocument[]
+  sourceUrl?: string
   tender: TenderDetail
 }) {
   const [open, setOpen] = useState(false)
+  const [showAll, setShowAll] = useState(false)
   const [selectedDocumentId, setSelectedDocumentId] = useState(
     documents[0]?.id || ""
   )
@@ -102,57 +118,110 @@ export function TenderDocuments({
   }
 
   return (
-    <section className="flex flex-col gap-3 border-t pt-5 lg:border-t-0 lg:pt-0">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-medium">Documents</h2>
-        <Badge variant="secondary">{documents.length}</Badge>
-      </div>
-
-      {documents.length > 0 ? (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <div className="flex flex-col">
-            {documents.map((document, index) => (
-              <div className="min-w-0" key={document.id}>
-                <DocumentSummary
-                  document={document}
-                  onOpen={() => openDocument(document.id)}
-                />
-                {index < documents.length - 1 ? <Separator /> : null}
-              </div>
-            ))}
+    <TooltipProvider>
+      <Card className="gap-0 shadow-none">
+        <CardHeader className="border-b">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">Documents</h2>
+            <Badge variant="secondary">{documents.length}</Badge>
           </div>
-
-          {selectedDocument ? (
-            <DocumentPreviewDialog
-              documents={documents}
-              selectedDocument={selectedDocument}
-              selectedDocumentId={selectedDocument.id}
-              imageZoom={imageZoom}
-              setImageZoom={setImageZoom}
-              setSelectedDocumentId={setSelectedDocumentId}
-              tender={tender}
-            />
+          {documents.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Preview the files before preparing your bid.
+            </p>
           ) : null}
-        </Dialog>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">
-            No document links were included with this source record.
-          </p>
-          <Empty className="min-h-44">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <IconFileOff />
-              </EmptyMedia>
-              <EmptyTitle>No documents listed</EmptyTitle>
-              <EmptyDescription>
-                The source record does not include document links.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
-      )}
-    </section>
+        </CardHeader>
+        <CardContent className="px-2 pt-2">
+          {documents.length > 0 ? (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <Collapsible open={showAll} onOpenChange={setShowAll}>
+                {documents.slice(0, 5).map((document) => (
+                  <div className="min-w-0" key={document.id}>
+                    <DocumentSummary
+                      document={document}
+                      onOpen={() => openDocument(document.id)}
+                      tender={tender}
+                    />
+                    <Separator className="mx-2 w-auto" />
+                  </div>
+                ))}
+                {documents.length > 5 ? (
+                  <>
+                    <CollapsibleContent>
+                      {documents.slice(5).map((document) => (
+                        <div className="min-w-0" key={document.id}>
+                          <DocumentSummary
+                            document={document}
+                            onOpen={() => openDocument(document.id)}
+                            tender={tender}
+                          />
+                          <Separator className="mx-2 w-auto" />
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                    <CollapsibleTrigger asChild>
+                      <Button className="mt-2 w-full" size="sm" variant="ghost">
+                        {showAll
+                          ? "Show fewer documents"
+                          : `Show all ${documents.length} documents`}
+                        <IconChevronDown
+                          className={cn(
+                            "transition-transform",
+                            showAll && "rotate-180"
+                          )}
+                        />
+                      </Button>
+                    </CollapsibleTrigger>
+                  </>
+                ) : null}
+              </Collapsible>
+
+              {selectedDocument ? (
+                <DocumentPreviewDialog
+                  documents={documents}
+                  selectedDocument={selectedDocument}
+                  selectedDocumentId={selectedDocument.id}
+                  imageZoom={imageZoom}
+                  setImageZoom={setImageZoom}
+                  setSelectedDocumentId={setSelectedDocumentId}
+                  tender={tender}
+                />
+              ) : null}
+            </Dialog>
+          ) : (
+            <Empty className="gap-3 border-0 px-3 py-5">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <IconFileOff />
+                </EmptyMedia>
+                <EmptyTitle>No documents listed</EmptyTitle>
+                <EmptyDescription>
+                  Document links weren’t supplied with this notice.
+                  {sourceUrl
+                    ? " Check eTenders for the bid pack."
+                    : " Check with the buyer for the bid pack."}
+                </EmptyDescription>
+              </EmptyHeader>
+              {sourceUrl ? (
+                <Button asChild size="sm" variant="outline">
+                  <a
+                    href={sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-umami-event="tender_source_open"
+                    data-umami-event-location="documents_empty"
+                    data-umami-event-ocid={tender.ocid}
+                  >
+                    <IconExternalLink data-icon="inline-start" />
+                    View on eTenders
+                  </a>
+                </Button>
+              ) : null}
+            </Empty>
+          )}
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   )
 }
 
@@ -203,10 +272,10 @@ function DocumentPreviewDialog({
               const isSelected = document.id === selectedDocumentId
 
               return (
-                <button
+                <Button
                   aria-current={isSelected ? "true" : undefined}
                   className={cn(
-                    "flex min-w-0 flex-col gap-1 border-b px-4 py-3 text-left text-sm transition-colors last:border-b-0 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                    "h-auto w-full min-w-0 flex-col items-start gap-1 rounded-none border-b px-4 py-3 text-left text-sm whitespace-normal last:border-b-0",
                     isSelected && "bg-muted"
                   )}
                   key={document.id}
@@ -215,6 +284,7 @@ function DocumentPreviewDialog({
                     setImageZoom(100)
                   }}
                   type="button"
+                  variant="ghost"
                 >
                   <span className="line-clamp-2 break-words font-medium leading-5">
                     {getDocumentTitle(document)}
@@ -222,7 +292,7 @@ function DocumentPreviewDialog({
                   <span className="truncate text-xs leading-5 text-muted-foreground">
                     {formatDocumentMeta(document)}
                   </span>
-                </button>
+                </Button>
               )
             })}
           </div>
@@ -314,23 +384,60 @@ function MobileDocumentSelector({
 function DocumentSummary({
   document,
   onOpen,
+  tender,
 }: {
   document: TenderDocument
   onOpen: () => void
+  tender: TenderDetail
 }) {
   return (
-    <button
-      className="flex w-full min-w-0 cursor-pointer flex-col gap-1 rounded-md py-3 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      onClick={onOpen}
-      type="button"
-    >
-      <span className="break-words text-sm font-medium leading-5 text-primary underline-offset-4 hover:underline">
-        {getDocumentTitle(document)}
-      </span>
-      <span className="text-xs leading-5 text-muted-foreground">
-        {formatDocumentMeta(document)}
-      </span>
-    </button>
+    <div className="flex min-w-0 items-center gap-1 py-1">
+      <Button
+        aria-label={`Preview ${getDocumentTitle(document)}`}
+        className="h-auto min-w-0 flex-1 justify-start gap-2.5 px-2 py-2.5 text-left whitespace-normal"
+        onClick={onOpen}
+        type="button"
+        variant="ghost"
+      >
+        <IconFileText
+          aria-hidden="true"
+          className="size-5 self-start text-muted-foreground"
+        />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="break-words text-sm font-medium leading-5">
+            {getDocumentTitle(document)}
+          </span>
+          <span className="text-xs font-normal leading-4 text-muted-foreground">
+            {formatDocumentMeta(document)}
+          </span>
+        </span>
+        <IconChevronRight
+          aria-hidden="true"
+          className="size-3.5 text-muted-foreground"
+        />
+      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button asChild size="icon-sm" variant="ghost" className="size-8">
+            <a
+              aria-label={`Download ${getDocumentTitle(document)}`}
+              data-umami-event="tender_document_download"
+              data-umami-event-extension={document.file_extension || "unknown"}
+              data-umami-event-index={String(document.document_index)}
+              data-umami-event-ocid={tender.ocid}
+              data-umami-event-source={document.document_source || "unknown"}
+              download={document.file_name || undefined}
+              href={document.document_url}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <IconDownload />
+            </a>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Download document</TooltipContent>
+      </Tooltip>
+    </div>
   )
 }
 

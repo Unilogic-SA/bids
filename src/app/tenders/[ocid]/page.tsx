@@ -5,6 +5,7 @@ import { cache, type ReactNode } from "react"
 import {
   IconAlertTriangle,
   IconArrowLeft,
+  IconClock,
   IconDatabaseOff,
   IconExternalLink,
 } from "@tabler/icons-react"
@@ -24,6 +25,7 @@ import {
   formatDate,
   formatDateTime,
   formatTenderStatus,
+  statusLabel,
   summarizeTender,
 } from "@/lib/tenders/format"
 import {
@@ -37,7 +39,6 @@ import {
 import { parseListingReturnHref } from "@/lib/tenders/navigation"
 import { getTenderDetail } from "@/lib/tenders/query"
 import type { TenderDetail, TenderDocument } from "@/lib/tenders/types"
-import { cn } from "@/lib/utils"
 import {
   formatClosingUrgency,
   normalizeTenderTitle,
@@ -137,7 +138,9 @@ export default async function TenderPage({
         <Alert>
           <IconDatabaseOff />
           <AlertTitle>Tender data unavailable</AlertTitle>
-          <AlertDescription>Supabase env vars are missing.</AlertDescription>
+          <AlertDescription>
+            We couldn’t load this tender. Please try again shortly.
+          </AlertDescription>
         </Alert>
       </main>
     )
@@ -150,19 +153,12 @@ export default async function TenderPage({
     tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
   const canonicalUrl = absoluteUrl(canonicalPath)
   const location = formatTenderLocation(tender)
-  const hasCriticalFacts = hasMeaningfulCriticalFacts(tender)
   const hasBriefing = hasMeaningfulBriefing(tender)
   const conditionItems = getConditionItems(tender)
   const hasContact = hasMeaningfulContact(tender)
   const originalTenderUrl = getVerifiedOriginalTenderUrl(
     tender.original_source_url
   )
-  const hasRemainingContent =
-    Boolean(location) ||
-    hasBriefing ||
-    conditionItems.length > 0 ||
-    hasContact ||
-    Boolean(originalTenderUrl)
   const jsonLd = buildTenderJsonLd(tender, documents)
 
   return (
@@ -172,7 +168,7 @@ export default async function TenderPage({
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(jsonLd) }}
       />
       <header className="border-b bg-background">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:py-5 md:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-4 sm:py-6 md:px-6">
           <div className="flex items-center justify-between gap-2">
             <Button
               asChild
@@ -204,53 +200,81 @@ export default async function TenderPage({
             </div>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex min-w-0 max-w-5xl flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 max-w-4xl flex-col gap-2">
               <TenderReference tender={tender} />
-              <h1 className="break-words text-xl font-semibold leading-snug tracking-normal sm:text-[1.75rem]">
+              <h1 className="break-words text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
                 {description}
               </h1>
               {buyer ? (
-                <p className="break-words text-sm font-medium leading-6 sm:text-base">
+                <p className="break-words text-sm leading-6 text-muted-foreground">
                   {buyer}
                 </p>
               ) : null}
-              <TenderBadges tender={tender} />
             </div>
           </div>
+          <TenderCriticalFacts tender={tender} />
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <div className="order-1 flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
-          {hasCriticalFacts ? <TenderCriticalFacts tender={tender} /> : null}
-        </div>
-
-        <aside className="order-2 min-w-0 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-          <TenderDocuments documents={documents} tender={tender} />
+      <main className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
+        <aside
+          aria-label="Tender documents"
+          className="min-w-0 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
+        >
+          <TenderDocuments
+            documents={documents}
+            sourceUrl={originalTenderUrl}
+            tender={tender}
+          />
         </aside>
 
-        {hasRemainingContent ? (
-          <div className="order-3 flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-2">
-            <Separator />
-            {location ? (
-              <section className="flex min-w-0 flex-col gap-2">
-                <h2 className="text-base font-medium">Delivery location</h2>
+        <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
+          <TenderOverview tender={tender} />
+          {location ? (
+            <>
+              <Separator />
+              <section
+                aria-labelledby="delivery-heading"
+                className="flex min-w-0 flex-col gap-2"
+              >
+                <h2 id="delivery-heading" className="text-base font-semibold">
+                  Delivery location
+                </h2>
                 <p className="break-words text-sm leading-6">{location}</p>
               </section>
-            ) : null}
-            {hasBriefing ? <TenderBriefing tender={tender} /> : null}
-            {(location || hasBriefing) && conditionItems.length > 0 ? (
+            </>
+          ) : null}
+          {hasBriefing ? (
+            <>
               <Separator />
-            ) : null}
-            {conditionItems.length > 0 ? (
+              <TenderBriefing tender={tender} />
+            </>
+          ) : null}
+          {conditionItems.length > 0 ? (
+            <>
+              <Separator />
               <TenderConditions items={conditionItems} />
-            ) : null}
-            {conditionItems.length > 0 && hasContact ? <Separator /> : null}
-            {hasContact ? <TenderContact tender={tender} /> : null}
-            {(conditionItems.length > 0 || hasContact) && originalTenderUrl ? (
+            </>
+          ) : null}
+          {hasContact ? (
+            <>
               <Separator />
-            ) : null}
+              <TenderContact tender={tender} />
+            </>
+          ) : null}
+          <Separator />
+          <footer className="flex flex-col items-start gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-col gap-1">
+              <p>
+                Source:{" "}
+                {getMeaningfulText(tender.source_label) ||
+                  "National Treasury eTenders"}
+              </p>
+              {formatAvailableDate(tender.modified_at) ? (
+                <p>Last updated {formatDate(tender.modified_at)}</p>
+              ) : null}
+            </div>
             {originalTenderUrl ? (
               <Button
                 asChild
@@ -271,8 +295,8 @@ export default async function TenderPage({
                 </a>
               </Button>
             ) : null}
-          </div>
-        ) : null}
+          </footer>
+        </div>
       </main>
     </div>
   )
@@ -364,43 +388,23 @@ function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
 }
 
 function TenderReference({ tender }: { tender: TenderDetail }) {
-  const reference = [
-    getMeaningfulText(tender.tender_type),
-    getMeaningfulText(tender.tender_no),
-  ].filter(Boolean)
-
-  if (reference.length === 0) return null
-
-  return (
-    <p className="text-sm font-medium text-muted-foreground">
-      {reference.join(" · ")}
-    </p>
+  const reference = getMeaningfulText(tender.tender_no)
+  const status = formatTenderStatus(tender)
+  const hasKnownStatus = Boolean(
+    formatAvailableDate(tender.closing_at) ||
+    getMeaningfulText(tender.derived_status) ||
+    getMeaningfulText(tender.status)
   )
-}
-
-function TenderBadges({ tender }: { tender: TenderDetail }) {
-  const province = getMeaningfulText(tender.province)
-  const industry = getMeaningfulText(tender.industry)
-
-  if (!province && !industry) return null
 
   return (
-    <div className="flex flex-wrap gap-2 pt-1">
-      {province ? (
-        <Badge
-          className="h-auto max-w-full rounded-md whitespace-normal text-left leading-4"
-          variant="secondary"
-        >
-          {province}
-        </Badge>
-      ) : null}
-      {industry ? (
-        <Badge
-          className="h-auto max-w-full rounded-md whitespace-normal text-left leading-4"
-          variant="outline"
-        >
-          {industry}
-        </Badge>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <Badge variant={status === "closed" ? "destructive" : "secondary"}>
+        {hasKnownStatus ? statusLabel(status) : "Status not supplied"}
+      </Badge>
+      {reference ? (
+        <p className="min-w-0 break-all font-mono text-xs text-muted-foreground">
+          {reference}
+        </p>
       ) : null}
     </div>
   )
@@ -412,53 +416,82 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
   const opening = formatAvailableDate(tender.opening_at)
   const published = formatAvailableDate(tender.published_at)
   const urgency = formatClosingUrgency(tender.closing_at)
-  const lastUpdated = formatAvailableDate(tender.modified_at)
+  const isUrgent = !isClosed && urgency.className === "text-primary"
+
+  return (
+    <section
+      aria-label="Tender dates"
+      className="flex flex-col gap-3 border-t pt-4"
+    >
+      <dl className="grid grid-cols-2 items-start gap-x-6 gap-y-3 sm:grid-cols-3">
+        <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
+          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <IconClock aria-hidden="true" className="size-3.5" />
+            {isClosed ? "Closing date" : "Closing deadline"}
+          </dt>
+          <dd className="break-words text-sm font-semibold leading-6">
+            {closing || "Not supplied"}
+          </dd>
+          {isUrgent ? (
+            <p className="text-xs font-medium text-primary">{urgency.label}</p>
+          ) : null}
+        </div>
+        {opening ? <DetailItem label="Opening date" value={opening} /> : null}
+        {published ? <DetailItem label="Published" value={published} /> : null}
+      </dl>
+      {isClosed ? (
+        <p className="text-sm text-muted-foreground">
+          This tender has closed. Details and documents are available for
+          reference.
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function TenderOverview({ tender }: { tender: TenderDetail }) {
+  const type = getMeaningfulText(tender.tender_type)
+  const industry = getMeaningfulText(tender.industry)
+  const category = getMeaningfulText(tender.procurement_category)
+  const method = getMeaningfulText(tender.procurement_method_details)
   const facts = [
-    closing
-      ? {
-          label: isClosed ? "Closed" : urgency.label,
-          value: closing,
-          emphasis: !isClosed && urgency.className === "text-primary",
-          strong: true,
-        }
+    type ? { label: "Tender type", value: type } : null,
+    getMeaningfulText(tender.province)
+      ? { label: "Province", value: getMeaningfulText(tender.province) }
       : null,
-    opening
-      ? { label: "Opening date", value: opening }
-      : published
-        ? { label: "Published", value: published }
-        : null,
-    lastUpdated
-      ? { label: "Last updated", value: lastUpdated, quiet: true }
+    industry ? { label: "Industry", value: industry } : null,
+    category && !areEquivalent(category, industry)
+      ? { label: "Procurement category", value: category }
+      : null,
+    method && !areEquivalent(method, type)
+      ? { label: "Procurement method", value: method }
       : null,
   ].filter((fact) => fact !== null)
 
   return (
-    <section aria-label="Critical tender facts" className="flex flex-col gap-4">
-      {facts.length > 0 ? (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-3">
+    <section
+      aria-labelledby="overview-heading"
+      className="flex min-w-0 flex-col gap-4"
+    >
+      <h2 id="overview-heading" className="text-base font-semibold">
+        Tender details
+      </h2>
+      {facts.length ? (
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
           {facts.map((fact) => (
             <DetailItem
-              className={fact.strong ? "col-span-2 xl:col-span-1" : undefined}
-              emphasis={fact.emphasis}
               key={fact.label}
               label={fact.label}
-              quiet={fact.quiet}
-              strong={fact.strong}
               value={fact.value}
             />
           ))}
         </dl>
-      ) : null}
-
-      {isClosed ? (
-        <Alert variant="destructive">
-          <AlertTitle>Closed</AlertTitle>
-          <AlertDescription>
-            This opportunity has closed. Its details and documents remain
-            available for reference.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Additional bid details were not supplied. Check the tender documents
+          or original notice.
+        </p>
+      )}
     </section>
   )
 }
@@ -480,7 +513,7 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Join online briefing
+              {ended ? "View online briefing link" : "Join online briefing"}
             </a>
           ) : (
             venue
@@ -505,7 +538,9 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
       <Alert>
         <IconAlertTriangle />
         <AlertTitle>
-          {ended ? "Compulsory briefing — ended" : "Compulsory briefing"}
+          <h2 className="text-base font-semibold">
+            {ended ? "Compulsory briefing — ended" : "Compulsory briefing"}
+          </h2>
         </AlertTitle>
         <AlertDescription>{content}</AlertDescription>
       </Alert>
@@ -515,7 +550,7 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
   return (
     <section className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-medium">
+        <h2 className="text-base font-semibold">
           {ended ? "Briefing — ended" : "Briefing"}
         </h2>
         {tender.compulsory_briefing === false ? (
@@ -536,7 +571,7 @@ function TenderConditions({ items }: { items: TenderConditionItem[] }) {
 
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      <h2 className="text-base font-medium">Conditions</h2>
+      <h2 className="text-base font-semibold">Conditions</h2>
       {isLong ? (
         <TenderConditionsDisclosure items={items} />
       ) : (
@@ -573,7 +608,7 @@ function TenderContact({ tender }: { tender: TenderDetail }) {
 
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      <h2 className="text-base font-medium">Contact</h2>
+      <h2 className="text-base font-semibold">Contact</h2>
       <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
         {person ? <DetailItem label="Contact person" value={person} /> : null}
         {role && !areEquivalent(role, person) ? (
@@ -616,40 +651,11 @@ function TenderContact({ tender }: { tender: TenderDetail }) {
   )
 }
 
-function DetailItem({
-  className,
-  emphasis,
-  label,
-  quiet,
-  strong,
-  value,
-}: {
-  className?: string
-  emphasis?: boolean
-  label: string
-  quiet?: boolean
-  strong?: boolean
-  value: ReactNode
-}) {
+function DetailItem({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col gap-1",
-        className,
-        emphasis && "rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
-      )}
-    >
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          "break-words text-sm leading-5",
-          emphasis && "text-primary",
-          strong && "font-semibold",
-          quiet && "text-muted-foreground"
-        )}
-      >
-        {value}
-      </dd>
+    <div className="flex min-w-0 flex-col gap-1">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="break-words text-sm leading-6">{value}</dd>
     </div>
   )
 }
@@ -678,7 +684,11 @@ function getPrimaryBuyer(tender: TenderDetail) {
 
 function getConditionItems(tender: TenderDetail) {
   const specialConditions = getMeaningfulText(tender.special_conditions)
+    ? tender.special_conditions!.trim()
+    : ""
   const eligibilityNotes = getMeaningfulText(tender.eligibility_notes)
+    ? tender.eligibility_notes!.trim()
+    : ""
 
   if (!specialConditions && !eligibilityNotes) return []
   if (!specialConditions) {
@@ -708,18 +718,8 @@ function hasMeaningfulBriefing(tender: TenderDetail) {
   return Boolean(
     tender.briefing_session === true ||
     tender.compulsory_briefing === true ||
-    getMeaningfulText(tender.briefing_datetime) ||
+    formatAvailableDate(tender.briefing_datetime, true) ||
     getMeaningfulText(tender.briefing_venue)
-  )
-}
-
-function hasMeaningfulCriticalFacts(tender: TenderDetail) {
-  return Boolean(
-    formatTenderStatus(tender) === "closed" ||
-    formatAvailableDate(tender.closing_at, true) ||
-    formatAvailableDate(tender.opening_at) ||
-    formatAvailableDate(tender.published_at) ||
-    formatAvailableDate(tender.modified_at)
   )
 }
 

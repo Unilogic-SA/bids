@@ -39,7 +39,10 @@ export function TenderConditionsDisclosure({
       <CollapsibleTrigger asChild>
         <Button className="w-fit" size="sm" type="button" variant="ghost">
           {open ? "Show less" : "Show full conditions"}
-          <IconChevronDown data-icon="inline-end" />
+          <IconChevronDown
+            className={open ? "rotate-180" : undefined}
+            data-icon="inline-end"
+          />
         </Button>
       </CollapsibleTrigger>
     </Collapsible>
