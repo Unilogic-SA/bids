@@ -59,8 +59,7 @@ export type AdminMonitoringSnapshot = {
   }
 }
 
-export async function getAdminMonitoringSnapshot(): Promise<AdminMonitoringSnapshot> {
-  const checkedAtDate = new Date()
+export async function getAdminMonitoringSnapshot(checkedAtDate = new Date()): Promise<AdminMonitoringSnapshot> {
   const checkedAt = checkedAtDate.toISOString()
 
   if (!hasSupabasePublicConfig()) {
@@ -105,7 +104,7 @@ export async function getAdminMonitoringSnapshot(): Promise<AdminMonitoringSnaps
       .from("tender_sync_runs")
       .select(SYNC_RUN_COLUMNS)
       .order("started_at", { ascending: false })
-      .limit(15),
+      .limit(100),
     supabase
       .from("tender_sync_runs")
       .select(SYNC_RUN_COLUMNS)

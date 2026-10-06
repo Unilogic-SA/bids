@@ -32,8 +32,11 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
           <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
             {cards.health.label}
           </CardTitle>
-          <CardAction>
-            <Badge variant={healthVariant}>
+          <CardAction className="col-start-1 row-span-1 row-start-3 justify-self-start">
+            <Badge
+              variant={healthVariant}
+              className="h-auto max-w-full whitespace-normal text-left"
+            >
               {cards.health.tone === "operational" ? (
                 <IconChecks data-icon="inline-start" />
               ) : (
@@ -44,7 +47,7 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-xs">
-          <div className="line-clamp-1 flex gap-2 font-medium">
+          <div className="flex flex-wrap gap-2 font-medium">
             Checked {cards.checkedAt}
             <IconChecks data-icon="inline-end" />
           </div>
@@ -97,7 +100,8 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
             <IconDatabase data-icon="inline-end" />
           </div>
           <div className="text-muted-foreground">
-            {cards.availableTendersDescription} {cards.closingTenders} close in the next 24 hours.
+            {cards.availableTendersDescription} {cards.closingTenders} close in
+            the next 24 hours.
           </div>
         </CardFooter>
       </Card>
@@ -105,15 +109,26 @@ export function SectionCards({ cards }: { cards: AdminSectionCards }) {
       <Card size="sm" className="@container/card">
         <CardHeader>
           <CardDescription>Stored tenders</CardDescription>
-          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">{cards.totalTenders}</CardTitle>
-          <CardAction><Badge variant="outline"><IconDatabase data-icon="inline-start" />Full catalog</Badge></CardAction>
+          <CardTitle className="font-semibold tabular-nums group-data-[size=sm]/card:text-xl @[250px]/card:group-data-[size=sm]/card:text-2xl">
+            {cards.totalTenders}
+          </CardTitle>
+          <CardAction>
+            <Badge variant="outline">
+              <IconDatabase data-icon="inline-start" />
+              Full catalog
+            </Badge>
+          </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-xs">
-          <div className="font-medium">{cards.addedTenders} added in the last 24 hours</div>
-          <div className="text-muted-foreground">{cards.expiredTenders} past deadline · {cards.totalDocuments} documents</div>
+          <div className="font-medium">
+            {cards.addedTenders} added in the last 24 hours
+          </div>
+          <div className="text-muted-foreground">
+            {cards.expiredTenders} past deadline · {cards.totalDocuments}{" "}
+            documents
+          </div>
         </CardFooter>
       </Card>
-
     </div>
   )
 }
