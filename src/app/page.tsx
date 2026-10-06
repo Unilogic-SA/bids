@@ -1,8 +1,4 @@
-import {
-  AlertTriangleIcon,
-  DatabaseIcon,
-  FileSearchIcon,
-} from "lucide-react"
+import { FileSearchIcon } from "lucide-react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
@@ -12,11 +8,6 @@ import {
 } from "@/components/listing-filter-island"
 import { ListingResultCount } from "@/components/listing-result-count"
 import { TenderListItem } from "@/components/tender-list-item"
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
 import {
   Empty,
   EmptyDescription,
@@ -39,11 +30,7 @@ import {
   buildTenderResultId,
   parseListingSearchParams,
 } from "@/lib/tenders/navigation"
-import {
-  getLatestSuccessfulSyncRun,
-  getRecentSyncRuns,
-  getTenderListing,
-} from "@/lib/tenders/query"
+import { getTenderListing } from "@/lib/tenders/query"
 import {
   absoluteUrl,
   SITE_DESCRIPTION,
@@ -101,11 +88,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const rawSearchParams = await searchParams
   const filters = parseListingSearchParams(rawSearchParams)
   const page = filters.page
-  const [listing, latestSuccessfulSync, recentSyncRuns] = await Promise.all([
-    getTenderListing(filters),
-    getLatestSuccessfulSyncRun(),
-    getRecentSyncRuns(),
-  ])
+  const listing = await getTenderListing(filters)
   if (listing.resolvedPage !== page) redirect(buildListingHref({ ...filters, page: listing.resolvedPage }))
   const syncHealth = getSyncHealth(latestSuccessfulSync, recentSyncRuns)
   const activeFilterCount = countActiveListingFilters(filters)
@@ -130,22 +113,6 @@ export default async function Home({ searchParams }: HomeProps) {
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(websiteJsonLd) }}
       />
       <main className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-4 md:px-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
-        {listing.configMissing ? (
-          <Alert className="lg:col-span-2">
-            <DatabaseIcon />
-            <AlertTitle>Tender data unavailable</AlertTitle>
-            <AlertDescription>Supabase env vars are missing.</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {syncHealth ? (
-          <Alert className="lg:col-span-2" variant="destructive">
-            <AlertTriangleIcon />
-            <AlertTitle>{syncHealth.title}</AlertTitle>
-            <AlertDescription>{syncHealth.description}</AlertDescription>
-          </Alert>
-        ) : null}
-
         <div className="sticky top-0 z-20 bg-background/95 py-1.5 backdrop-blur lg:hidden">
           <MobileListingControls filters={filters} />
         </div>
@@ -362,56 +329,3 @@ function countActiveListingFilters(
   ].filter(Boolean).length
 }
 
-function getSyncHealth(
-  latestSuccessfulSync: Awaited<ReturnType<typeof getLatestSuccessfulSyncRun>>,
-  recentSyncRuns: Awaited<ReturnType<typeof getRecentSyncRuns>>
-) {
-  const hasUnresolvedFailure = recentSyncRuns.some((failedRun) => {
-    if (failedRun.status !== "failed" || !failedRun.completed_at) return false
-
-    const failedFrom = failedRun.date_from
-    const failedTo = failedRun.date_to
-    if (!failedFrom || !failedTo) return true
-
-    const failedAt = new Date(failedRun.completed_at).getTime()
-    return !recentSyncRuns.some(
-      (successfulRun) =>
-        successfulRun.status === "completed" &&
-        successfulRun.completed_at &&
-        new Date(successfulRun.completed_at).getTime() > failedAt &&
-        successfulRun.date_from &&
-        successfulRun.date_to &&
-        successfulRun.date_from <= failedFrom &&
-        successfulRun.date_to >= failedTo
-    )
-  })
-
-  if (hasUnresolvedFailure) {
-    return {
-      title: "A recent sync failed",
-      description:
-        "Tender data may be incomplete until a successful refresh covers the failed date range.",
-    }
-  }
-
-  if (!latestSuccessfulSync?.completed_at) {
-    return {
-      title: "No successful sync yet",
-      description: "Tender data has not completed its first refresh.",
-    }
-  }
-
-  const ageMs =
-    Date.now() - new Date(latestSuccessfulSync.completed_at).getTime()
-  const staleAfterMs = 26 * 60 * 60 * 1_000
-
-  if (ageMs > staleAfterMs) {
-    return {
-      title: "Tender data is stale",
-      description:
-        "The last successful refresh is more than 26 hours old.",
-    }
-  }
-
-  return null
-}
