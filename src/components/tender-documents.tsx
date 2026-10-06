@@ -1,9 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   IconDownload,
-  IconChevronDown,
   IconChevronRight,
   IconExternalLink,
   IconFileText,
@@ -15,11 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -36,13 +30,10 @@ import {
 } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
-import { Separator } from "@/components/ui/separator"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
+import { toast } from "sonner"
 import { formatDate } from "@/lib/tenders/format"
 import type { TenderDetail, TenderDocument } from "@/lib/tenders/types"
 import { cn } from "@/lib/utils"
@@ -99,7 +90,6 @@ export function TenderDocuments({
   tender: TenderDetail
 }) {
   const [open, setOpen] = useState(false)
-  const [showAll, setShowAll] = useState(false)
   const [selectedDocumentId, setSelectedDocumentId] = useState(
     documents[0]?.id || ""
   )
@@ -118,7 +108,7 @@ export function TenderDocuments({
   }
 
   return (
-    <TooltipProvider>
+    <>
       <Card className="gap-0 shadow-none">
         <CardHeader className="border-b">
           <div className="flex items-center justify-between gap-3">
@@ -134,47 +124,24 @@ export function TenderDocuments({
         <CardContent className="px-2 pt-2">
           {documents.length > 0 ? (
             <Dialog open={open} onOpenChange={setOpen}>
-              <Collapsible open={showAll} onOpenChange={setShowAll}>
-                {documents.slice(0, 5).map((document) => (
-                  <div className="min-w-0" key={document.id}>
+              <ScrollArea
+                aria-label="Bid documents"
+                className={cn(
+                  "[&_[data-slot=scroll-area-viewport]]:overscroll-contain",
+                  documents.length > 3 && "h-80 sm:h-96"
+                )}
+                type="always"
+              >
+                <div className="flex flex-col gap-1 pr-2">
+                  {documents.map((document) => (
                     <DocumentSummary
                       document={document}
+                      key={document.id}
                       onOpen={() => openDocument(document.id)}
-                      tender={tender}
                     />
-                    <Separator className="mx-2 w-auto" />
-                  </div>
-                ))}
-                {documents.length > 5 ? (
-                  <>
-                    <CollapsibleContent>
-                      {documents.slice(5).map((document) => (
-                        <div className="min-w-0" key={document.id}>
-                          <DocumentSummary
-                            document={document}
-                            onOpen={() => openDocument(document.id)}
-                            tender={tender}
-                          />
-                          <Separator className="mx-2 w-auto" />
-                        </div>
-                      ))}
-                    </CollapsibleContent>
-                    <CollapsibleTrigger asChild>
-                      <Button className="mt-2 w-full" size="sm" variant="ghost">
-                        {showAll
-                          ? "Show fewer documents"
-                          : `Show all ${documents.length} documents`}
-                        <IconChevronDown
-                          className={cn(
-                            "transition-transform",
-                            showAll && "rotate-180"
-                          )}
-                        />
-                      </Button>
-                    </CollapsibleTrigger>
-                  </>
-                ) : null}
-              </Collapsible>
+                  ))}
+                </div>
+              </ScrollArea>
 
               {selectedDocument ? (
                 <DocumentPreviewDialog
@@ -221,7 +188,7 @@ export function TenderDocuments({
           )}
         </CardContent>
       </Card>
-    </TooltipProvider>
+    </>
   )
 }
 
@@ -275,7 +242,7 @@ function DocumentPreviewDialog({
                 <Button
                   aria-current={isSelected ? "true" : undefined}
                   className={cn(
-                    "h-auto w-full min-w-0 flex-col items-start gap-1 rounded-none border-b px-4 py-3 text-left text-sm whitespace-normal last:border-b-0",
+                    "h-auto w-full min-w-0 cursor-pointer flex-col items-start gap-1 rounded-none px-4 py-3 text-left text-sm whitespace-normal",
                     isSelected && "bg-muted"
                   )}
                   key={document.id}
@@ -286,7 +253,7 @@ function DocumentPreviewDialog({
                   type="button"
                   variant="ghost"
                 >
-                  <span className="line-clamp-2 break-words font-medium leading-5">
+                  <span className="line-clamp-2 break-words font-medium leading-5 text-primary">
                     {getDocumentTitle(document)}
                   </span>
                   <span className="truncate text-xs leading-5 text-muted-foreground">
@@ -325,6 +292,9 @@ function DocumentPreviewDialog({
                   }
                   download={selectedDocument.file_name || undefined}
                   href={selectedDocument.document_url}
+                  onClick={() =>
+                    toast("Opening download", { id: "document-download" })
+                  }
                   rel="noreferrer"
                   target="_blank"
                 >
@@ -336,6 +306,7 @@ function DocumentPreviewDialog({
           </div>
 
           <DocumentPreview
+            key={selectedDocument.id}
             imageZoom={imageZoom}
             previewMode={previewMode}
             title={selectedTitle}
@@ -384,60 +355,35 @@ function MobileDocumentSelector({
 function DocumentSummary({
   document,
   onOpen,
-  tender,
 }: {
   document: TenderDocument
   onOpen: () => void
-  tender: TenderDetail
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-1 py-1">
-      <Button
-        aria-label={`Preview ${getDocumentTitle(document)}`}
-        className="h-auto min-w-0 flex-1 justify-start gap-2.5 px-2 py-2.5 text-left whitespace-normal"
-        onClick={onOpen}
-        type="button"
-        variant="ghost"
-      >
-        <IconFileText
-          aria-hidden="true"
-          className="size-5 self-start text-muted-foreground"
-        />
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="break-words text-sm font-medium leading-5">
-            {getDocumentTitle(document)}
-          </span>
-          <span className="text-xs font-normal leading-4 text-muted-foreground">
-            {formatDocumentMeta(document)}
-          </span>
+    <Button
+      aria-label={`Preview ${getDocumentTitle(document)}`}
+      className="h-auto w-full min-w-0 cursor-pointer justify-start gap-2.5 px-2 py-3 text-left whitespace-normal"
+      onClick={onOpen}
+      type="button"
+      variant="ghost"
+    >
+      <IconFileText
+        aria-hidden="true"
+        className="size-5 self-start text-primary"
+      />
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="line-clamp-3 break-words text-sm font-medium leading-5 text-primary">
+          {getDocumentTitle(document)}
         </span>
-        <IconChevronRight
-          aria-hidden="true"
-          className="size-3.5 text-muted-foreground"
-        />
-      </Button>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button asChild size="icon-sm" variant="ghost" className="size-8">
-            <a
-              aria-label={`Download ${getDocumentTitle(document)}`}
-              data-umami-event="tender_document_download"
-              data-umami-event-extension={document.file_extension || "unknown"}
-              data-umami-event-index={String(document.document_index)}
-              data-umami-event-ocid={tender.ocid}
-              data-umami-event-source={document.document_source || "unknown"}
-              download={document.file_name || undefined}
-              href={document.document_url}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <IconDownload />
-            </a>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Download document</TooltipContent>
-      </Tooltip>
-    </div>
+        <span className="text-xs font-normal leading-4 text-muted-foreground">
+          {formatDocumentMeta(document)}
+        </span>
+      </span>
+      <IconChevronRight
+        aria-hidden="true"
+        className="size-3.5 text-muted-foreground"
+      />
+    </Button>
   )
 }
 
@@ -491,49 +437,91 @@ function DocumentPreview({
   previewMode: PreviewMode
   title: string
 }) {
-  if (previewMode.kind === "image") {
+  const [loaded, setLoaded] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (loaded || failed || previewMode.kind === "unsupported") return
+    const timer = window.setTimeout(() => setSlow(true), 12_000)
+    return () => window.clearTimeout(timer)
+  }, [loaded, failed, previewMode.kind])
+
+  if (previewMode.kind === "unsupported" || failed) {
     return (
-      <div className="min-h-0 flex-1 overflow-auto bg-muted/50 p-4">
-        <div className="flex min-h-full min-w-full items-center justify-center">
+      <Empty className="min-h-0 flex-1 rounded-none border-0 bg-muted/50">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <IconFileOff />
+          </EmptyMedia>
+          <EmptyTitle>Preview unavailable</EmptyTitle>
+          <EmptyDescription>
+            {failed
+              ? "We couldn’t load this preview. Download the document above to view it."
+              : "Download the document above to view this file type."}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
+
+  return (
+    <div
+      className="relative min-h-0 flex-1 overflow-auto bg-muted/50"
+      aria-busy={!loaded}
+    >
+      {!loaded ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-muted/50 p-6">
+          <div
+            aria-hidden="true"
+            className="flex w-full max-w-sm flex-col gap-4 rounded-lg bg-background p-6 ring-1 ring-border"
+          >
+            <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
+            <Skeleton className="h-3 w-full motion-reduce:animate-none" />
+            <Skeleton className="h-3 w-5/6 motion-reduce:animate-none" />
+            <Skeleton className="h-32 w-full motion-reduce:animate-none" />
+          </div>
+          <div
+            className="flex items-center gap-2 text-xs text-muted-foreground"
+            role="status"
+          >
+            <Spinner
+              aria-hidden="true"
+              className="motion-reduce:animate-none"
+            />
+            {slow
+              ? "Still loading. You can download the file above."
+              : "Loading preview…"}
+          </div>
+        </div>
+      ) : null}
+      {previewMode.kind === "image" ? (
+        <div className="flex min-h-full min-w-full items-center justify-center p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={title}
-            className="max-w-none rounded-lg bg-background ring-1 ring-border"
+            className={cn(
+              "max-w-none rounded-lg bg-background ring-1 ring-border",
+              !loaded && "opacity-0"
+            )}
+            onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
             referrerPolicy="no-referrer"
             src={previewMode.src}
             style={{ width: `${imageZoom}%` }}
           />
         </div>
-      </div>
-    )
-  }
-
-  if (previewMode.kind === "frame") {
-    return (
-      <div className="min-h-0 flex-1 bg-muted/50">
+      ) : (
         <iframe
           allow="fullscreen"
-          className="h-full w-full bg-background"
+          className={cn("h-full w-full bg-background", !loaded && "opacity-0")}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
           referrerPolicy="no-referrer"
           src={previewMode.src}
           title={title}
         />
-      </div>
-    )
-  }
-
-  return (
-    <Empty className="min-h-0 flex-1 rounded-none border-0 bg-muted/50">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <IconFileOff />
-        </EmptyMedia>
-        <EmptyTitle>Preview unavailable</EmptyTitle>
-        <EmptyDescription>
-          This document type is not supported in the embedded viewer.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+      )}
+    </div>
   )
 }
 

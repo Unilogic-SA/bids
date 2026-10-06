@@ -1,4 +1,4 @@
-import { FileSearchIcon } from "lucide-react"
+import { IconFileSearch } from "@tabler/icons-react"
 import Link from "next/link"
 import { Suspense } from "react"
 
@@ -19,7 +19,7 @@ export function TenderNotFound() {
       <Empty className="border">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <FileSearchIcon />
+            <IconFileSearch />
           </EmptyMedia>
           <EmptyTitle>Tender not found</EmptyTitle>
           <EmptyDescription>

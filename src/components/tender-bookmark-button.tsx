@@ -3,6 +3,8 @@
 import { useCallback, useState, useSyncExternalStore } from "react"
 import { IconBookmark, IconBookmarkFilled } from "@tabler/icons-react"
 
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
 import {
   readTenderBookmarks,
@@ -50,6 +52,16 @@ export function TenderBookmarkButton({ ocid }: { ocid: string }) {
             ocid,
             value: nextBookmarked ? nextBookmarks.includes(ocid) : false,
           }
+    )
+    const persisted =
+      readTenderBookmarks(getBrowserStorage()).includes(ocid) === nextBookmarked
+    toast(
+      persisted
+        ? nextBookmarked
+          ? "Tender bookmarked"
+          : "Bookmark removed"
+        : "Bookmark updated for this visit",
+      { id: "tender-bookmark", duration: 2000 }
     )
     trackUmamiEvent(
       nextBookmarked ? "tender_bookmark_added" : "tender_bookmark_removed",

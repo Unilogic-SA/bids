@@ -13,7 +13,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { TenderBookmarkButton } from "@/components/tender-bookmark-button"
 import { TenderCalendarAction } from "@/components/tender-calendar-action"
 import {
@@ -232,11 +231,10 @@ export default async function TenderPage({
           />
         </aside>
 
-        <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
+        <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">
           <TenderOverview tender={tender} />
           {location ? (
             <>
-              <Separator />
               <section
                 aria-labelledby="delivery-heading"
                 className="flex min-w-0 flex-col gap-2"
@@ -250,23 +248,19 @@ export default async function TenderPage({
           ) : null}
           {hasBriefing ? (
             <>
-              <Separator />
               <TenderBriefing tender={tender} />
             </>
           ) : null}
           {conditionItems.length > 0 ? (
             <>
-              <Separator />
               <TenderConditions items={conditionItems} />
             </>
           ) : null}
           {hasContact ? (
             <>
-              <Separator />
               <TenderContact tender={tender} />
             </>
           ) : null}
-          <Separator />
           <footer className="flex flex-col items-start gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 flex-col gap-1">
               <p>Source: {sourceLabel}</p>
@@ -397,7 +391,15 @@ function TenderReference({ tender }: { tender: TenderDetail }) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <Badge variant={status === "closed" ? "destructive" : "secondary"}>
+      <Badge
+        variant={
+          status === "closing_today"
+            ? "default"
+            : status === "closed"
+              ? "destructive"
+              : "secondary"
+        }
+      >
         {hasKnownStatus ? statusLabel(status) : "Status not supplied"}
       </Badge>
       {reference ? (
