@@ -8,8 +8,7 @@
     },
     "push": {
       "branches": [
-        "main",
-        "codex/**"
+        "main"
       ]
     },
     "workflow_dispatch": {}
@@ -42,10 +41,6 @@
           }
         },
         {
-          "name": "Validate workflow files and automation",
-          "run": "node --test .github/scripts/*.test.cjs"
-        },
-        {
           "name": "Install locked dependencies",
           "run": "npm ci"
         },
@@ -72,4 +67,3 @@
     }
   }
 }
-

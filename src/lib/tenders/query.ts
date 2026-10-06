@@ -103,6 +103,7 @@ const SITEMAP_COLUMNS = [
   "documents_count",
 ].join(",")
 
+// Keep the existing public search usable while the new RPC migration rolls out.
 const SEARCH_COLUMNS = [
   "tender_no",
   "title",
@@ -115,7 +116,7 @@ const SEARCH_COLUMNS = [
 ] as const
 
 const SORT_CONFIG: Record<
-  ListingSort,
+  Exclude<ListingSort, "relevance">,
   { column: "published_at" | "closing_at"; ascending: boolean }
 > = {
   published_at_asc: { column: "published_at", ascending: true },
@@ -124,7 +125,15 @@ const SORT_CONFIG: Record<
   closing_at_desc: { column: "closing_at", ascending: false },
 }
 
-export async function getTenderListing(params: ListingSearchParams): Promise<{ items: TenderListingItem[]; totalCount: number; pageCount: number; configMissing: boolean; resolvedPage: number }> {
+type TenderListingResult = {
+  items: TenderListingItem[]
+  totalCount: number
+  pageCount: number
+  configMissing: boolean
+  resolvedPage: number
+}
+
+export async function getTenderListing(params: ListingSearchParams): Promise<TenderListingResult> {
   if (!hasSupabasePublicConfig()) {
     return {
       items: [] as TenderListingItem[],
@@ -135,10 +144,22 @@ export async function getTenderListing(params: ListingSearchParams): Promise<{ i
     }
   }
 
+  const supabase = createPublicClient()
+  if (params.q) {
+    const result = await getTenderSearchListing(supabase, params)
+    if (result) return result
+  }
+
+  return getTenderTableListing(supabase, params)
+}
+
+async function getTenderTableListing(
+  supabase: PublicClient,
+  params: ListingSearchParams
+): Promise<TenderListingResult> {
   const page = params.page
   const from = (page - 1) * LISTING_PAGE_SIZE
   const to = from + LISTING_PAGE_SIZE - 1
-  const supabase = createPublicClient()
   const availabilityCutoff = getAvailabilityCutoff()
   let query = supabase
     .from("tenders")
@@ -149,7 +170,7 @@ export async function getTenderListing(params: ListingSearchParams): Promise<{ i
   if (params.q) {
     const pattern = `%${params.q}%`
     query = query.or(
-      SEARCH_COLUMNS.map((column) => `${column}.ilike.${pattern}`).join(",")
+      SEARCH_COLUMNS.map(column => `${column}.ilike.${pattern}`).join(",")
     )
   }
 
@@ -171,7 +192,9 @@ export async function getTenderListing(params: ListingSearchParams): Promise<{ i
     query = query.in("tender_type", tenderTypeRawValues)
   }
 
-  const sort = SORT_CONFIG[params.sort]
+  const sort = SORT_CONFIG[
+    params.sort === "relevance" ? "closing_at_asc" : params.sort
+  ]
   const { data, error, count } = await query
     .order(sort.column, {
       ascending: sort.ascending,
@@ -182,7 +205,7 @@ export async function getTenderListing(params: ListingSearchParams): Promise<{ i
 
   if (error?.code === "PGRST103" && page > 1) {
     // A saved page can fall outside the catalog as deadlines pass.
-    const firstPage = await getTenderListing({ ...params, page: 1 })
+    const firstPage = await getTenderTableListing(supabase, { ...params, page: 1 })
     return { ...firstPage, resolvedPage: 1 }
   }
   if (error) throw new Error(error.message)
@@ -195,6 +218,49 @@ export async function getTenderListing(params: ListingSearchParams): Promise<{ i
     pageCount: Math.ceil(totalCount / LISTING_PAGE_SIZE),
     configMissing: false,
     resolvedPage: page,
+  }
+}
+
+type PublicClient = ReturnType<typeof createPublicClient>
+
+type TenderSearchResponse = {
+  items: TenderListingItem[]
+  totalCount: number
+}
+
+async function getTenderSearchListing(
+  supabase: PublicClient,
+  params: ListingSearchParams
+): Promise<TenderListingResult | null> {
+  const { data, error } = await supabase.rpc("search_open_tenders", {
+    p_query: params.q,
+    p_province: params.region ?? null,
+    p_buyer: params.buyer ?? null,
+    p_industries: getIndustryRawValues(params.industry) ?? null,
+    p_tender_types: getTenderTypeRawValues(params.tenderType) ?? null,
+    p_sort: params.sort,
+    p_limit: LISTING_PAGE_SIZE,
+    p_offset: (params.page - 1) * LISTING_PAGE_SIZE,
+  })
+
+  // PGRST202 means PostgREST has not found this RPC in its schema cache yet.
+  // Permission, validation and operational errors must still surface.
+  if (error?.code === "PGRST202") return null
+  if (error) throw new Error(error.message)
+
+  const result = data as unknown as TenderSearchResponse | null
+  const totalCount = result?.totalCount ?? 0
+
+  if (params.page > 1 && (params.page - 1) * LISTING_PAGE_SIZE >= totalCount) {
+    return getTenderSearchListing(supabase, { ...params, page: 1 })
+  }
+
+  return {
+    items: result?.items ?? [],
+    totalCount,
+    pageCount: Math.ceil(totalCount / LISTING_PAGE_SIZE),
+    configMissing: false,
+    resolvedPage: params.page,
   }
 }
 

@@ -1,15 +1,12 @@
 {
   "name": "Quick Idea / Backlog",
-  "description": "Capture a thought now; you decide when it is ready for Codex.",
+  "description": "Capture a lightweight backlog idea.",
   "title": "[Idea] ",
-  "labels": [
-    "needs-spec"
-  ],
   "body": [
     {
       "type": "markdown",
       "attributes": {
-        "value": "Use this form when the idea is still rough. It starts in Needs Spec. When the description is clear enough for you, applying codex-ready authorises Codex even if you did not rewrite it into another template."
+        "value": "Use this form to capture an idea in your own words. When you want it implemented, instruct Codex with `Implement #<issue-number>`."
       }
     },
     {
