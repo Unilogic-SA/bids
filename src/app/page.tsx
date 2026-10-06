@@ -90,7 +90,6 @@ export default async function Home({ searchParams }: HomeProps) {
   const page = filters.page
   const listing = await getTenderListing(filters)
   if (listing.resolvedPage !== page) redirect(buildListingHref({ ...filters, page: listing.resolvedPage }))
-  const syncHealth = getSyncHealth(latestSuccessfulSync, recentSyncRuns)
   const activeFilterCount = countActiveListingFilters(filters)
   const websiteJsonLd = {
     "@context": "https://schema.org",
