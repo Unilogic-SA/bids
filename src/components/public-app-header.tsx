@@ -1,0 +1,228 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import {
+  IconActivity,
+  IconBell,
+  IconBookmark,
+  IconBriefcase,
+  IconCompass,
+  IconMenu2,
+  IconSearch,
+  IconSettings,
+  IconUser,
+  IconUsers,
+  IconX,
+} from "@tabler/icons-react"
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { Kbd } from "@/components/ui/kbd"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+// One root-layout island persists across Discover/detail navigation, without
+// adding the public shell to the independently managed admin/auth surfaces.
+export function PublicAppHeader() {
+  const pathname = usePathname()
+  if (pathname !== "/" && !pathname.startsWith("/tenders/")) return null
+  return <AppHeader isDiscover={pathname === "/"} />
+}
+
+function AppHeader({ isDiscover }: { isDiscover: boolean }) {
+  const [navigationOpen, setNavigationOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const desktopSearch = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.key !== "/" ||
+        !(event.metaKey || event.ctrlKey)
+      ) return
+      event.preventDefault()
+      if (window.matchMedia("(min-width: 768px)").matches) {
+        desktopSearch.current?.focus()
+      } else {
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener("keydown", focusSearch)
+    return () => window.removeEventListener("keydown", focusSearch)
+  }, [])
+
+  const navigation = (
+    <nav aria-label="App navigation" className="flex flex-col gap-1 py-2 md:h-10 md:flex-row md:items-center md:gap-3 md:py-0">
+      <Button asChild size="sm" variant="ghost" className="h-9 justify-start text-primary hover:text-primary md:h-7">
+        <Link href="/" aria-current={isDiscover ? "page" : undefined} onClick={() => setNavigationOpen(false)}>
+          <IconCompass className="md:hidden" data-icon="inline-start" />
+          Discover
+        </Link>
+      </Button>
+      {[
+        { label: "Bookmarks", icon: IconBookmark },
+        { label: "Business Tools", icon: IconBriefcase },
+      ].map(({ label, icon: Icon }) => (
+        <Tooltip key={label}>
+          <TooltipTrigger asChild>
+            <Button aria-disabled="true" size="sm" variant="ghost" className="h-9 justify-start md:h-7">
+              <Icon className="md:hidden" data-icon="inline-start" />
+              {label}
+              <span className="sr-only"> — coming soon</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Coming soon</TooltipContent>
+        </Tooltip>
+      ))}
+    </nav>
+  )
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Collapsible open={navigationOpen} onOpenChange={setNavigationOpen} className="contents">
+        <header aria-label="OpenBids app header" className="sticky top-0 z-40 w-full shrink-0 border-b bg-background">
+          <div className="mx-auto flex h-12 w-full max-w-7xl items-center gap-4 px-4 md:gap-8 md:px-6">
+            <Button asChild variant="link" className="h-8 px-0 text-base font-semibold tracking-tight hover:no-underline">
+              <Link href="/" aria-label="OpenBids home" onClick={() => setNavigationOpen(false)}>OpenBids</Link>
+            </Button>
+
+            <div className="hidden w-72 md:block">
+              <InputGroup>
+                <InputGroupAddon><IconSearch aria-hidden="true" /></InputGroupAddon>
+                <InputGroupInput
+                  ref={desktopSearch}
+                  aria-label="App search"
+                  aria-describedby="app-search-note"
+                  autoComplete="off"
+                  placeholder="Search"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                <InputGroupAddon align="inline-end"><Kbd aria-label="Control or Command plus slash">⌘ /</Kbd></InputGroupAddon>
+              </InputGroup>
+              <span className="sr-only" id="app-search-note">App search is coming soon. Use Discover filters to search tenders.</span>
+            </div>
+
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <CollapsibleTrigger asChild>
+                <Button aria-label="Toggle navigation" variant="ghost" size="icon" className="rounded-full md:hidden">
+                  {navigationOpen ? <IconX /> : <IconMenu2 />}
+                </Button>
+              </CollapsibleTrigger>
+              <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+                <DialogTrigger asChild>
+                  <Button aria-label="Open app search" variant="ghost" size="icon" className="rounded-full md:hidden"><IconSearch /></Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Search</DialogTitle>
+                    <DialogDescription>App search is coming soon. Use Discover filters to search tenders.</DialogDescription>
+                  </DialogHeader>
+                  <InputGroup>
+                    <InputGroupAddon><IconSearch aria-hidden="true" /></InputGroupAddon>
+                    <InputGroupInput aria-label="App search preview" placeholder="Search" type="search" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} />
+                  </InputGroup>
+                </DialogContent>
+              </Dialog>
+              <HeaderPanel label="Notifications" icon={<IconBell aria-hidden="true" />} description="Notifications will appear here." />
+              <HeaderPanel label="Activity" icon={<IconActivity aria-hidden="true" />} description="Your recent activity will appear here." />
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button aria-label="Account menu" variant="ghost" size="icon" className="rounded-full">
+                        <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary"><IconUser className="size-4" aria-hidden="true" /></AvatarFallback></Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Account</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="rounded-md bg-muted p-3">
+                    <p className="text-sm font-medium">Your account</p>
+                    <p className="mt-1 text-xs font-normal text-muted-foreground">Account features are coming soon.</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem disabled><IconUser />Profile</DropdownMenuItem>
+                    <DropdownMenuItem disabled><IconSettings />Preferences</DropdownMenuItem>
+                    <DropdownMenuItem disabled><IconUsers />Team account</DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </header>
+        <div className="hidden shrink-0 border-b bg-background md:block">
+          <div className="mx-auto w-full max-w-7xl px-4 md:px-6">{navigation}</div>
+        </div>
+        <CollapsibleContent className="shrink-0 border-b bg-background md:hidden">
+          <div className="mx-auto w-full max-w-7xl px-4">{navigation}</div>
+        </CollapsibleContent>
+      </Collapsible>
+    </TooltipProvider>
+  )
+}
+
+function HeaderPanel({ label, icon, description }: { label: string; icon: ReactNode; description: string }) {
+  return (
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button aria-label={label} variant="ghost" size="icon" className="rounded-full">{icon}</Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
+      <PopoverContent aria-label={label} align="end" className="w-72 max-w-[calc(100vw-2rem)] p-0">
+        <Empty className="gap-2 p-5">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">{icon}</EmptyMedia>
+            <EmptyTitle className="text-sm">{label}</EmptyTitle>
+            <EmptyDescription className="text-xs">{description}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </PopoverContent>
+    </Popover>
+  )
+}

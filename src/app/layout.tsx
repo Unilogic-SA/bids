@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 import { cn } from "@/lib/utils";
+import { PublicAppHeader } from "@/components/public-app-header";
 
 const figtreeHeading = Figtree({
   subsets: ["latin"],
@@ -83,7 +84,10 @@ export default function RootLayout({
         geistMono.variable,
       )}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <PublicAppHeader />
+        {children}
+      </body>
       <Script
         data-website-id="628e3929-8181-451a-b427-8f5746434e4c"
         id="umami-analytics"
