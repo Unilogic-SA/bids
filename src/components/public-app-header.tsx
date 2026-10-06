@@ -191,13 +191,13 @@ function AppHeader({ isDiscover }: { isDiscover: boolean }) {
               </DropdownMenu>
             </div>
           </div>
+          <CollapsibleContent className="absolute top-full w-full border-b bg-background md:hidden">
+            <div className="mx-auto w-full max-w-7xl px-4">{navigation}</div>
+          </CollapsibleContent>
         </header>
         <div className="hidden shrink-0 border-b bg-background md:block">
           <div className="mx-auto w-full max-w-7xl px-4 md:px-6">{navigation}</div>
         </div>
-        <CollapsibleContent className="shrink-0 border-b bg-background md:hidden">
-          <div className="mx-auto w-full max-w-7xl px-4">{navigation}</div>
-        </CollapsibleContent>
       </Collapsible>
     </TooltipProvider>
   )
