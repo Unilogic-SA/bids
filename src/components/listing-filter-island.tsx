@@ -1,5 +1,6 @@
 "use client"
 
+import { useRef } from "react"
 import Link from "next/link"
 import { IconChevronDown } from "@tabler/icons-react"
 import { RotateCcwIcon, SearchIcon } from "lucide-react"
@@ -28,6 +29,7 @@ import { Separator } from "@/components/ui/separator"
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -83,6 +85,8 @@ export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
 }
 
 export function MobileListingControls({ filters }: ListingFilterIslandProps) {
+  const searchTitleRef = useRef<HTMLHeadingElement>(null)
+  const sortTitleRef = useRef<HTMLHeadingElement>(null)
   const activeFilterCount = countActiveFilters({
     buyer: filters.buyer,
     industry: filters.industry,
@@ -117,11 +121,25 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             <IconChevronDown data-icon="inline-end" />
           </Button>
         </SheetTrigger>
-        <SheetContent className="max-h-[85svh] overflow-y-auto p-0" side="bottom">
-          <SheetHeader>
-            <SheetTitle>Search</SheetTitle>
+        <SheetContent
+          className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-xl p-0"
+          side="bottom"
+          onOpenAutoFocus={(event) => {
+            // Keep mobile keyboards and native pickers closed until requested.
+            event.preventDefault()
+            searchTitleRef.current?.focus({ preventScroll: true })
+          }}
+        >
+          <SheetHeader className="shrink-0">
+            <SheetTitle ref={searchTitleRef} tabIndex={-1}>
+              Search
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Choose search terms and filters, then apply them.
+            </SheetDescription>
           </SheetHeader>
           <form
+            className="flex min-h-0 flex-col"
             action="/"
             method="get"
             onSubmit={(event) =>
@@ -134,10 +152,10 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
                 filters.sortExplicit ? filters.sort : undefined
               }
             />
-            <div className="px-4">
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-4">
               <SearchFilterFields filters={filters} idPrefix="mobile-filter" />
             </div>
-            <SheetFooter>
+            <SheetFooter className="shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <Button asChild variant="outline">
                 <Link
                   href="/"
@@ -175,11 +193,25 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             <IconChevronDown data-icon="inline-end" />
           </Button>
         </SheetTrigger>
-        <SheetContent className="p-0" side="bottom">
-          <SheetHeader>
-            <SheetTitle>Sort By</SheetTitle>
+        <SheetContent
+          className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-xl p-0"
+          side="bottom"
+          onOpenAutoFocus={(event) => {
+            // Keep mobile keyboards and native pickers closed until requested.
+            event.preventDefault()
+            sortTitleRef.current?.focus({ preventScroll: true })
+          }}
+        >
+          <SheetHeader className="shrink-0">
+            <SheetTitle ref={sortTitleRef} tabIndex={-1}>
+              Sort By
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Choose how tenders are ordered, then apply your selection.
+            </SheetDescription>
           </SheetHeader>
           <form
+            className="flex min-h-0 flex-col"
             action="/"
             method="get"
             onSubmit={(event) =>
@@ -187,7 +219,7 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
             }
           >
             <PreservedFilterInputs filters={filters} />
-            <div className="px-4">
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-4">
               <FieldSet>
                 <FieldLegend className="sr-only">Sort tenders</FieldLegend>
                 <FieldGroup>
@@ -195,7 +227,7 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
                 </FieldGroup>
               </FieldSet>
             </div>
-            <SheetFooter>
+            <SheetFooter className="shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <Button asChild variant="outline">
                 <Link
                   href={buildListingHref(filters, {
