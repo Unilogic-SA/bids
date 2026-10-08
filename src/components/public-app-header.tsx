@@ -11,13 +11,9 @@ import {
   IconCompass,
   IconMenu2,
   IconSearch,
-  IconSettings,
-  IconUser,
-  IconUsers,
   IconX,
 } from "@tabler/icons-react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   Collapsible,
@@ -33,14 +29,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -49,6 +37,7 @@ import {
 } from "@/components/ui/empty"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
+import { AccountMenu } from "@/components/account/account-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Tooltip,
@@ -58,10 +47,10 @@ import {
 } from "@/components/ui/tooltip"
 
 // One root-layout island persists across Discover/detail navigation, without
-// adding the public shell to the independently managed admin/auth surfaces.
+// adding the public shell to the independently managed admin surfaces.
 export function PublicAppHeader() {
   const pathname = usePathname()
-  if (pathname !== "/" && !pathname.startsWith("/tenders/")) return null
+  if (pathname !== "/" && !pathname.startsWith("/tenders/") && !pathname.startsWith("/account/") && pathname !== "/forgot-password") return null
   return <AppHeader isDiscover={pathname === "/"} />
 }
 
@@ -166,29 +155,7 @@ function AppHeader({ isDiscover }: { isDiscover: boolean }) {
               </Dialog>
               <HeaderPanel label="Notifications" icon={<IconBell aria-hidden="true" />} description="Notifications will appear here." />
               <HeaderPanel label="Activity" icon={<IconActivity aria-hidden="true" />} description="Your recent activity will appear here." />
-              <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-label="Account menu" variant="ghost" size="icon" className="rounded-full">
-                        <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary"><IconUser className="size-4" aria-hidden="true" /></AvatarFallback></Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>Account</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="rounded-md bg-muted p-3">
-                    <p className="text-sm font-medium">Your account</p>
-                    <p className="mt-1 text-xs font-normal text-muted-foreground">Account features are coming soon.</p>
-                  </DropdownMenuLabel>
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem disabled><IconUser />Profile</DropdownMenuItem>
-                    <DropdownMenuItem disabled><IconSettings />Preferences</DropdownMenuItem>
-                    <DropdownMenuItem disabled><IconUsers />Team account</DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <AccountMenu />
             </div>
           </div>
           <CollapsibleContent className="absolute top-full w-full border-b bg-background md:hidden">
