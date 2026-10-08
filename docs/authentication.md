@@ -37,12 +37,16 @@ Signup retains the responsive two-column form/cover page, `max-w-xs` form,
 FieldGroup hierarchy, password confirmation present in the official source,
 and social-auth separator. The sample full-name requirement was removed; only
 email/password and password confirmation are required. GitHub was replaced by
-Google. The shared OpenBids header replaces the sample brand row. The existing
-`public/file.svg` document asset replaces the placeholder image in the desktop
-cover, with OpenBids procurement copy; no new illustration dependency or project.
-The cover remains hidden below `lg`. Login retains the centred `max-w-sm` Card,
+Google. Following the owner's signup revision, signup is standalone: neither the
+app top bar nor its navigation sub-bar renders. The block's brand row links to
+OpenBids and its wrapper uses the full viewport height. The desktop cover uses
+the requested Unsplash office placeholder, downloaded into
+`public/auth-signup-cover.jpg` from
+[this image](https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80).
+It is served locally without third-party browser image requests and remains
+hidden below `lg`. Login retains the centred `max-w-sm` Card,
 CardHeader/CardContent, email/password fields, recovery link and social action.
-Both account for the existing header height, use one shared provider, add
+Login accounts for the shared header height. Both use one shared provider, add
 accessible password visibility/autocomplete, inline feedback, pending controls
 and safe cross-links. Recovery and confirmation use installed shadcn primitives.
 
@@ -199,7 +203,7 @@ No real emails, user passwords or provider credentials were used in screenshots.
 | `npm run lint` | Passed |
 | `npm run typecheck` | Passed standalone and via build |
 | `npm run build` with existing fonts/checks | Passed |
-| Signup/login: 1440×900, 1024×600, 390×844, 320px | Local screenshots inspected; one header, signup cover responsive, login Card preserved, no horizontal overflow |
+| Signup/login: 1440×900, 1024×600, 390×844, 320px | Local screenshots inspected; signup has no app header/sub-bar, cover responsive, login Card preserved, no horizontal overflow |
 | Password visibility, autocomplete, pending/disabled, inline errors, safe cross-links | Local fake-adapter browser checks passed |
 | Signup no-session confirmation, resend cooldown, Continue browsing with query/fragment | Local fake-adapter browser checks passed |
 | Recovery token-hash → clean page → password Server Action → original destination | Local fake-adapter browser checks passed |
