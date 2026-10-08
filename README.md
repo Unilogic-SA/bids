@@ -50,6 +50,9 @@ coverage limits, validation, and staging/production deployment order.
 
 ## Development
 
+Customer authentication setup, migration, provider prerequisites, and verification
+limitations are documented in [docs/authentication.md](docs/authentication.md).
+
 ```bash
 npm run dev
 ```

@@ -49,6 +49,8 @@ import {
 } from "@/components/ui/empty"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useAccount } from "@/components/account/account-provider"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Tooltip,
@@ -58,14 +60,15 @@ import {
 } from "@/components/ui/tooltip"
 
 // One root-layout island persists across Discover/detail navigation, without
-// adding the public shell to the independently managed admin/auth surfaces.
+// adding the public shell to the independently managed admin surfaces.
 export function PublicAppHeader() {
   const pathname = usePathname()
-  if (pathname !== "/" && !pathname.startsWith("/tenders/")) return null
+  if (pathname !== "/" && !pathname.startsWith("/tenders/") && !pathname.startsWith("/account/") && !["/sign-in", "/sign-up", "/forgot-password"].includes(pathname)) return null
   return <AppHeader isDiscover={pathname === "/"} />
 }
 
 function AppHeader({ isDiscover }: { isDiscover: boolean }) {
+  const { account } = useAccount()
   const [navigationOpen, setNavigationOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -171,7 +174,7 @@ function AppHeader({ isDiscover }: { isDiscover: boolean }) {
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <Button aria-label="Account menu" variant="ghost" size="icon" className="rounded-full">
-                        <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary"><IconUser className="size-4" aria-hidden="true" /></AvatarFallback></Avatar>
+                        {account.status === "loading" ? <Skeleton className="size-7 rounded-full" aria-label="Loading account" /> : <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary"><IconUser className="size-4" aria-hidden="true" /></AvatarFallback></Avatar>}
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>

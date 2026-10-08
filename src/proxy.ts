@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin/redirects"
 
 export async function proxy(request: NextRequest) {
+  const adminRoute = request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/")
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabasePublishableKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
@@ -14,7 +15,7 @@ export async function proxy(request: NextRequest) {
 
   if (!supabaseUrl || !supabasePublishableKey) {
     const response = createNoStoreResponse(request)
-    if (isAdminLoginPath(request.nextUrl.pathname)) return response
+    if (!adminRoute || isAdminLoginPath(request.nextUrl.pathname)) return response
 
     return redirectToAdminLogin(request, response)
   }
@@ -44,9 +45,17 @@ export async function proxy(request: NextRequest) {
     },
   })
 
-  const { data } = await supabase.auth.getClaims()
+  // Guests never need an Auth round trip to render public tender results.
+  if (!adminRoute && !request.cookies.getAll().some(cookie => cookie.name.startsWith("sb-") && cookie.name.includes("auth-token"))) return supabaseResponse
+  let claims = false
+  try {
+    const { data } = await supabase.auth.getClaims()
+    claims = Boolean(data?.claims)
+  } catch {
+    // An unavailable Auth service must not gate public browsing.
+  }
 
-  if (!data?.claims && !isAdminLoginPath(request.nextUrl.pathname)) {
+  if (adminRoute && !claims && !isAdminLoginPath(request.nextUrl.pathname)) {
     return redirectToAdminLogin(request, supabaseResponse)
   }
 
@@ -54,7 +63,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*", "/", "/tenders/:path*", "/sign-in", "/sign-up", "/forgot-password", "/account/:path*", "/api/account/session", "/auth/customer/callback", "/auth/confirm"],
 }
 
 function createNoStoreResponse(request: NextRequest) {
