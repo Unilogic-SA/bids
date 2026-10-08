@@ -63,7 +63,7 @@ import {
 // adding the public shell to the independently managed admin surfaces.
 export function PublicAppHeader() {
   const pathname = usePathname()
-  if (pathname !== "/" && !pathname.startsWith("/tenders/") && !pathname.startsWith("/account/") && !["/sign-in", "/forgot-password"].includes(pathname)) return null
+  if (pathname !== "/" && !pathname.startsWith("/tenders/") && !pathname.startsWith("/account/") && pathname !== "/forgot-password") return null
   return <AppHeader isDiscover={pathname === "/"} />
 }
 

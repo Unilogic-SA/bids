@@ -46,7 +46,8 @@ the requested Unsplash office placeholder, downloaded into
 It is served locally without third-party browser image requests and remains
 hidden below `lg`. Login retains the centred `max-w-sm` Card,
 CardHeader/CardContent, email/password fields, recovery link and social action.
-Login accounts for the shared header height. Both use one shared provider, add
+Following the same owner revision, login is also standalone with no app top bar
+or navigation sub-bar and uses the full viewport height. Both use one shared provider, add
 accessible password visibility/autocomplete, inline feedback, pending controls
 and safe cross-links. Recovery and confirmation use installed shadcn primitives.
 
@@ -203,7 +204,7 @@ No real emails, user passwords or provider credentials were used in screenshots.
 | `npm run lint` | Passed |
 | `npm run typecheck` | Passed standalone and via build |
 | `npm run build` with existing fonts/checks | Passed |
-| Signup/login: 1440×900, 1024×600, 390×844, 320px | Local screenshots inspected; signup has no app header/sub-bar, cover responsive, login Card preserved, no horizontal overflow |
+| Signup/login: 1440×900, 1024×600, 390×844, 320px | Local screenshots inspected; both pages have no app header/sub-bar, cover responsive, login Card preserved, no horizontal overflow |
 | Password visibility, autocomplete, pending/disabled, inline errors, safe cross-links | Local fake-adapter browser checks passed |
 | Signup no-session confirmation, resend cooldown, Continue browsing with query/fragment | Local fake-adapter browser checks passed |
 | Recovery token-hash → clean page → password Server Action → original destination | Local fake-adapter browser checks passed |
