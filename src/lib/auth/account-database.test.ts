@@ -15,7 +15,7 @@ test("customer migration enforces owner-only access, atomic bootstrap and isolat
     grant usage on schema public,auth to anon,authenticated,service_role;
     create table public.tender_catalog_fixture(id int primary key); insert into public.tender_catalog_fixture values (1);
     insert into auth.users(id,email_confirmed_at) values ('${A}',now()),('${B}',now()),('${C}',null);`)
-  await db.exec(await readFile("supabase/migrations/20261008124213_customer_accounts.sql", "utf8"))
+  await db.exec(await readFile("supabase/migrations/20261008153243_customer_accounts.sql", "utf8"))
   const bootstrap = (id: string) => db.query<{ id: string }>("select public.bootstrap_customer_workspace($1::uuid) as id", [id])
   await db.exec("set role service_role")
   const companyA = (await bootstrap(A)).rows[0].id

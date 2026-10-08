@@ -10,23 +10,45 @@ authentication wiring request, the public header also exposes sign-in, signup,
 verified identity, workspace retry and local sign-out through the existing
 shared provider. Settings and completion prompts remain #50/#51.
 
-## Hosted inspection: 8 October 2026
+## Hosted activation: 8 October 2026
 
 The GitHub, Supabase and Vercel connectors were available for this inspection.
 Supabase dashboard sign-in succeeded through its secure GitHub sign-in flow.
-These results supersede earlier statements that no management connectors were
-available; the earlier local implementation evidence is unchanged.
+The owner subsequently authorized the production migration, Auth configuration
+and Vercel dashboard fallback. The state below supersedes the initial inspection;
+earlier local implementation evidence is unchanged. The PR remains unmerged.
 
 | Boundary | Observed state | Required activation |
 | --- | --- | --- |
-| Exact Preview `bids-f6ckfe343-unilogics-projects.vercel.app`, head `143ef1e09b9cf81e9dd6f515c2af8d0ebc0341b2` | Vercel authenticated HTTP fetch returned the sign-in page with `configured: false` and disabled form controls | Set the trusted environment origin and verify public bindings, then redeploy |
-| Supabase project `eanhpdxlskwxplglprrt` | Dashboard identifies this as `main / Production`; no isolated active auth test project was identified | Owner-authorized production activation or an isolated test environment |
-| Customer schema | `profiles`, `companies`, `company_memberships`, and `bootstrap_customer_workspace(uuid)` are absent | Apply the additive customer migration to the authorized environment and inspect grants/RLS |
-| Auth URLs | Site URL is `http://localhost:3000`; redirect allowlist is empty | Exact environment origin and explicit callback destinations |
+| Exact Preview `bids-ksy7nms8p-unilogics-projects.vercel.app`, head `915c3e201b8a871728cc42260c67fb24271942a5` | Signed-out menu/navigation and exact query/fragment return passed; sign-in controls remain disabled | Isolated Preview configuration or separately authorized production release and provider tests |
+| Supabase project `eanhpdxlskwxplglprrt` | Dashboard identifies this as `main / Production`; no isolated active auth test project was identified | Production preparation was owner-authorized; ordinary Preview remains unactivated |
+| Customer schema | Migration applied; all three tables have RLS; column grants and service-role-only bootstrap verified | Live transaction tests passed for owner access, cross-user denial, ownership denial and bootstrap retries; test records rolled back |
+| Auth URLs | Site URL is `https://www.openbid.co.za`; three scoped production callback entries saved | Confirm actual provider redirects after deployment; no arbitrary-host patterns |
 | Providers | Email signup and email confirmation enabled; Google disabled | Preserve confirmation; configure an authorized Google OAuth client |
 | Email delivery | Supabase dashboard reports built-in SMTP | Configure a verified sender with custom SMTP for public signup delivery |
-| Signup template | Uses `.ConfirmationURL` rather than the application's token-hash confirmation URL | Configure the token-hash template below before email-flow tests |
-| Vercel environment management | Connector returned HTTP 403 for listing project variables; CLI had no authenticated credentials | Authorized environment-management access; variable presence/value was not independently verified |
+| Signup/recovery templates | Saved `.RedirectTo` plus `&amp;token_hash={{ .TokenHash }}`; signup source verified after reload | Delivery and cross-device confirmation/recovery remain unverified; admin magic-link template untouched |
+| Vercel environment management | Connector returned HTTP 403 for listing/creating production variables; authorized dashboard access worked | Production `CUSTOMER_AUTH_SITE_URL=https://www.openbid.co.za` saved; new deployment still required |
+| Existing Vercel bindings | Public Supabase URL verified against this project; public key and separate Production/Preview `SUPABASE_SECRET_KEY` entries exist | Existing server fallback is supported; privileged values were not revealed, copied or independently authenticated |
+| Recovery signing key | `CUSTOMER_AUTH_RECOVERY_SECRET` absent | Securely create a separate random server secret of at least 32 bytes in Production; browser credential entry requires owner handoff |
+
+Saved redirect allowlist:
+
+```text
+https://www.openbid.co.za/auth/confirm\?**
+https://www.openbid.co.za/auth/customer/callback\?**
+https://www.openbid.co.za/auth/callback
+```
+
+The escaped question mark matches the literal query separator; the suffix allows
+the application's encoded `type`/`next` parameters only after the fixed callback
+path. The last entry preserves the existing admin callback.
+
+The migration connector recorded version `20261008153243`. The pending repo
+migration was renamed to that recorded version without changing its SQL, and the
+database test's file reference was updated. This prevents later CLI deployment
+from trying to reapply the same schema under the previous pending timestamp.
+Supabase security advisors reported no customer-schema finding; the existing
+disabled leaked-password protection warning remains (paid-plan feature).
 
 The header menu captures the current safe path, query and fragment when opened.
 Auth links preserve that destination. Loading has a neutral skeleton and disabled
@@ -41,7 +63,7 @@ other tabs. No placeholder settings link targets an unimplemented route.
 1. Select the authorized environment. Do not put the existing production
    service-role credential into Preview. A fully functional Preview requires
    its own isolated Supabase project and corresponding server credential.
-2. Apply `20261008124213_customer_accounts.sql` to that environment; inspect
+2. Apply `20261008153243_customer_accounts.sql` to that environment; inspect
    table RLS, column grants and service-role-only bootstrap execution. Run
    Supabase security advisors and ownership/duplicate-bootstrap checks there.
 3. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
@@ -61,16 +83,20 @@ other tabs. No placeholder settings link targets an unimplemented route.
    cross-tab identity clearing, Google success/cancellation/linking, customer
    admin denial, and public browsing. Record the tested deployment and SHA.
 
-No hosted schema, provider, SMTP or URL configuration was changed during this
-inspection, and no customer test account was created. Preview `bids-nteco5qzd-unilogics-projects.vercel.app` for head `70c628b`
-was subsequently accessible in the existing cloud browser without a share link.
-The signed-out menu and sign-in navigation were verified; both menu links
-preserved `/?q=software#results`. The live sign-in form remained disabled by
-missing configuration. Continue browsing preserved the search but duplicated the
-fragment through Next client navigation; the auth return controls now use a
-document navigation to preserve the exact destination. Signed-in menu actions
-and real provider flows remain unverified. Local production build, lint,
-typecheck and all 126 tests passed after header wiring.
+The authorized hosted writes were the additive migration, production Site URL,
+callback allowlist, signup/recovery templates, and Vercel production trusted
+origin. No real customer signup, SMTP/provider credential change, production
+deployment or merge was performed. The database role checks used synthetic
+identities inside one rolled-back transaction, with zero users/profiles remaining.
+This tests deployed PostgreSQL permissions and repeated bootstrap, not real Auth
+signup or multi-connection races.
+
+Preview `70c628b` exposed a duplicated fragment through Next client navigation.
+The auth return controls now use document navigation. On `915c3e2`, return to
+`/?q=software#tender-result-2` passed with one fragment and the expected tender
+focused. Signed-in menu actions and real provider flows remain unverified.
+Local production build, lint, typecheck and all 126 tests passed after header
+wiring; GitHub CI for `915c3e2` also completed successfully.
 
 ## Official block provenance
 
@@ -122,9 +148,10 @@ Before implementation, the existing configured Supabase endpoint responded to a
 read-only public `/auth/v1/settings` request. Email signup was enabled, email
 confirmation was enabled (`mailer_autoconfirm=false`), and Google was disabled.
 Public URL/key variables were present. Service-role and trusted customer-origin
-configuration were absent. Available cloud metadata did not establish that the
-project was isolated for development/Preview. No hosted writes, provider signup,
-migrations or production configuration changes were performed.
+configuration were absent in that earlier implementation environment. Available
+cloud metadata did not establish an isolated development/Preview project. That
+earlier phase made no hosted writes; the subsequent authorized activation and
+verified existing Vercel bindings are recorded at the top of this document.
 
 Complete this checklist in a **dedicated non-production Supabase project** and
 Vercel Preview configuration before provider/end-to-end verification. Do not
@@ -143,14 +170,16 @@ copy privileged production credentials into development/Preview:
   `CUSTOMER_AUTH_RECOVERY_SECRET` of at least 32 bytes through secure environment
   settings. It must be an actual locally usable secret, not a proxy-only
   credential placeholder. Never commit/print it or reuse a production value.
-- Apply only `supabase/migrations/20261008124213_customer_accounts.sql` and its
+- Apply only `supabase/migrations/20261008153243_customer_accounts.sql` and its
   required baseline dependencies to the isolated project using the normal CLI.
   Inspect actual grants/RLS and Supabase database advisors there. CLI 2.120.0
-  generated this filename with `supabase migration new customer_accounts`;
+  generated the original pending filename with `supabase migration new customer_accounts`;
   `SUPABASE_HOME` was directed to ignored `.tools/supabase` because the default
-  home directory was read-only. No handwritten migration timestamp.
-- Keep email confirmation enabled. Set minimum password length to 8, with no
-  additional character-class requirements for this initial policy. Passwords
+  home directory was read-only. The file now matches the applied connector version.
+- Keep email confirmation enabled. For the isolated initial policy, set minimum
+  password length to 8. The existing production provider requires letters and
+  digits; this activation did not weaken it. Its numeric length was redacted by
+  the browser, so the production minimum remains unverified. Passwords
   are never trimmed, echoed in returned state, or restricted to an arbitrary
   maximum; paste/password managers/autocomplete remain usable.
 - Enable Google in the isolated Supabase Auth provider settings with a dedicated
@@ -171,9 +200,8 @@ Google OAuth client with the **Supabase** provider callback
 from the application's return route `/auth/customer/callback`.
 
 Use a stable non-production Preview origin, or a carefully scoped pattern for
-this Vercel project only; never accept arbitrary hosts. Build separate production
-origins/allowlists only in a later owner-authorized release. This PR does not
-change hosted configuration. `CUSTOMER_AUTH_SITE_URL` must match the deployed
+this Vercel project only; never accept arbitrary hosts. The owner-authorized
+production origin/allowlist is recorded above. `CUSTOMER_AUTH_SITE_URL` must match the deployed
 origin, including scheme/port, and match the browser origin for session cookies.
 
 The application supplies `.RedirectTo` as a complete trusted confirmation URL
@@ -274,7 +302,7 @@ No real emails, user passwords or provider credentials were used in screenshots.
 | Signup no-session confirmation, resend cooldown, Continue browsing with query/fragment | Local fake-adapter browser checks passed |
 | Recovery token-hash → clean page → password Server Action → original destination | Local fake-adapter browser checks passed |
 | Google PKCE callback round trip; ordinary customer denied admin | Local fake-adapter browser checks passed; live Google/admin login NOT VERIFIED |
-| SQL RLS/grants/bootstrap retries/cascades and ownership conflicts | Real migration applied in PGlite; non-owner role tests passed |
+| SQL RLS/grants/bootstrap retries/cascades and ownership conflicts | PGlite tests passed; deployed PostgreSQL owner/cross-user/anonymous/ownership/retry checks passed in a rolled-back transaction |
 | Stale user clearing, coalesced reads, ignored late responses | Focused race tests passed |
 | Keyboard form order, long 320px error, password login, private snapshot, local sign-out | Local fake-adapter browser checks passed |
 | Actual non-production migration/advisors/concurrent PostgreSQL connections | NOT VERIFIED; no confirmed isolated project/privileged binding |
@@ -284,8 +312,9 @@ No real emails, user passwords or provider credentials were used in screenshots.
 | Latest Vercel Preview and tested head SHA | Reported in PR; local evidence does not establish Preview verification |
 
 PGlite's concurrent scheduled bootstrap calls share one embedded connection;
-actual multi-connection PostgreSQL races and hosted Auth/RLS/advisors must be
-verified in the isolated project. Fake adapters and compilation do not establish
+actual multi-connection PostgreSQL races and hosted Auth lifecycle must still be
+verified in the isolated project. Live production RLS/advisors were checked as
+recorded above. Fake adapters and compilation do not establish
 production readiness.
 
 For latest Preview, repeat both pages at all four viewports and test keyboard,
@@ -295,11 +324,12 @@ case outcome in the PR. Later pushes invalidate affected Preview evidence.
 
 ## Release order
 
-Complete non-production configuration/migration/provider verification first.
-The owner separately authorizes production migration/configuration and merge.
-Apply the additive private schema before enabling the customer UI in production.
-No production configuration, migration, merge, backfill or real account deletion
-is performed by this PR. Roll back the app if needed while retaining additive
+Complete non-production provider verification before release. The owner authorized
+production migration/configuration on 8 October; those completed writes are
+recorded above. Merge/release remains outstanding. The additive private schema
+is already applied before enabling the customer UI in production. No production
+deployment, merge, backfill or real account deletion was performed. Roll back
+the app if needed while retaining additive
 private tables; do not drop customer data as a rollback shortcut.
 
 References: [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/nextjs),
