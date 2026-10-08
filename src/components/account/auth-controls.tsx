@@ -61,7 +61,7 @@ export function ConfirmationNotice({ state, next, onEdit }: { state: CustomerAct
         </Field>
       </form>
       {onEdit ? <Button type="button" variant="ghost" onClick={onEdit}>Edit email / back</Button> : <Button variant="ghost" asChild><Link href={authPageHref("/sign-up", next)}>Create account / use another email</Link></Button>}
-      <Button asChild><Link href={next}>Continue browsing</Link></Button>
+      <Button asChild><a href={next}>Continue browsing</a></Button>
     </div>
   )
 }
@@ -72,7 +72,9 @@ export function WorkspaceRetry({ next }: { next: string }) {
 }
 
 export function ContinueBrowsing({ next }: { next: string }) {
-  return <FieldDescription className="text-center"><Link href={next}>Continue browsing</Link></FieldDescription>
+  // A document navigation preserves the exact return fragment across Next's
+  // auth-page transition; client navigation can append that fragment twice.
+  return <FieldDescription className="text-center"><a href={next}>Continue browsing</a></FieldDescription>
 }
 
 // A working local sign-out entry point before #51 composes the account menu.

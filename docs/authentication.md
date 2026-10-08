@@ -62,11 +62,15 @@ other tabs. No placeholder settings link targets an unimplemented route.
    admin denial, and public browsing. Record the tested deployment and SHA.
 
 No hosted schema, provider, SMTP or URL configuration was changed during this
-inspection, and no customer test account was created. The protected Preview was
-inspected over HTTP, not interactively in the browser. Local production build,
-lint, typecheck and all 126 tests passed after header wiring. This environment's
-cloud browser could not connect to the local server (`ERR_CONNECTION_REFUSED`),
-so the new menu's interactive browser behavior remains unverified.
+inspection, and no customer test account was created. Preview `bids-nteco5qzd-unilogics-projects.vercel.app` for head `70c628b`
+was subsequently accessible in the existing cloud browser without a share link.
+The signed-out menu and sign-in navigation were verified; both menu links
+preserved `/?q=software#results`. The live sign-in form remained disabled by
+missing configuration. Continue browsing preserved the search but duplicated the
+fragment through Next client navigation; the auth return controls now use a
+document navigation to preserve the exact destination. Signed-in menu actions
+and real provider flows remain unverified. Local production build, lint,
+typecheck and all 126 tests passed after header wiring.
 
 ## Official block provenance
 
