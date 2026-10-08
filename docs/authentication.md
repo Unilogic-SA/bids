@@ -12,7 +12,7 @@ shared provider. Settings and completion prompts remain #50/#51.
 
 ## Hosted activation: 8 October 2026
 
-The GitHub, Supabase and Vercel connectors were available for this inspection.
+The GitHub, Supabase, Vercel and Resend connectors were available for this inspection.
 Supabase dashboard sign-in succeeded through its secure GitHub sign-in flow.
 The owner subsequently authorized the production migration, Auth configuration
 and Vercel dashboard fallback. The state below supersedes the initial inspection;
@@ -25,11 +25,30 @@ earlier local implementation evidence is unchanged. The PR remains unmerged.
 | Customer schema | Migration applied; all three tables have RLS; column grants and service-role-only bootstrap verified | Live transaction tests passed for owner access, cross-user denial, ownership denial and bootstrap retries; test records rolled back |
 | Auth URLs | Site URL is `https://www.openbid.co.za`; three scoped production callback entries saved | Confirm actual provider redirects after deployment; no arbitrary-host patterns |
 | Providers | Email signup and email confirmation enabled; Google disabled | Preserve confirmation; configure an authorized Google OAuth client |
-| Email delivery | Supabase dashboard reports built-in SMTP | Configure a verified sender with custom SMTP for public signup delivery |
+| Email delivery | Resend confirms `openbid.co.za` is verified for sending in eu-west-1; DKIM/SPF/MX verified; open/click tracking disabled. Owner saved custom SMTP, verified enabled after reload | Real delivery and confirmation/recovery tests need a controlled inbox and deployed auth code |
 | Signup/recovery templates | Saved `.RedirectTo` plus `&amp;token_hash={{ .TokenHash }}`; signup source verified after reload | Delivery and cross-device confirmation/recovery remain unverified; admin magic-link template untouched |
-| Vercel environment management | Connector returned HTTP 403 for listing/creating production variables; authorized dashboard access worked | Production `CUSTOMER_AUTH_SITE_URL=https://www.openbid.co.za` saved; new deployment still required |
+| Vercel environment management | Connector returned HTTP 403 for listing/creating production variables; authorized dashboard access worked | Production `CUSTOMER_AUTH_SITE_URL=https://www.openbid.co.za` saved. Owner redeployed main; auth PR deployment still required |
 | Existing Vercel bindings | Public Supabase URL verified against this project; public key and separate Production/Preview `SUPABASE_SECRET_KEY` entries exist | Existing server fallback is supported; privileged values were not revealed, copied or independently authenticated |
-| Recovery signing key | `CUSTOMER_AUTH_RECOVERY_SECRET` absent | Securely create a separate random server secret of at least 32 bytes in Production; browser credential entry requires owner handoff |
+| Recovery signing key | Owner saved `CUSTOMER_AUTH_RECOVERY_SECRET` as a Production-only Secret; presence/scope verified without revealing its value | Length and runtime signing remain unverified until auth code is deployed |
+
+Supabase SMTP now uses sender `OpenBids <no-reply@openbid.co.za>`, host
+`smtp.resend.com`, port 465 and a 60-second per-user interval. The owner created
+`OpenBids Supabase Auth` with Sending access scoped to the verified domain and
+entered/saved the SMTP credentials directly in Supabase. The dashboard confirms
+a hidden stored password after reload. No API key is needed in the application
+for this SMTP integration, and no secret was retrieved or exposed.
+
+The owner redeployed Production main (`00e23473`) as
+`dpl_7PobBnYmKa9nkovEGrWKUYTtwCPA`, READY at `www.openbid.co.za`.
+Public Discover loaded successfully. This deployment does not include the
+unmerged authentication PR. The latest Preview for `6d5e61c` is READY, but its
+ordinary Preview auth configuration remains unactivated.
+
+Google remains disabled with empty client fields. An authorized Web application
+OAuth client must use origin `https://www.openbid.co.za` and redirect URI
+`https://eanhpdxlskwxplglprrt.supabase.co/auth/v1/callback`; only basic identity
+scopes are needed. Google Cloud's client console was unavailable in the cloud
+browser. No Google credentials, consent settings or provider controls changed.
 
 Saved redirect allowlist:
 
@@ -85,8 +104,10 @@ other tabs. No placeholder settings link targets an unimplemented route.
 
 The authorized hosted writes were the additive migration, production Site URL,
 callback allowlist, signup/recovery templates, and Vercel production trusted
-origin. No real customer signup, SMTP/provider credential change, production
-deployment or merge was performed. The database role checks used synthetic
+origin. The owner completed the recovery signing key, Resend sending key and
+Supabase SMTP credentials, and redeployed the existing production main.
+No real customer signup, Google provider change, auth release or merge was
+performed. The database role checks used synthetic
 identities inside one rolled-back transaction, with zero users/profiles remaining.
 This tests deployed PostgreSQL permissions and repeated bootstrap, not real Auth
 signup or multi-connection races.
@@ -306,7 +327,7 @@ No real emails, user passwords or provider credentials were used in screenshots.
 | Stale user clearing, coalesced reads, ignored late responses | Focused race tests passed |
 | Keyboard form order, long 320px error, password login, private snapshot, local sign-out | Local fake-adapter browser checks passed |
 | Actual non-production migration/advisors/concurrent PostgreSQL connections | NOT VERIFIED; no confirmed isolated project/privileged binding |
-| SMTP delivery, cross-device real emails, real resend/expiry/scanners | NOT VERIFIED; requires non-production templates/SMTP and controlled inbox |
+| SMTP delivery, cross-device real emails, real resend/expiry/scanners | NOT VERIFIED; production SMTP configuration is saved, but provider lifecycle needs deployed auth code and a controlled inbox |
 | Live Google new/existing/cancel/error/same-email linking | NOT VERIFIED; configured provider disabled and test identity unavailable |
 | Full incognito catalog/document/calendar/bookmark regression against hosted data | NOT VERIFIED end-to-end; existing unit tests retained/passed |
 | Latest Vercel Preview and tested head SHA | Reported in PR; local evidence does not establish Preview verification |
@@ -328,7 +349,8 @@ Complete non-production provider verification before release. The owner authoriz
 production migration/configuration on 8 October; those completed writes are
 recorded above. Merge/release remains outstanding. The additive private schema
 is already applied before enabling the customer UI in production. No production
-deployment, merge, backfill or real account deletion was performed. Roll back
+auth deployment, merge, backfill or real account deletion was performed. The
+owner's redeployment of existing main is recorded above. Roll back
 the app if needed while retaining additive
 private tables; do not drop customer data as a rollback shortcut.
 
