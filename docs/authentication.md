@@ -24,7 +24,7 @@ earlier local implementation evidence is unchanged. The PR remains unmerged.
 | Supabase project `eanhpdxlskwxplglprrt` | Dashboard identifies this as `main / Production`; no isolated active auth test project was identified | Production preparation was owner-authorized; ordinary Preview remains unactivated |
 | Customer schema | Migration applied; all three tables have RLS; column grants and service-role-only bootstrap verified | Live transaction tests passed for owner access, cross-user denial, ownership denial and bootstrap retries; test records rolled back |
 | Auth URLs | Site URL is `https://www.openbid.co.za`; three scoped production callback entries saved | Confirm actual provider redirects after deployment; no arbitrary-host patterns |
-| Providers | Email signup and email confirmation enabled; Google disabled | Preserve confirmation; configure an authorized Google OAuth client |
+| Providers | Email signup/confirmation enabled; owner saved Google client credentials and enabled Google, verified after fresh navigation | Actual Google success/cancellation/linking remain unverified; nonce checks and required email preserved |
 | Email delivery | Resend confirms `openbid.co.za` is verified for sending in eu-west-1; DKIM/SPF/MX verified; open/click tracking disabled. Owner saved custom SMTP, verified enabled after reload | Real delivery and confirmation/recovery tests need a controlled inbox and deployed auth code |
 | Signup/recovery templates | Saved `.RedirectTo` plus `&amp;token_hash={{ .TokenHash }}`; signup source verified after reload | Delivery and cross-device confirmation/recovery remain unverified; admin magic-link template untouched |
 | Vercel environment management | Connector returned HTTP 403 for listing/creating production variables; authorized dashboard access worked | Production `CUSTOMER_AUTH_SITE_URL=https://www.openbid.co.za` saved. Owner redeployed main; auth PR deployment still required |
@@ -44,11 +44,15 @@ Public Discover loaded successfully. This deployment does not include the
 unmerged authentication PR. The latest Preview for `6d5e61c` is READY, but its
 ordinary Preview auth configuration remains unactivated.
 
-Google remains disabled with empty client fields. An authorized Web application
-OAuth client must use origin `https://www.openbid.co.za` and redirect URI
+The owner created a Google Web application OAuth client and saved its credentials
+directly in Supabase, then enabled Google. Fresh dashboard navigation confirmed
+Google enabled, a populated client ID and a hidden stored secret. Skip nonce
+checks and allow-users-without-email remain off. The instructed client origin was
+`https://www.openbid.co.za` and redirect URI
 `https://eanhpdxlskwxplglprrt.supabase.co/auth/v1/callback`; only basic identity
 scopes are needed. Google Cloud's client console was unavailable in the cloud
-browser. No Google credentials, consent settings or provider controls changed.
+browser, so its redirect/consent/audience settings have not been independently
+verified. Actual OAuth sign-in remains unverified until the auth code is deployed.
 
 Saved redirect allowlist:
 
@@ -106,8 +110,8 @@ The authorized hosted writes were the additive migration, production Site URL,
 callback allowlist, signup/recovery templates, and Vercel production trusted
 origin. The owner completed the recovery signing key, Resend sending key and
 Supabase SMTP credentials, and redeployed the existing production main.
-No real customer signup, Google provider change, auth release or merge was
-performed. The database role checks used synthetic
+The owner also completed Google credentials/provider enablement. No real customer
+signup, auth release or merge was performed. The database role checks used synthetic
 identities inside one rolled-back transaction, with zero users/profiles remaining.
 This tests deployed PostgreSQL permissions and repeated bootstrap, not real Auth
 signup or multi-connection races.
@@ -328,7 +332,7 @@ No real emails, user passwords or provider credentials were used in screenshots.
 | Keyboard form order, long 320px error, password login, private snapshot, local sign-out | Local fake-adapter browser checks passed |
 | Actual non-production migration/advisors/concurrent PostgreSQL connections | NOT VERIFIED; no confirmed isolated project/privileged binding |
 | SMTP delivery, cross-device real emails, real resend/expiry/scanners | NOT VERIFIED; production SMTP configuration is saved, but provider lifecycle needs deployed auth code and a controlled inbox |
-| Live Google new/existing/cancel/error/same-email linking | NOT VERIFIED; configured provider disabled and test identity unavailable |
+| Live Google new/existing/cancel/error/same-email linking | NOT VERIFIED; Google provider enabled with owner-saved credentials; needs deployed auth code and a controlled identity |
 | Full incognito catalog/document/calendar/bookmark regression against hosted data | NOT VERIFIED end-to-end; existing unit tests retained/passed |
 | Latest Vercel Preview and tested head SHA | Reported in PR; local evidence does not establish Preview verification |
 
