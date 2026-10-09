@@ -16,10 +16,18 @@ unfiltered listings use closing soonest.
 
 The already-merged weighted-search migration had not been applied to the live
 database. It was applied on 9 October 2026, using bounded lock/statement timeouts
-and a PostgREST schema reload. Supabase recorded migration version
-`20261009094557`, so the repository filename now matches that version; the SQL
-contents are unchanged from `20261004120000_add_weighted_tender_search.sql`.
-Do not apply it again to that database as a new migration.
+and a PostgREST schema reload. Keep the already-published filename
+`20261004120000_add_weighted_tender_search.sql` and its SQL unchanged so databases
+that applied it earlier retain compatible migration histories.
+
+The live application initially recorded this activation as `20261009094557`.
+That single history record was reconciled to `20261004120000` on 9 October 2026,
+preserving its recorded SQL and name. This was a history-only correction: no
+schema SQL was replayed and neither of the later search corrections was reverted.
+Do not apply the weighted-search SQL again to that database as a new migration.
+Other environments that already record `20261004120000` need no repair for this
+change. Check `supabase migration list` before deploying migrations; reconcile
+history only after verifying the corresponding schema change is already present.
 
 The generated search vector gives highest weight to tender numbers and titles,
 then buyers/departments/types, then classification/location fields, and finally
