@@ -19,7 +19,7 @@ test("weighted public tender full-text search", async t => {
   await db.exec("create role anon; create role authenticated; create role service_role bypassrls;")
   const baseline = await readFile("supabase/migrations/20260513193000_create_tender_catalog.sql", "utf8")
   await db.exec(baseline.replace("create extension if not exists pgcrypto;", ""))
-  const migration = await readFile("supabase/migrations/20261004120000_add_weighted_tender_search.sql", "utf8")
+  const migration = await readFile("supabase/migrations/20261009094557_add_weighted_tender_search.sql", "utf8")
   await db.exec(migration)
 
   await db.exec(`

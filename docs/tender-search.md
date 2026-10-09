@@ -1,0 +1,47 @@
+# Public tender search
+
+Both the Discover filter form and the signed-in header submit a GET request to
+Discover. The header retains region, buyer, industry, tender type and explicitly
+selected sort, and starts at page one. On a tender detail page it restores these
+values from the validated listing return link. Unrelated account URLs do not
+supply search filters.
+
+`getTenderListing` is the shared server entry point. Keyword searches call
+`search_open_tenders`; only PostgREST's missing-function error (`PGRST202`)
+falls back to the existing public substring search. Permission and operational
+errors remain visible. Without an explicit sort, keywords use relevance and
+unfiltered listings use closing soonest.
+
+## Weighted-search activation
+
+The already-merged weighted-search migration had not been applied to the live
+database. It was applied on 9 October 2026, using bounded lock/statement timeouts
+and a PostgREST schema reload. Supabase recorded migration version
+`20261009094557`, so the repository filename now matches that version; the SQL
+contents are unchanged from `20261004120000_add_weighted_tender_search.sql`.
+Do not apply it again to that database as a new migration.
+
+The generated search vector gives highest weight to tender numbers and titles,
+then buyers/departments/types, then classification/location fields, and finally
+descriptions and eligibility information. The existing full-text index remains;
+the weighted vector has its own valid GIN index. The RPC uses invoker rights,
+respects tender RLS, and permits execution by anonymous and authenticated readers.
+
+Live verification confirmed every vector was populated, anonymous callers could
+search, and combined filters worked. At the time of verification, `software
+development` returned one open tender in the production browser, `laptops`
+returned eleven, and `software` narrowed from twenty-three to six when filtered
+to Gauteng. Counts change as the catalog and deadlines change.
+
+## Review
+
+Search navigation, weighted matching, explicit sorts, pagination, RLS and the
+missing-RPC fallback are covered by the normal test suite. Header visibility,
+button variants and submitted form fields are additionally checked with isolated
+render fixtures. These fixtures do not constitute a real sign-in test.
+
+An ordinary Preview without isolated customer-auth configuration can show the
+public header and live Discover search, but cannot show the signed-in header.
+Do not copy production privileged credentials into Preview or bypass auth to
+make that surface reviewable. Use the configured isolated auth environment for
+authenticated browser review.

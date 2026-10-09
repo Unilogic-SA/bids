@@ -6,6 +6,7 @@ import {
   buildTenderDetailHref,
   parseListingReturnHref,
   parseListingSearchParams,
+  parseHeaderSearchParams,
 } from "./navigation"
 
 test("keyword searches default to relevance without changing the normal default", () => {
@@ -15,6 +16,35 @@ test("keyword searches default to relevance without changing the normal default"
     parseListingSearchParams({ q: "laptop", sort: "closing_at_asc" }).sort,
     "closing_at_asc"
   )
+})
+
+test("header search preserves listing filters and explicit sort while resetting pagination", () => {
+  const filters = parseHeaderSearchParams("/", {
+    q: "laptops", region: "Gauteng", buyer: "Education", industry: "ict", type: "rfp",
+    sort: "closing_at_desc", page: "4",
+  })
+  assert.equal(buildListingHref(filters), "/?q=laptops&region=Gauteng&buyer=Education&industry=ict&type=rfp&sort=closing_at_desc")
+  assert.equal(filters.page, 1)
+  assert.equal(filters.sortExplicit, true)
+  const implicit = parseHeaderSearchParams("/", { q: "laptops", page: "3" })
+  assert.equal(implicit.sortExplicit, false)
+  assert.equal(buildListingHref(implicit, { q: undefined }), "/")
+})
+
+test("header search on a tender detail page restores the safe listing context", () => {
+  const filters = parseHeaderSearchParams("/tenders/example", {
+    from: "/?q=software&region=Gauteng&buyer=Education&industry=ict&type=rfp&sort=published_at_desc&page=2#tender-result-3",
+  })
+  assert.equal(buildListingHref(filters), "/?q=software&region=Gauteng&buyer=Education&industry=ict&type=rfp&sort=published_at_desc")
+  assert.equal(filters.page, 1)
+})
+
+test("header search rejects unsafe return links and ignores unrelated page parameters", () => {
+  for (const from of ["https://example.test/?q=secret", "//example.test/?q=secret", "/account?q=secret"]) {
+    assert.equal(buildListingHref(parseHeaderSearchParams("/tenders/example", { from })), "/")
+  }
+  assert.equal(buildListingHref(parseHeaderSearchParams("/account", { q: "secret", region: "Gauteng" })), "/")
+  assert.equal(buildListingHref(parseHeaderSearchParams("/tenders/example", { from: "/?q=lap%2Atops%25&sort=invalid&page=99" })), "/?q=lap+tops")
 })
 
 test("implicit sorts adapt to keywords while explicit default-valued sorts persist", () => {
