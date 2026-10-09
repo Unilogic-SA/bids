@@ -17,10 +17,9 @@ import {
 } from "@/components/ui/field"
 import {
   InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
+import { TenderSearchInput } from "@/components/tender-search-input"
 import {
   NativeSelect,
   NativeSelectOption,
@@ -267,23 +266,7 @@ function SearchFilterFields({
       <FieldGroup className="gap-3">
         <Field>
           <FieldLabel htmlFor={`${idPrefix}-q`}>Search</FieldLabel>
-          <InputGroup>
-            <InputGroupInput
-              defaultValue={filters.q || ""}
-              id={`${idPrefix}-q`}
-              name="q"
-              placeholder="Number, buyer, keyword"
-            />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                aria-label="Search tenders"
-                size="icon-xs"
-                type="submit"
-              >
-                <SearchIcon data-icon="inline-start" />
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
+          <TenderSearchInput id={`${idPrefix}-q`} defaultValue={filters.q} />
         </Field>
 
         <Field>

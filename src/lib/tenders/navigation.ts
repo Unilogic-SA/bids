@@ -64,6 +64,20 @@ export function getDefaultListingSort(q?: string): ListingSearchParams["sort"] {
   return q ? "relevance" : DEFAULT_LISTING_SORT
 }
 
+/** Header search uses the active Discover filters, including safe detail returns. */
+export function parseHeaderSearchParams(
+  pathname: string,
+  input: Record<string, string | string[] | undefined>
+): ListingSearchParams {
+  if (pathname === "/") return { ...parseListingSearchParams(input), page: 1 }
+  if (pathname.startsWith("/tenders/")) {
+    const returnHref = parseListingReturnHref(input.from)
+    const query = returnHref.split("#", 1)[0].slice(2)
+    return { ...parseListingSearchParams(Object.fromEntries(new URLSearchParams(query))), page: 1 }
+  }
+  return parseListingSearchParams({})
+}
+
 export function buildTenderDetailHref(
   detailPath: string,
   listingParams: ListingSearchParams,

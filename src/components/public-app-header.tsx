@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   IconActivity,
   IconBookmark,
@@ -33,8 +33,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { Kbd } from "@/components/ui/kbd"
+import { HeaderTenderSearch } from "@/components/header-tender-search"
+import { Skeleton } from "@/components/ui/skeleton"
 import { AccountMenu } from "@/components/account/account-menu"
 import { useAccount } from "@/components/account/account-provider"
 import { authPageHref, getSafePublicNextPath } from "@/lib/auth/redirects"
@@ -59,7 +59,6 @@ export function PublicAppHeader() {
 function AppHeader({ pathname, signedIn }: { pathname: string; signedIn: boolean }) {
   const [navigationOpen, setNavigationOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [query, setQuery] = useState("")
   const desktopSearch = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -113,21 +112,9 @@ function AppHeader({ pathname, signedIn }: { pathname: string; signedIn: boolean
             </Button>
 
             {signedIn ? <div className="hidden w-72 md:block">
-              <InputGroup>
-                <InputGroupAddon><IconSearch aria-hidden="true" /></InputGroupAddon>
-                <InputGroupInput
-                  ref={desktopSearch}
-                  aria-label="App search"
-                  aria-describedby="app-search-note"
-                  autoComplete="off"
-                  placeholder="Search"
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-                <InputGroupAddon align="inline-end"><Kbd aria-label="Control or Command plus slash">⌘ /</Kbd></InputGroupAddon>
-              </InputGroup>
-              <span className="sr-only" id="app-search-note">App search is coming soon. Use Discover filters to search tenders.</span>
+              <Suspense fallback={<Skeleton className="h-8 w-full" aria-label="Loading search" />}>
+                <HeaderTenderSearch id="header-desktop-q" inputRef={desktopSearch} shortcut />
+              </Suspense>
             </div> : null}
 
             <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -144,20 +131,19 @@ function AppHeader({ pathname, signedIn }: { pathname: string; signedIn: boolean
                   <DialogContent className="max-w-sm">
                     <DialogHeader>
                       <DialogTitle>Search</DialogTitle>
-                      <DialogDescription>App search is coming soon. Use Discover filters to search tenders.</DialogDescription>
+                      <DialogDescription>Search tender numbers, buyers or keywords using your current filters.</DialogDescription>
                     </DialogHeader>
-                    <InputGroup>
-                      <InputGroupAddon><IconSearch aria-hidden="true" /></InputGroupAddon>
-                      <InputGroupInput aria-label="App search preview" placeholder="Search" type="search" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} />
-                    </InputGroup>
+                    <Suspense fallback={<Skeleton className="h-8 w-full" aria-label="Loading search" />}>
+                      <HeaderTenderSearch id="header-mobile-q" />
+                    </Suspense>
                   </DialogContent>
                 </Dialog>
                 <HeaderPanel label="Activity" icon={<IconActivity aria-hidden="true" />} description="Your recent activity will appear here." />
                 <AccountMenu />
               </> : <div className="flex items-center gap-2">
                 {([
-                  { path: "/sign-up", label: "Sign up", variant: "default" },
                   { path: "/sign-in", label: "Log in", variant: "outline" },
+                  { path: "/sign-up", label: "Sign up", variant: "default" },
                 ] as const).map(({ path, label, variant }) => (
                   <Button key={path} asChild size="sm" variant={variant}>
                     <a
