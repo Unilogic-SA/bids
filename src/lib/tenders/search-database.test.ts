@@ -21,6 +21,7 @@ test("weighted public tender full-text search", async t => {
   await db.exec(baseline.replace("create extension if not exists pgcrypto;", ""))
   const migration = await readFile("supabase/migrations/20261009094557_add_weighted_tender_search.sql", "utf8")
   await db.exec(migration)
+  await db.exec(await readFile("supabase/migrations/20261009103133_prioritize_tender_display_subject.sql", "utf8"))
 
   await db.exec(`
     insert into public.tenders (
@@ -83,6 +84,24 @@ test("weighted public tender full-text search", async t => {
   await t.test("weighted title matches outrank description-only matches", async () => {
     const ids = (await search("laptop")).items.map(item => item.ocid)
     assert.ok(ids.indexOf("title") < ids.indexOf("description"))
+  })
+
+  await t.test("portal display subjects outrank repeated website download boilerplate", async () => {
+    await db.exec(`
+      insert into public.tenders (ocid, release_id, tender_no, title, bid_description, title_snippet, special_conditions, published_at, closing_at) values
+        ('web-scope', 'web1', 'WEB-2026-01', 'WEB-2026-01', 'Website revamp and maintenance', 'Website revamp and maintenance', null, '2026-01-10', '2099-03-02'),
+        ('web-hosting', 'web2', 'WEB-2026-02', 'WEB-2026-02', 'Website hosting and technical support for thirty six months', null, null, '2026-01-09', '2099-03-03'),
+        ('web-boilerplate', 'web3', 'BUILD-2026-01', 'BUILD-2026-01', 'School repairs and renovations', null, repeat('Download documents from our website. ', 30), '2026-01-08', '2099-03-01'),
+        ('web-title-fallback', 'web4', 'WEB-2026-03', 'Website development', null, 'Website development', null, '2026-01-07', '2099-03-04');
+    `)
+    const results = await search('website')
+    assert.equal(results.totalCount, 4)
+    assert.equal(results.items.at(-1)?.ocid, 'web-boilerplate')
+    assert.deepEqual(new Set(results.items.slice(0, 3).map(item => item.ocid)), new Set(['web-scope', 'web-hosting', 'web-title-fallback']))
+    assert.equal((await search('website', { sort: 'closing_at_asc' })).items[0].ocid, 'web-boilerplate')
+    for (const item of results.items) {
+      assert.ok(!('subject_match' in item) && !('subject_relevance' in item))
+    }
   })
 
   await t.test("buyer and listing filters combine with keyword search", async () => {

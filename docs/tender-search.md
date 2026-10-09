@@ -35,6 +35,23 @@ to Gauteng. Counts change as the catalog and deadlines change.
 
 ## Review
 
+The follow-up `20261009103133_prioritize_tender_display_subject.sql` corrects
+ranking for the portal's real field mapping. Its source `title` frequently holds
+the tender number; Discover displays `bid_description`, then `title_snippet`,
+then `title`. Relevance sorting therefore puts exact tender references first,
+then matches in that displayed subject, ordered by length-normalized subject
+score, then the existing weighted score and stable tie-breakers. Repeated
+document-download instructions cannot outrank a displayed-subject match.
+Explicit date sorting still takes precedence. Matching, counts, the GIN index,
+RLS and grants stay unchanged; this is a function-only migration.
+
+This function-only correction was applied on 9 October 2026 with bounded
+lock/statement timeouts. Supabase recorded version `20261009103133`. The live
+app and ordinary Preview share this public search database, so both use the
+corrected ranking. No frontend changes were merged. Live anonymous RPC and
+production browser checks confirmed the four website-specific tenders appeared
+first; the full count remained 108 and explicit date sorting still worked.
+
 Search navigation, weighted matching, explicit sorts, pagination, RLS and the
 missing-RPC fallback are covered by the normal test suite. Header visibility,
 button variants and submitted form fields are additionally checked with isolated
