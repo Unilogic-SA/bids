@@ -102,7 +102,8 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
       <Sheet>
         <SheetTrigger asChild>
           <Button
-            className="h-11 justify-center rounded-none text-sm font-normal text-muted-foreground"
+            className="justify-center rounded-none font-normal text-muted-foreground"
+            size="sm"
             onClick={() =>
               trackUmamiEvent("tender_filter_panel_open", { panel: "search" })
             }
@@ -182,7 +183,8 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
       <Sheet>
         <SheetTrigger asChild>
           <Button
-            className="h-11 justify-center rounded-none text-sm font-normal text-muted-foreground"
+            className="justify-center rounded-none font-normal text-muted-foreground"
+            size="sm"
             onClick={() =>
               trackUmamiEvent("tender_filter_panel_open", { panel: "sort" })
             }
