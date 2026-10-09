@@ -62,3 +62,25 @@ public header and live Discover search, but cannot show the signed-in header.
 Do not copy production privileged credentials into Preview or bypass auth to
 make that surface reviewable. Use the configured isolated auth environment for
 authenticated browser review.
+
+## Keyword eligibility
+
+`20261009110714_exclude_tender_instruction_matches.sql` adds the indexed
+`search_vector_v3` and switches the RPC to it. Searchable content comprises
+references, source titles, buyers/departments, type/category/location metadata
+and the tender description (falling back to its snippet). Special conditions
+and eligibility notes do not qualify or exclude a tender through keyword
+queries. They remain available in the tender details.
+
+This changes result eligibility and counts, not just ranking. The existing
+vectors and indexes are retained. The migration was applied on 9 October 2026
+with bounded lock/statement timeouts; Supabase recorded version `20261009110714`.
+Anonymous RPC and browser checks confirmed `website` decreased from 108 matches
+to five, excluding the unrelated construction tenders under any sort. Four
+are website tenders; the remaining server tender mentions website in its main
+description rather than its conditions. This is lexical search across the
+listed fields, rather than a semantic classification of procurement topics.
+
+Regression tests cover conditions-only and eligibility-only matches, negative
+keywords, counts, pagination, every explicit sort, and genuine construction
+metadata matches. No construction category is globally excluded.

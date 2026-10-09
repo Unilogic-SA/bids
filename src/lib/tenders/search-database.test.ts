@@ -22,6 +22,7 @@ test("weighted public tender full-text search", async t => {
   const migration = await readFile("supabase/migrations/20261009094557_add_weighted_tender_search.sql", "utf8")
   await db.exec(migration)
   await db.exec(await readFile("supabase/migrations/20261009103133_prioritize_tender_display_subject.sql", "utf8"))
+  await db.exec(await readFile("supabase/migrations/20261009110714_exclude_tender_instruction_matches.sql", "utf8"))
 
   await db.exec(`
     insert into public.tenders (
@@ -86,7 +87,7 @@ test("weighted public tender full-text search", async t => {
     assert.ok(ids.indexOf("title") < ids.indexOf("description"))
   })
 
-  await t.test("portal display subjects outrank repeated website download boilerplate", async () => {
+  await t.test("website download instructions never qualify unrelated tenders under any sort", async () => {
     await db.exec(`
       insert into public.tenders (ocid, release_id, tender_no, title, bid_description, title_snippet, special_conditions, published_at, closing_at) values
         ('web-scope', 'web1', 'WEB-2026-01', 'WEB-2026-01', 'Website revamp and maintenance', 'Website revamp and maintenance', null, '2026-01-10', '2099-03-02'),
@@ -95,13 +96,31 @@ test("weighted public tender full-text search", async t => {
         ('web-title-fallback', 'web4', 'WEB-2026-03', 'Website development', null, 'Website development', null, '2026-01-07', '2099-03-04');
     `)
     const results = await search('website')
-    assert.equal(results.totalCount, 4)
-    assert.equal(results.items.at(-1)?.ocid, 'web-boilerplate')
+    assert.equal(results.totalCount, 3)
+    assert.ok(!results.items.some(item => item.ocid === 'web-boilerplate'))
     assert.deepEqual(new Set(results.items.slice(0, 3).map(item => item.ocid)), new Set(['web-scope', 'web-hosting', 'web-title-fallback']))
-    assert.equal((await search('website', { sort: 'closing_at_asc' })).items[0].ocid, 'web-boilerplate')
+    for (const sort of ['relevance', 'closing_at_asc', 'closing_at_desc', 'published_at_asc', 'published_at_desc']) {
+      const sorted = await search('website', { sort })
+      assert.equal(sorted.totalCount, 3)
+      assert.ok(!sorted.items.some(item => item.ocid === 'web-boilerplate'))
+    }
+    const pages = await Promise.all([search('website', { limit: 2 }), search('website', { limit: 2, offset: 2 })])
+    assert.equal(pages[0].totalCount, 3)
+    assert.equal(pages[1].totalCount, 3)
+    assert.equal(new Set(pages.flatMap(page => page.items.map(item => item.ocid))).size, 3)
     for (const item of results.items) {
       assert.ok(!('subject_match' in item) && !('subject_relevance' in item))
     }
+  })
+
+  await t.test("conditions and eligibility cannot satisfy or veto keyword queries", async () => {
+    await db.exec(`
+      update public.tenders set special_conditions = 'Construction registration required', eligibility_notes = 'uniquecertificationtoken' where ocid = 'web-scope';
+      update public.tenders set industry = 'Construction', eligibility_notes = 'website certification required' where ocid = 'web-boilerplate';
+    `)
+    assert.equal((await search('website -construction')).totalCount, 3)
+    assert.equal((await search('uniquecertificationtoken')).totalCount, 0)
+    assert.deepEqual((await search('construction')).items.map(item => item.ocid), ['web-boilerplate'])
   })
 
   await t.test("buyer and listing filters combine with keyword search", async () => {
@@ -181,7 +200,7 @@ test("weighted public tender full-text search", async t => {
     assert.equal((await search("software")).items[0].ocid, "multi")
     await db.exec("reset role;")
     await db.exec("set enable_seqscan = off;")
-    const plan = await db.query<{ "QUERY PLAN": string }>("explain select ocid from public.tenders where search_vector_v2 @@ websearch_to_tsquery('english', 'laptop')")
-    assert.match(plan.rows.map(row => row["QUERY PLAN"]).join("\n"), /tenders_search_vector_v2_idx/)
+    const plan = await db.query<{ "QUERY PLAN": string }>("explain select ocid from public.tenders where search_vector_v3 @@ websearch_to_tsquery('english', 'laptop')")
+    assert.match(plan.rows.map(row => row["QUERY PLAN"]).join("\n"), /tenders_search_vector_v3_idx/)
   })
 })
