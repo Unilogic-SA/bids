@@ -52,7 +52,7 @@ export function PublicAppHeader() {
   const pathname = usePathname()
   const { account } = useAccount()
   const signedIn = account.status === "signed-in" || (account.status === "unavailable" && Boolean(account.user))
-  if (pathname !== "/" && !pathname.startsWith("/tenders/") && !pathname.startsWith("/account/") && pathname !== "/forgot-password") return null
+  if (pathname !== "/" && pathname !== "/workspace" && !pathname.startsWith("/tenders/") && !pathname.startsWith("/account/") && pathname !== "/forgot-password") return null
   return <AppHeader key={signedIn ? "signed-in" : "public"} pathname={pathname} signedIn={signedIn} />
 }
 
@@ -89,16 +89,12 @@ function AppHeader({ pathname, signedIn }: { pathname: string; signedIn: boolean
           Discover
         </Link>
       </Button>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button aria-disabled="true" size="sm" variant="ghost" className="h-9 justify-start md:h-7">
-            <IconBookmark className="md:hidden" data-icon="inline-start" />
-            Workspace
-            <span className="sr-only"> — coming soon</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Coming soon</TooltipContent>
-      </Tooltip>
+      <Button asChild size="sm" variant="ghost" className="h-9 justify-start md:h-7">
+        <Link href="/workspace" aria-current={pathname === "/workspace" ? "page" : undefined} onClick={() => setNavigationOpen(false)}>
+          <IconBookmark className="md:hidden" data-icon="inline-start" />
+          Workspace
+        </Link>
+      </Button>
     </nav>
   )
 

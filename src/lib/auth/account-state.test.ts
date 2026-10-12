@@ -41,3 +41,36 @@ test("an account refresh failure and unmount clear/ignore old user state", async
   reader.refresh(); await flush()
   assert.equal(states.length, count)
 })
+test("background focus/token refresh preserves known identity and draft lifetime; switch still clears", async () => {
+  const states: AccountState[]=[]
+  const pending:Array<(state:AccountSnapshot)=>void>=[]
+  const reader=createAccountSnapshotReader(()=>new Promise(resolve=>pending.push(resolve)),state=>states.push(state))
+  reader.refresh();await flush();pending[0](A);await flush()
+  const before=states.length
+  reader.refresh({background:true})
+  assert.equal(states.length,before);assert.equal(states.at(-1)?.status,"signed-in")
+  await flush();pending[1](A);await flush()
+  assert.equal(states.at(-1)?.status,"signed-in")
+  reader.refresh();assert.equal(states.at(-1)?.status,"loading")
+  await flush();pending[2]({status:"signed-out"});await flush()
+  assert.equal(states.at(-1)?.status,"signed-out");reader.dispose()
+})
+test("background transport outage retains known identity; definitive signout still clears",async()=>{
+  const states:AccountState[]=[];let offline=false;let signedOut=false
+  const reader=createAccountSnapshotReader(async()=>{if(offline)throw new Error("offline");return signedOut?{status:"signed-out"}:A},state=>states.push(state))
+  reader.refresh();await flush();const count=states.length
+  offline=true;reader.refresh({background:true});await flush();assert.equal(states.length,count);assert.equal(states.at(-1)?.status,"signed-in")
+  offline=false;signedOut=true;reader.refresh({background:true});await flush();assert.equal(states.at(-1)?.status,"signed-out");reader.dispose()
+})
+test("background unavailable for a different fresh identity clears prior private scope",async()=>{
+  const states:AccountState[]=[];let switched=false
+  const reader=createAccountSnapshotReader(async()=>switched?{status:"unavailable",user:{id:"B",email:"b@example.test"},message:"Workspace unavailable"}:A,state=>states.push(state))
+  reader.refresh();await flush();switched=true;reader.refresh({background:true});await flush()
+  assert.equal(states.at(-1)?.status,"unavailable");assert.equal((states.at(-1) as {user:{id:string}}).user.id,"B");reader.dispose()
+})
+test("coalesced foreground then background failure cannot retain loading using stale identity",async()=>{
+  const states:AccountState[]=[];let offline=false
+  const reader=createAccountSnapshotReader(async()=>{if(offline)throw new Error("offline");return A},state=>states.push(state))
+  reader.refresh();await flush();offline=true;reader.refresh();reader.refresh({background:true});await flush()
+  assert.equal(states.at(-1)?.status,"unavailable");reader.dispose()
+})

@@ -63,7 +63,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/", "/tenders/:path*", "/sign-in", "/sign-up", "/forgot-password", "/account/:path*", "/api/account/session", "/auth/customer/callback", "/auth/confirm"],
+  matcher: ["/workspace", "/api/workspace/:path*", "/admin", "/admin/:path*", "/", "/tenders/:path*", "/sign-in", "/sign-up", "/forgot-password", "/account/:path*", "/api/account/session", "/auth/customer/callback", "/auth/confirm"],
 }
 
 function createNoStoreResponse(request: NextRequest) {
