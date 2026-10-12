@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { PublicAppHeader } from "@/components/public-app-header";
 import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import { AccountProvider } from "@/components/account/account-provider";
+import { GoogleAnalytics } from "@/components/google-analytics";
 
 const figtreeHeading = Figtree({
   subsets: ["latin"],
@@ -87,6 +88,7 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col">
+        <GoogleAnalytics />
         <AccountProvider>
           <WorkspaceProvider>
             <PublicAppHeader />
