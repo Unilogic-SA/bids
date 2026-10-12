@@ -1,3 +1,5 @@
+import { currentCampaign, isMeasurementPage, trackGoogleEvent } from "@/lib/google-analytics"
+
 export type UmamiEventData = Record<
   string,
   string | number | boolean | null | undefined
@@ -23,5 +25,7 @@ export function trackUmamiEvent(
     Object.entries(eventData).filter(([, value]) => value !== undefined && value !== null)
   ) as Record<string, string | number | boolean>
 
-  window.umami?.track(eventName, data)
+  const campaign = isMeasurementPage(window.location.pathname) ? currentCampaign() : {}
+  window.umami?.track(eventName, { ...data, ...campaign })
+  trackGoogleEvent(eventName, data)
 }
