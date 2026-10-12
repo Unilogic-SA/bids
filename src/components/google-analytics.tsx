@@ -20,11 +20,7 @@ export function GoogleAnalytics() {
     Object.assign(window, { [`ga-disable-${id}`]: !publicPage })
     if (!publicPage) return
     currentCampaign()
-    if (!window.gtag) {
-      window.dataLayer = window.dataLayer || []
-      window.gtag = (...args: unknown[]) => { window.dataLayer?.push(args) }
-      window.gtag("js", new Date())
-    }
+    if (!ready || !window.gtag) return
     window.gtag("config", id, {
       send_page_view: false,
       allow_google_signals: false,
@@ -33,8 +29,6 @@ export function GoogleAnalytics() {
       page_referrer: measurementReferrer(document.referrer),
       page_title: pathname === "/" ? "OpenBids tender search" : "OpenBids tender detail",
     })
-    if (!ready) return
-
     const sendPageView = () => window.gtag?.("event", "page_view", {
       send_to: id,
       page_location: measurementUrl(new URL(window.location.href)),
@@ -56,10 +50,16 @@ export function GoogleAnalytics() {
   }, [id, pathname, publicPage, ready])
 
   if (!id || !publicPage) return null
-  return <Script
-    id="openbids-google-analytics"
-    src={`https://www.googletagmanager.com/gtag/js?id=${id}`}
-    strategy="afterInteractive"
-    onReady={() => setReady(true)}
-  />
+  return <>
+    <Script id="openbids-google-bootstrap" strategy="afterInteractive" onReady={() => setReady(true)}>
+      {`window.dataLayer = window.dataLayer || [];
+        window.gtag = window.gtag || function(){window.dataLayer.push(arguments);};
+        window.gtag('js', new Date());`}
+    </Script>
+    {ready && <Script
+      id="openbids-google-analytics"
+      src={`https://www.googletagmanager.com/gtag/js?id=${id}`}
+      strategy="afterInteractive"
+    />}
+  </>
 }
