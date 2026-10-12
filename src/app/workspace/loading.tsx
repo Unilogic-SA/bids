@@ -1,4 +1,4 @@
-import { WorkspaceSkeleton } from "@/components/workspace/workspace-client"
+import { WorkspaceSkeleton } from "@/components/workspace/workspace-skeleton"
 export default function Loading() {
   return <WorkspaceSkeleton />
 }

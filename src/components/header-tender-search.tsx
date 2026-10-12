@@ -1,15 +1,18 @@
 "use client"
 
+import Form from "next/form"
+
 import { usePathname, useSearchParams } from "next/navigation"
 import type { Ref } from "react"
 import { TenderSearchInput } from "@/components/tender-search-input"
 import { buildListingHref, parseHeaderSearchParams } from "@/lib/tenders/navigation"
 import { trackUmamiEvent } from "@/lib/analytics"
 
-export function HeaderTenderSearch({ id, inputRef, shortcut }: {
+export function HeaderTenderSearch({ id, inputRef, shortcut, onSearch }: {
   id: string
   inputRef?: Ref<HTMLInputElement>
   shortcut?: boolean
+  onSearch?: () => void
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -17,13 +20,13 @@ export function HeaderTenderSearch({ id, inputRef, shortcut }: {
   const input = Object.fromEntries(Array.from(searchParams.keys()).map(key => [key, searchParams.get(key) || undefined]))
   const filters = parseHeaderSearchParams(pathname, input)
 
-  return <form
+  return <Form
     key={buildListingHref(filters)}
     action="/"
-    method="get"
     role="search"
     aria-label="Header tender search"
     onSubmit={event => {
+      onSearch?.()
       const query = String(new FormData(event.currentTarget).get("q") || "").trim()
       trackUmamiEvent("tender_header_search", { query_length: query.length, query_present: Boolean(query), surface: shortcut ? "desktop" : "mobile" })
     }}
@@ -36,5 +39,5 @@ export function HeaderTenderSearch({ id, inputRef, shortcut }: {
       ["type", filters.tenderType],
       ["sort", filters.sortExplicit ? filters.sort : undefined],
     ].map(([name, value]) => value ? <input key={name} type="hidden" name={name} value={value} /> : null)}
-  </form>
+  </Form>
 }

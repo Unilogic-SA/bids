@@ -1,5 +1,6 @@
 "use client"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
@@ -22,7 +23,6 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Empty,
@@ -44,8 +44,9 @@ import { useAccount } from "@/components/account/account-provider"
 import { useWorkspace } from "./workspace-provider"
 import { GuestImportPrompt } from "./guest-import-prompt"
 import { WorkspaceList } from "./workspace-list"
-import { WorkspaceBoard } from "./workspace-board"
-import { BidPanel } from "./bid-panel"
+import { BidPanelLoading } from "./bid-panel-loading"
+import { WorkspaceSkeleton, WorkspaceRowsSkeleton, WorkspaceBoardSkeleton } from "./workspace-skeleton"
+
 import {
   BID_STAGES,
   OUTCOME_LABELS,
@@ -58,9 +59,12 @@ import {
 } from "@/lib/workspace/types"
 import { cn } from "@/lib/utils"
 import { BidStateLabel, bidStateTriggerClass } from "./stage-presentation"
+import { workspaceListQuery } from "@/lib/workspace/client-state"
 import { parseWorkspaceFilters } from "@/lib/workspace/validation"
 import { boardRounds, mergeBoardPages } from "@/lib/workspace/board"
 import { fromSastInput, sastInput } from "@/lib/workspace/presentation"
+const WorkspaceBoard = dynamic(() => import("./workspace-board").then(module => module.WorkspaceBoard), { loading: () => <WorkspaceBoardSkeleton /> })
+const BidPanel = dynamic(() => import("./bid-panel").then(module => module.BidPanel), { loading: () => <BidPanelLoading /> })
 type Confirmation = {
   bid: WorkspaceEntry
   kind: "submit" | "backward" | "outcome" | "delete"
@@ -78,12 +82,14 @@ export function WorkspaceClient() {
   const search = useSearchParams()
   const router = useRouter()
   const query = search.toString()
+  const listQuery = workspaceListQuery(query)
   const filters = useMemo(
-    () => parseWorkspaceFilters(new URLSearchParams(query)),
-    [query]
+    () => parseWorkspaceFilters(new URLSearchParams(listQuery)),
+    [listQuery]
   )
   const [page, setPage] = useState<WorkspacePage>(emptyPage)
   const [loading, setLoading] = useState(true)
+  const [loadedQuery, setLoadedQuery] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const [selected, setSelected] = useState<WorkspaceEntry | null>(null)
@@ -110,8 +116,8 @@ export function WorkspaceClient() {
         const preferred = localStorage.getItem(
           `openbids:workspace-view:${identity}`
         )
-        if (!new URLSearchParams(query).has("view") && preferred === "board") {
-          const params = new URLSearchParams(query)
+        if (!new URLSearchParams(listQuery).has("view") && preferred === "board") {
+          const params = new URLSearchParams(window.location.search)
           params.set("view", "board")
           router.replace(`/workspace?${params}`, { scroll: false })
           return
@@ -124,7 +130,7 @@ export function WorkspaceClient() {
       setLoading(true)
       setError(false)
       try {
-        const params = new URLSearchParams(query)
+        const params = new URLSearchParams(listQuery)
         params.delete("bid")
         const isBoard = filters.view === "board" && filters.state === "active"
         if (isBoard)
@@ -154,6 +160,7 @@ export function WorkspaceClient() {
         const data = isBoard ? mergeBoardPages(pages) : pages[0]
         if (!controller.signal.aborted && current()) {
           setPage(data)
+          setLoadedQuery(listQuery)
           setLoading(false)
         }
       } catch (error) {
@@ -166,7 +173,7 @@ export function WorkspaceClient() {
     }
     void load()
     return () => controller.abort()
-  }, [query, identity, revision, refresh, accountGuard, router, filters])
+  }, [listQuery, identity, revision, refresh, accountGuard, router, filters])
   const selectedId = search.get("bid")
   useEffect(() => {
     if (!identity || !selectedId) return
@@ -536,9 +543,9 @@ export function WorkspaceClient() {
           </AlertDescription>
         </Alert>
       ) : null}
-      {loading && !page.items.length ? (
-        <WorkspaceRowsSkeleton />
-      ) : !error && !items.length ? (
+      {!error && loadedQuery !== listQuery ? (
+        filters.view === "board" && filters.state === "active" ? <WorkspaceBoardSkeleton /> : <WorkspaceRowsSkeleton />
+      ) : error && loadedQuery !== listQuery ? null : !error && !items.length ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -735,24 +742,6 @@ export function WorkspaceClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
-  )
-}
-export function WorkspaceRowsSkeleton() {
-  return (
-    <div className="space-y-3" aria-label="Loading bids">
-      {[1, 2, 3].map((value) => (
-        <Skeleton key={value} className="h-20 w-full" />
-      ))}
-    </div>
-  )
-}
-export function WorkspaceSkeleton() {
-  return (
-    <main className="mx-auto w-full max-w-7xl space-y-5 px-4 py-6 md:px-6">
-      <Skeleton className="h-8 w-44" />
-      <Skeleton className="h-8 w-72" />
-      <WorkspaceRowsSkeleton />
     </main>
   )
 }

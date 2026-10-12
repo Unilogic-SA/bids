@@ -53,10 +53,10 @@ export function PublicAppHeader() {
   const { account } = useAccount()
   const signedIn = account.status === "signed-in" || (account.status === "unavailable" && Boolean(account.user))
   if (pathname !== "/" && pathname !== "/workspace" && !pathname.startsWith("/tenders/") && !pathname.startsWith("/account/") && pathname !== "/forgot-password") return null
-  return <AppHeader key={signedIn ? "signed-in" : "public"} pathname={pathname} signedIn={signedIn} />
+  return <AppHeader pathname={pathname} signedIn={signedIn} loading={account.status === "loading"} />
 }
 
-function AppHeader({ pathname, signedIn }: { pathname: string; signedIn: boolean }) {
+function AppHeader({ pathname, signedIn, loading }: { pathname: string; signedIn: boolean; loading: boolean }) {
   const [navigationOpen, setNavigationOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const desktopSearch = useRef<HTMLInputElement>(null)
@@ -114,7 +114,10 @@ function AppHeader({ pathname, signedIn }: { pathname: string; signedIn: boolean
             </div> : null}
 
             <div className="ml-auto flex shrink-0 items-center gap-1">
-              {signedIn ? <>
+              {loading ? <div role="status" aria-label="Loading account" className="flex h-8 items-center gap-2">
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="size-8 rounded-full" />
+              </div> : signedIn ? <>
                 <CollapsibleTrigger asChild>
                   <Button aria-label="Toggle navigation" variant="ghost" size="icon" className="rounded-full md:hidden">
                     {navigationOpen ? <IconX /> : <IconMenu2 />}
@@ -130,7 +133,7 @@ function AppHeader({ pathname, signedIn }: { pathname: string; signedIn: boolean
                       <DialogDescription>Search tender numbers, buyers or keywords using your current filters.</DialogDescription>
                     </DialogHeader>
                     <Suspense fallback={<Skeleton className="h-8 w-full" aria-label="Loading search" />}>
-                      <HeaderTenderSearch id="header-mobile-q" />
+                      <HeaderTenderSearch id="header-mobile-q" onSearch={() => setSearchOpen(false)} />
                     </Suspense>
                   </DialogContent>
                 </Dialog>

@@ -1,9 +1,12 @@
 "use client"
 
+import Form from "next/form"
+import { ListingSubmitButton } from "@/components/listing-submit-button"
+
 import { useRef } from "react"
 import Link from "next/link"
 import { IconChevronDown } from "@tabler/icons-react"
-import { RotateCcwIcon, SearchIcon } from "lucide-react"
+import { RotateCcwIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -52,9 +55,8 @@ type ListingFilterIslandProps = {
 export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
   return (
     <Card size="sm">
-      <form
+      <Form
         action="/"
-        method="get"
         onSubmit={(event) => trackFilterApply("desktop", event.currentTarget)}
       >
         <CardContent>
@@ -73,12 +75,9 @@ export function ListingFilterIsland({ filters }: ListingFilterIslandProps) {
               Reset
             </Link>
           </Button>
-          <Button size="sm" type="submit">
-            <SearchIcon data-icon="inline-start" />
-            Apply
-          </Button>
+          <ListingSubmitButton size="sm" />
         </CardFooter>
-      </form>
+      </Form>
     </Card>
   )
 }
@@ -138,11 +137,10 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
               Choose search terms and filters, then apply them.
             </SheetDescription>
           </SheetHeader>
-          <form
+          <Form
             className="flex min-h-0 flex-col"
             action="/"
-            method="get"
-            onSubmit={(event) =>
+                onSubmit={(event) =>
               trackFilterApply("mobile_search", event.currentTarget)
             }
           >
@@ -169,12 +167,9 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
                   Reset
                 </Link>
               </Button>
-              <Button type="submit">
-                <SearchIcon data-icon="inline-start" />
-                Apply
-              </Button>
+              <ListingSubmitButton />
             </SheetFooter>
-          </form>
+          </Form>
         </SheetContent>
       </Sheet>
 
@@ -211,11 +206,10 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
               Choose how tenders are ordered, then apply your selection.
             </SheetDescription>
           </SheetHeader>
-          <form
+          <Form
             className="flex min-h-0 flex-col"
             action="/"
-            method="get"
-            onSubmit={(event) =>
+                onSubmit={(event) =>
               trackFilterApply("mobile_sort", event.currentTarget)
             }
           >
@@ -245,9 +239,9 @@ export function MobileListingControls({ filters }: ListingFilterIslandProps) {
                   Reset
                 </Link>
               </Button>
-              <Button type="submit">Apply</Button>
+              <ListingSubmitButton />
             </SheetFooter>
-          </form>
+          </Form>
         </SheetContent>
       </Sheet>
     </div>

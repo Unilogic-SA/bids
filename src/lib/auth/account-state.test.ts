@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { workspaceLabel, type AccountSnapshot, type AccountState } from "./account-state"
+import { isSameAccountAuthEvent, workspaceLabel, type AccountSnapshot, type AccountState } from "./account-state"
 import { createAccountSnapshotReader } from "./snapshot-reader"
 const flush = () => new Promise(resolve => setImmediate(resolve))
 const A: AccountSnapshot = { status: "signed-in", user: { id: "A", email: "a@example.test" }, profile: { displayName: "Alice" }, workspace: { id: "one", name: null } }
@@ -73,4 +73,30 @@ test("coalesced foreground then background failure cannot retain loading using s
   const reader=createAccountSnapshotReader(async()=>{if(offline)throw new Error("offline");return A},state=>states.push(state))
   reader.refresh();await flush();offline=true;reader.refresh();reader.refresh({background:true});await flush()
   assert.equal(states.at(-1)?.status,"unavailable");reader.dispose()
+})
+
+
+test("refocus SIGNED_IN and same-user updates keep the verified shell; sign-out and identity changes clear it", async () => {
+  const states: AccountState[] = []
+  let result: AccountSnapshot = A
+  const reader = createAccountSnapshotReader(async () => result, state => states.push(state))
+  reader.refresh(); await flush()
+  for (const event of ["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"]) {
+    const before = states.length
+    assert.equal(isSameAccountAuthEvent(event, "A", states.at(-1)!), true)
+    reader.refresh({ background: isSameAccountAuthEvent(event, "A", states.at(-1)!) })
+    assert.equal(states.length, before)
+    await flush()
+    assert.equal(states.at(-1)?.status, "signed-in")
+  }
+  for (const event of ["SIGNED_OUT", "PASSWORD_RECOVERY"]) assert.equal(isSameAccountAuthEvent(event, "A", A), false)
+  assert.equal(isSameAccountAuthEvent("SIGNED_IN", "B", A), false)
+  assert.equal(isSameAccountAuthEvent("TOKEN_REFRESHED", undefined, A), false)
+  assert.equal(isSameAccountAuthEvent("SIGNED_IN", "A", { status: "loading" }), false)
+  result = { status: "signed-out" }
+  reader.refresh({ background: isSameAccountAuthEvent("SIGNED_OUT", undefined, A) })
+  assert.equal(states.at(-1)?.status, "loading")
+  await flush()
+  assert.equal(states.at(-1)?.status, "signed-out")
+  reader.dispose()
 })

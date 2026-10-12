@@ -135,3 +135,13 @@ test("expanded board rereads only existing pages, deduplicates and retains corre
   assert.equal(merged.items[1].stage, "preparing")
   assert.equal(merged.counts.preparing, 1)
 })
+
+
+test("opening and closing a bid sheet does not change the workspace list request", async () => {
+  const { workspaceListQuery } = await import("./client-state")
+  const query = "view=board&q=software&state=active&offset_saved=30"
+  assert.equal(workspaceListQuery(`${query}&bid=one`), workspaceListQuery(query))
+  assert.equal(workspaceListQuery(`${query}&bid=two`), workspaceListQuery(query))
+  assert.notEqual(workspaceListQuery(`${query}&page=2`), workspaceListQuery(query))
+  assert.notEqual(workspaceListQuery("q=hardware"), workspaceListQuery(query))
+})

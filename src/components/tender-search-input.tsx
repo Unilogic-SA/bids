@@ -1,5 +1,7 @@
 "use client"
 
+import { useFormStatus } from "react-dom"
+import { Spinner } from "@/components/ui/spinner"
 import type { Ref } from "react"
 import { IconSearch } from "@tabler/icons-react"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
@@ -12,6 +14,7 @@ export function TenderSearchInput({ id, defaultValue, label, inputRef, shortcut 
   inputRef?: Ref<HTMLInputElement>
   shortcut?: boolean
 }) {
+  const { pending } = useFormStatus()
   return <InputGroup>
     <InputGroupInput
       ref={inputRef}
@@ -26,8 +29,8 @@ export function TenderSearchInput({ id, defaultValue, label, inputRef, shortcut 
     />
     <InputGroupAddon align="inline-end">
       {shortcut ? <Kbd aria-label="Control or Command plus slash">⌘ /</Kbd> : null}
-      <InputGroupButton aria-label="Search tenders" size="icon-xs" type="submit">
-        <IconSearch data-icon="inline-start" />
+      <InputGroupButton aria-label="Search tenders" size="icon-xs" type="submit" disabled={pending}>
+        {pending ? <Spinner aria-label="Searching tenders" /> : <IconSearch data-icon="inline-start" />}
       </InputGroupButton>
     </InputGroupAddon>
   </InputGroup>

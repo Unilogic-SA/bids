@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+import { DiscoverResultsSkeleton } from "@/components/discover-skeleton"
 import { FileSearchIcon } from "lucide-react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
@@ -87,10 +89,6 @@ export async function generateMetadata({
 export default async function Home({ searchParams }: HomeProps) {
   const rawSearchParams = await searchParams
   const filters = parseListingSearchParams(rawSearchParams)
-  const page = filters.page
-  const listing = await getTenderListing(filters)
-  if (listing.resolvedPage !== page) redirect(buildListingHref({ ...filters, page: listing.resolvedPage }))
-  const activeFilterCount = countActiveListingFilters(filters)
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -113,77 +111,89 @@ export default async function Home({ searchParams }: HomeProps) {
       />
       <main className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-4 md:px-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
         <div className="sticky top-12 z-20 bg-background/95 py-1.5 backdrop-blur lg:hidden">
-          <MobileListingControls filters={filters} />
+          <MobileListingControls key={buildListingHref(filters)} filters={filters} />
         </div>
 
         <aside
           aria-label="Tender filters"
           className="hidden lg:sticky lg:top-16 lg:block lg:self-start"
         >
-          <ListingFilterIsland filters={filters} />
+          <ListingFilterIsland key={buildListingHref(filters)} filters={filters} />
         </aside>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <ListingResultCount
-            isFiltered={activeFilterCount > 0}
-            totalCount={listing.totalCount}
-          />
-
-          <section className="flex flex-col gap-3" aria-label="Tender results">
-            {listing.items.length > 0 ? (
-              listing.items.map((tender, index) => (
-                <TenderListItem
-                  key={tender.ocid}
-                  analytics={{
-                    activeFilterCount,
-                    page,
-                    position: index + 1,
-                  }}
-                  buyer={tender.buyer_name || tender.department}
-                  closingDate={tender.closing_at}
-                  detailUrl={buildTenderDetailHref(
-                    tender.detail_path || buildTenderPath(tender.ocid),
-                    filters,
-                    index + 1
-                  )}
-                  documentsCount={tender.documents_count}
-                  industry={tender.industry}
-                  isNew={tender.is_new}
-                  procurementType={formatProcurementType(tender)}
-                  publishedAt={tender.published_at}
-                  resultId={buildTenderResultId(index + 1)}
-                  province={tender.province}
-                  tenderNumber={tender.tender_no}
-                  title={
-                    tender.bid_description || tender.title_snippet || tender.title
-                  }
-                />
-              ))
-            ) : (
-              <Empty>
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <FileSearchIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>No tenders found</EmptyTitle>
-                  <EmptyDescription>
-                    No open tenders match the current filters.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </section>
-
-          {listing.pageCount > 1 ? (
-            <TenderPagination
-              currentPage={page}
-              filters={filters}
-              pageCount={listing.pageCount}
-            />
-          ) : null}
-        </div>
+        <Suspense key={buildListingHref(filters)} fallback={<DiscoverResultsSkeleton />}>
+          <TenderResults filters={filters} />
+        </Suspense>
       </main>
     </div>
+  )
+}
+
+async function TenderResults({ filters }: { filters: ReturnType<typeof parseListingSearchParams> }) {
+  const page = filters.page
+  const listing = await getTenderListing(filters)
+  if (listing.resolvedPage !== page) redirect(buildListingHref({ ...filters, page: listing.resolvedPage }))
+  const activeFilterCount = countActiveListingFilters(filters)
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+    <ListingResultCount
+      isFiltered={activeFilterCount > 0}
+      totalCount={listing.totalCount}
+    />
+
+    <section className="flex flex-col gap-3" aria-label="Tender results">
+      {listing.items.length > 0 ? (
+        listing.items.map((tender, index) => (
+          <TenderListItem
+            key={tender.ocid}
+            analytics={{
+              activeFilterCount,
+              page,
+              position: index + 1,
+            }}
+            buyer={tender.buyer_name || tender.department}
+            closingDate={tender.closing_at}
+            detailUrl={buildTenderDetailHref(
+              tender.detail_path || buildTenderPath(tender.ocid),
+              filters,
+              index + 1
+            )}
+            documentsCount={tender.documents_count}
+            industry={tender.industry}
+            isNew={tender.is_new}
+            procurementType={formatProcurementType(tender)}
+            publishedAt={tender.published_at}
+            resultId={buildTenderResultId(index + 1)}
+            province={tender.province}
+            tenderNumber={tender.tender_no}
+            title={
+              tender.bid_description || tender.title_snippet || tender.title
+            }
+          />
+        ))
+      ) : (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileSearchIcon />
+            </EmptyMedia>
+            <EmptyTitle>No tenders found</EmptyTitle>
+            <EmptyDescription>
+              No open tenders match the current filters.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+    </section>
+
+    {listing.pageCount > 1 ? (
+      <TenderPagination
+        currentPage={page}
+        filters={filters}
+        pageCount={listing.pageCount}
+      />
+    ) : null}
+  </div>
   )
 }
 

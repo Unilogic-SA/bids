@@ -1,3 +1,7 @@
+"use client"
+
+import Link, { useLinkStatus } from "next/link"
+import { Spinner } from "@/components/ui/spinner"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -36,12 +40,13 @@ function PaginationItem({ ...props }: React.ComponentProps<"li">) {
 type PaginationLinkProps = {
   isActive?: boolean
 } & Pick<React.ComponentProps<typeof Button>, "size"> &
-  React.ComponentProps<"a">
+  React.ComponentProps<typeof Link>
 
 function PaginationLink({
   className,
   isActive,
   size = "icon",
+  children,
   ...props
 }: PaginationLinkProps) {
   return (
@@ -51,14 +56,24 @@ function PaginationLink({
       size={size}
       className={cn(className)}
     >
-      <a
+      <Link
         aria-current={isActive ? "page" : undefined}
         data-slot="pagination-link"
         data-active={isActive}
         {...props}
-      />
+      >
+        <PaginationLinkContent>{children}</PaginationLinkContent>
+      </Link>
     </Button>
   )
+}
+
+function PaginationLinkContent({ children }: { children: React.ReactNode }) {
+  const { pending } = useLinkStatus()
+  return <span className="relative inline-flex items-center gap-1" aria-busy={pending}>
+    <span className={cn("inline-flex items-center gap-1", pending && "invisible")}>{children}</span>
+    {pending ? <Spinner className="absolute left-1/2 -translate-x-1/2" aria-label="Loading tenders" /> : null}
+  </span>
 }
 
 function PaginationPrevious({

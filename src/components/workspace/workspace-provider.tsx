@@ -121,9 +121,13 @@ function ScopedWorkspaceProvider({
     queues.current.clear()
     const controllers = new Set<AbortController>()
     let request = 0
-    const load = async () => {
+    const load = async (notify = false) => {
       if (!identity) return
       const ids = Array.from(visible.current.keys())
+      if (!ids.length) {
+        if (notify) setSnapshot(previous => ({ ...previous, scope: identity, revision: previous.revision + 1 }))
+        return
+      }
       const sequence = ++request
       for (const previous of controllers) previous.abort()
       controllers.clear()
@@ -165,11 +169,11 @@ function ScopedWorkspaceProvider({
       }
     }
     refreshRef.current = () => {
-      void load()
+      void load(true)
     }
     void load()
     const focus = () => {
-      void load()
+      void load(true)
     }
     window.addEventListener("focus", focus)
     let broadcast: BroadcastChannel | null = null

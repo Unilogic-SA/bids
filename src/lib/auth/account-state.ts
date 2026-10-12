@@ -14,3 +14,9 @@ export type CustomerActionState = {
 export const initialCustomerActionState: CustomerActionState = { status: "idle", message: "", email: "" }
 
 export function workspaceLabel(name?: string | null) { return name?.trim() || "Your workspace" }
+
+/** Same-user SDK notifications revalidate without pretending the user signed out. */
+export function isSameAccountAuthEvent(event: string, userId: string | undefined, account: AccountState) {
+  return ["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event) &&
+    account.status === "signed-in" && Boolean(userId) && userId === account.user.id
+}

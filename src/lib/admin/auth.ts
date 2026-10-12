@@ -1,3 +1,4 @@
+import { cache } from "react"
 import type { User } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 
@@ -36,7 +37,8 @@ export async function requireAdminSession(): Promise<AdminSession> {
   return session
 }
 
-export async function getAdminSession(): Promise<AdminSession | null> {
+// Layout and page share one verified read per server render, never across requests.
+export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   if (!hasSupabasePublicConfig() || !hasSupabaseServiceRoleConfig()) {
     return null
   }
@@ -53,7 +55,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   if (!admin) return null
 
   return { user, admin }
-}
+})
 
 export async function getAllowedAdminUser(
   user: Pick<User, "id" | "email">
