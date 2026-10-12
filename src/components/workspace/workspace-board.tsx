@@ -11,7 +11,11 @@ import {
   type DragEndEvent,
   type KeyboardCoordinateGetter
 } from "@dnd-kit/core"
-import { IconGripVertical } from "@tabler/icons-react"
+import {
+  IconCalendar,
+  IconChecklist,
+  IconGripVertical
+} from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +36,7 @@ import {
   type WorkspaceEntry
 } from "@/lib/workspace/types"
 import { attentionSignals, workspaceDate } from "@/lib/workspace/presentation"
+import { BidStateLabel, bidStateTriggerClass } from "./stage-presentation"
 import { BidStageMenu } from "./bid-stage-menu"
 import { cn } from "@/lib/utils"
 const keyboardCoordinates: KeyboardCoordinateGetter = (
@@ -87,13 +92,19 @@ export function WorkspaceBoard(props: Props) {
           value={mobileStage}
           onValueChange={(value) => setMobileStage(value as BidStage)}
         >
-          <SelectTrigger className="w-full" aria-label="Board stage">
+          <SelectTrigger
+            className={cn("w-full", bidStateTriggerClass(mobileStage))}
+            aria-label="Board stage"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {BID_STAGES.map((stage) => (
               <SelectItem value={stage} key={stage}>
-                {STAGE_LABELS[stage]} ({props.counts[stage]})
+                <BidStateLabel state={stage} />{" "}
+                <span className="text-muted-foreground">
+                  ({props.counts[stage]})
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -129,13 +140,20 @@ function Column({ stage, ...props }: Props & { stage: BidStage }) {
       ref={setNodeRef}
       aria-label={STAGE_LABELS[stage]}
       className={cn(
-        "min-w-0 w-full shrink-0 rounded-lg border bg-muted/30 p-3 md:w-64",
-        isOver && "border-primary bg-primary/5"
+        "min-w-0 w-full shrink-0 rounded-lg bg-muted/20 p-2 md:w-56 xl:flex-1",
+        isOver && "bg-primary/5 ring-2 ring-inset ring-primary/40"
       )}
     >
-      <header className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium">{STAGE_LABELS[stage]}</h2>
-        <Badge variant="secondary">{props.counts[stage] || 0}</Badge>
+      <header className="mb-3 flex items-center justify-between gap-2 px-1 py-1">
+        <h2 className="text-sm font-medium">
+          <BidStateLabel state={stage} />
+        </h2>
+        <Badge
+          variant="secondary"
+          className="bg-background/70 text-xs font-normal tabular-nums"
+        >
+          {props.counts[stage] || 0}
+        </Badge>
       </header>
       <div className="min-h-32 space-y-2">
         {items.map((bid) => (
@@ -168,44 +186,62 @@ function BidCard({ bid, ...props }: Props & { bid: WorkspaceEntry }) {
   return (
     <Card
       ref={setNodeRef}
-      className={cn("gap-0 py-0", isDragging && "z-20 opacity-70")}
+      className={cn(
+        "gap-0 border-border/70 py-0 shadow-none transition-colors hover:border-primary/30",
+        isDragging && "z-20 opacity-70"
+      )}
       style={
         transform
           ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
           : undefined
       }
     >
-      <CardContent className="space-y-2 p-3">
+      <CardContent className="space-y-3 p-3">
         <div className="flex items-start gap-1">
           <Button
             type="button"
             variant="link"
-            className="h-auto min-w-0 flex-1 justify-start whitespace-normal p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
+            className="h-auto min-w-0 flex-1 justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
             onClick={() => props.onOpen(bid)}
           >
-            {bid.tender.title || bid.tender.tender_no || "Saved tender"}
+            <span className="min-w-0 break-words">
+              {bid.tender.title || bid.tender.tender_no || "Saved tender"}
+            </span>
           </Button>
           <Button
             {...attributes}
             {...listeners}
             variant="ghost"
             size="icon-sm"
-            className="touch-none shrink-0"
+            className="touch-none shrink-0 text-muted-foreground hover:text-foreground"
             disabled={disabled}
             aria-label={`Move ${bid.tender.tender_no || bid.tender.title}`}
           >
             <IconGripVertical />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="break-words text-xs leading-relaxed text-muted-foreground">
           {bid.tender.buyer_name || "Buyer not supplied"}
         </p>
-        <p className="text-xs">{workspaceDate(bid.tender.closing_at)}</p>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
-            {bid.checklist.filter((item) => item.completed).length}/
-            {bid.checklist.length} prepared
+        <p className="flex items-start gap-1.5 text-xs leading-relaxed">
+          <IconCalendar
+            aria-hidden="true"
+            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+          />
+          <span>
+            <span className="text-muted-foreground">Closes </span>
+            {workspaceDate(bid.tender.closing_at)}
           </span>
+        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {bid.checklist.length ? (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <IconChecklist aria-hidden="true" className="size-3.5" />
+              {bid.checklist.filter((item) => item.completed).length}/
+              {bid.checklist.length}
+              <span className="sr-only"> checklist items complete</span>
+            </span>
+          ) : null}
           <BidStageMenu
             bid={bid}
             disabled={disabled}
