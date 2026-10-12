@@ -7,8 +7,44 @@ export function googleMeasurementId(value: string | undefined) {
   return value && /^G-[A-Z0-9]+$/.test(value) ? value : null
 }
 
+export function isMeasurementHost(hostname: string) {
+  return hostname === "www.openbid.co.za" || hostname === "openbid.co.za"
+}
+
+export function analyticsAllowed() {
+  return typeof window !== "undefined" && isMeasurementHost(window.location.hostname) && analyticsChoice() === "allowed"
+}
+
 const campaignKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_id", "utm_content"] as const
 const campaignStorageKey = "openbids_campaign"
+const consentStorageKey = "openbids_google_analytics_v1"
+export type AnalyticsChoice = "allowed" | "declined" | null
+let temporaryChoice: AnalyticsChoice = null
+
+export function analyticsChoice(): AnalyticsChoice {
+  if (typeof window === "undefined") return null
+  try {
+    const value = window.localStorage.getItem(consentStorageKey)
+    return value === "allowed" || value === "declined" ? value : temporaryChoice
+  } catch { return temporaryChoice }
+}
+
+export function setAnalyticsChoice(choice: Exclude<AnalyticsChoice, null>) {
+  temporaryChoice = choice
+  try { window.localStorage.setItem(consentStorageKey, choice) } catch { /* Keep the choice for this tab if storage is blocked. */ }
+  window.dispatchEvent(new Event("openbids-analytics-choice"))
+}
+
+export function subscribeAnalyticsChoice(callback: () => void) {
+  window.addEventListener("storage", callback)
+  window.addEventListener("openbids-analytics-choice", callback)
+  return () => {
+    window.removeEventListener("storage", callback)
+    window.removeEventListener("openbids-analytics-choice", callback)
+  }
+}
+
+export type MeasurementContext = { location: string; referrer: string; path: string }
 const eventFields = new Set([
   "active_filters", "buyer_present", "query_length", "query_present", "surface",
   "documents_count", "has_closing_date", "is_new", "page", "position",
@@ -23,6 +59,7 @@ declare global {
   interface Window {
     dataLayer?: unknown[]
     gtag?: GoogleCommand
+    openbidsMeasurementContext?: MeasurementContext
   }
 }
 
@@ -61,7 +98,9 @@ export function currentCampaign() {
 }
 
 export function measurementUrl(url: URL) {
-  const clean = new URL(url.pathname, url.origin)
+  // The dynamic segment is user-controlled even when it results in a 404.
+  // Use a generic tender path instead of exporting arbitrary IDs or encoded text.
+  const clean = new URL(url.pathname === "/" ? "/" : "/tenders/detail", url.origin)
   // Keep attribution and Google's click IDs, never search text, buyer or auth parameters.
   for (const [key, value] of Object.entries(campaignAttribution(url))) clean.searchParams.set(key, value)
   for (const key of ["gclid", "gbraid", "wbraid"]) {
@@ -78,15 +117,20 @@ export function measurementReferrer(value: string) {
   } catch { return "" }
 }
 
+export function nextMeasurementContext(url: URL, previous: MeasurementContext | undefined, referrer: string): MeasurementContext {
+  const location = measurementUrl(url)
+  return { location, path: url.pathname, referrer: previous?.path === url.pathname ? previous.referrer : previous?.location || measurementReferrer(referrer) }
+}
+
 export function trackGoogleEvent(eventName: string, data: EventData = {}) {
   const id = googleMeasurementId(process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID)
-  if (!id || typeof window === "undefined" || !isMeasurementPage(window.location.pathname)) return
+  if (!id || typeof window === "undefined" || !analyticsAllowed() || !isMeasurementPage(window.location.pathname)) return
   // Existing tender events only. Do not forward arbitrary account events to Google.
   if (!/^tender_[a-z_]+$/.test(eventName)) return
   window.gtag?.("event", eventName, {
     ...safeGoogleEventData(data), ...currentCampaign(), send_to: id,
     page_location: measurementUrl(new URL(window.location.href)),
-    page_referrer: measurementReferrer(document.referrer),
+    page_referrer: window.openbidsMeasurementContext?.referrer || measurementReferrer(document.referrer),
     page_title: window.location.pathname === "/" ? "OpenBids tender search" : "OpenBids tender detail",
   })
 }

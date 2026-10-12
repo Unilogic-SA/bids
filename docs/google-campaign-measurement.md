@@ -16,8 +16,10 @@ checked in the full account after onboarding, before enabling delivery.
    `G-...` measurement ID. Disable **Enhanced measurement** on that stream.
    This app sends page views itself; automatic history, outbound-link, download,
    form and site-search measurement can duplicate events or expose raw URLs.
-3. Add `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` to the intended Vercel environment and
-   redeploy this change. Leave it blank in ordinary previews. No Ads tag ID or
+3. The actual public web-stream ID is set in tracked `.env.production` (no
+   secrets). `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` may override it in Vercel.
+   Google collection is restricted to `openbid.co.za` and `www.openbid.co.za`;
+   preview/local hosts never collect into the live property. No Ads tag ID or
    conversion label is fabricated. Google measurement is disabled without a
    valid ID. Existing Umami measurement remains active.
 4. Verify GA4 Realtime/DebugView using a tagged visit, opening a tender, and
@@ -36,9 +38,17 @@ The campaign's Final URL suffix is:
 utm_source=google&utm_medium=cpc&utm_campaign=openbids_search_launch&utm_id={campaignid}&utm_term={keyword}&utm_content={creative}
 ```
 
+Google loads only after the visitor chooses **Allow analytics** in a compact
+shadcn notice. **No thanks** keeps it disabled; **Analytics preferences** lets
+visitors change that choice later. The notice discloses optional analytics
+cookies and links to Google's data-use explanation. No collection starts merely
+because the measurement ID is configured.
+
 Google receives allowlisted tender interaction fields, generic page titles and
 sanitised public URLs. Search/buyer text, auth parameters, contact values and
-document URLs are excluded. Public routes are `/` and individual tender pages;
+document URLs are excluded. Tender page URLs use a generic `/tenders/detail`
+measurement path so arbitrary route segments never reach Google. Virtual
+referrers advance between page navigations. Public routes are `/` and individual tender pages;
 account, workspace, auth, API and admin routes do not send custom events or
 page views, and Google's analytics disable flag is set on those routes. Enhanced
 measurement must remain off as above. Google Signals and ad personalisation
