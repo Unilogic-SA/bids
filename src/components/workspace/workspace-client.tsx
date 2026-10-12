@@ -48,7 +48,6 @@ import { WorkspaceBoard } from "./workspace-board"
 import { BidPanel } from "./bid-panel"
 import {
   BID_STAGES,
-  STAGE_LABELS,
   OUTCOME_LABELS,
   type BidStage,
   type BidOutcome,
@@ -57,6 +56,8 @@ import {
   type WorkspaceEntry,
   type WorkspacePage
 } from "@/lib/workspace/types"
+import { cn } from "@/lib/utils"
+import { BidStateLabel, bidStateTriggerClass } from "./stage-presentation"
 import { parseWorkspaceFilters } from "@/lib/workspace/validation"
 import { boardRounds, mergeBoardPages } from "@/lib/workspace/board"
 import { fromSastInput, sastInput } from "@/lib/workspace/presentation"
@@ -473,14 +474,20 @@ export function WorkspaceClient() {
             changeFilter("stage", value === "all" ? "" : value)
           }
         >
-          <SelectTrigger className="h-8 w-40" aria-label="Filter by bid stage">
+          <SelectTrigger
+            className={cn(
+              "h-8 w-40",
+              filters.stage !== "all" && bidStateTriggerClass(filters.stage)
+            )}
+            aria-label="Filter by bid stage"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All stages</SelectItem>
             {BID_STAGES.map((value) => (
               <SelectItem key={value} value={value}>
-                {STAGE_LABELS[value]}
+                <BidStateLabel state={value} />
               </SelectItem>
             ))}
           </SelectContent>
@@ -499,6 +506,7 @@ export function WorkspaceClient() {
         </div>
         {filters.q || filters.stage !== "all" || filters.week ? (
           <Button
+            type="button"
             size="sm"
             variant="ghost"
             onClick={() => {

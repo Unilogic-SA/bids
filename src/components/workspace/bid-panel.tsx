@@ -54,6 +54,7 @@ import type {
   MutationResult,
   WorkspaceEntry
 } from "@/lib/workspace/types"
+import { cn } from "@/lib/utils"
 import { BidStageMenu } from "./bid-stage-menu"
 
 type Props = {
@@ -117,38 +118,48 @@ export function BidPanel(props: Props) {
       </DialogContent>
     </Dialog>
   )
+  const title =
+    props.bid.tender.title || props.bid.tender.tender_no || "Saved tender"
+  const reference = props.bid.tender.tender_no
+  const showReference = Boolean(
+    reference && reference.trim().toLowerCase() !== title.trim().toLowerCase()
+  )
+  const description = (
+    <>
+      <span className="block">
+        {props.bid.tender.buyer_name || "Buyer not supplied"}
+      </span>
+      {showReference ? (
+        <span className="mt-1 block text-xs">{reference}</span>
+      ) : null}
+    </>
+  )
   const header = (
     <>
       <div className="pr-7">
         {mobile ? (
-          <DrawerTitle className="text-left leading-snug">
-            {props.bid.tender.title ||
-              props.bid.tender.tender_no ||
-              "Saved tender"}
+          <DrawerTitle className="break-words text-left text-base font-semibold leading-snug">
+            {title}
           </DrawerTitle>
         ) : (
-          <SheetTitle className="leading-snug">
-            {props.bid.tender.title ||
-              props.bid.tender.tender_no ||
-              "Saved tender"}
+          <SheetTitle className="break-words text-base font-semibold leading-snug">
+            {title}
           </SheetTitle>
         )}
       </div>
       {mobile ? (
-        <DrawerDescription className="text-left">
-          {props.bid.tender.buyer_name || "Buyer not supplied"} ·{" "}
-          {props.bid.tender.tender_no}
+        <DrawerDescription className="mt-2 text-left text-xs leading-relaxed">
+          {description}
         </DrawerDescription>
       ) : (
-        <SheetDescription>
-          {props.bid.tender.buyer_name || "Buyer not supplied"} ·{" "}
-          {props.bid.tender.tender_no}
+        <SheetDescription className="mt-2 text-xs leading-relaxed">
+          {description}
         </SheetDescription>
       )}
     </>
   )
   const body = (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
       <Preparation
         key={props.bid.id}
         {...props}
@@ -174,7 +185,9 @@ export function BidPanel(props: Props) {
           className="h-[90dvh] data-[vaul-drawer-direction=bottom]:max-h-[90dvh]"
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
-          <DrawerHeader>{header}</DrawerHeader>
+          <DrawerHeader className="shrink-0 border-b px-4 pb-4 text-left">
+            {header}
+          </DrawerHeader>
           {body}
           <DrawerClose asChild>
             <Button
@@ -201,10 +214,12 @@ export function BidPanel(props: Props) {
       }}
     >
       <SheetContent
-        className="w-full sm:max-w-xl"
+        className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
-        <SheetHeader>{header}</SheetHeader>
+        <SheetHeader className="shrink-0 border-b px-6 py-5">
+          {header}
+        </SheetHeader>
         {body}
       </SheetContent>
     </Sheet>
@@ -387,19 +402,19 @@ function Preparation({
           ))}
         </div>
       ) : null}
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+      <dl className="grid gap-4 text-xs sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground">Official closing time</dt>
-          <dd className="mt-1 font-medium">
+          <dd className="mt-1 leading-relaxed">
             {workspaceDate(bid.tender.closing_at)}
           </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Briefing</dt>
-          <dd className="mt-1 font-medium">
+          <dd className="mt-1 leading-relaxed">
             {workspaceDate(bid.tender.briefing_datetime)}
             {bid.tender.compulsory_briefing ? (
-              <Badge variant="secondary" className="mt-1">
+              <Badge variant="secondary" className="ml-1 align-middle">
                 Compulsory
               </Badge>
             ) : null}
@@ -421,8 +436,10 @@ function Preparation({
           </p>
         </div>
       ) : null}
-      <section className="space-y-2">
-        <Label htmlFor="bid-next-action">Next action</Label>
+      <section className="space-y-3 border-t pt-5">
+        <Label htmlFor="bid-next-action" className="text-sm font-medium">
+          Next action
+        </Label>
         <Input
           id="bid-next-action"
           maxLength={200}
@@ -463,14 +480,16 @@ function Preparation({
             dirty(notesDirty, true)
           }}
         />
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending || !nextDirty}
-          onClick={() => void saveNext()}
-        >
-          Save next action
-        </Button>
+        {nextDirty || nextConflict ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending || !nextDirty}
+            onClick={() => void saveNext()}
+          >
+            Save next action
+          </Button>
+        ) : null}
         {nextConflict ? (
           <Alert>
             <AlertDescription className="text-xs">
@@ -481,13 +500,15 @@ function Preparation({
           </Alert>
         ) : null}
       </section>
-      <section className="space-y-2">
+      <section className="space-y-3 border-t pt-5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Preparation checklist</h3>
-          <span className="text-xs text-muted-foreground">
-            {shownChecklist.filter((item) => item.completed).length}/
-            {shownChecklist.length}
-          </span>
+          {shownChecklist.length ? (
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {shownChecklist.filter((item) => item.completed).length}/
+              {shownChecklist.length}
+            </span>
+          ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
           Editable prompts to help you prepare. Check the tender’s full
@@ -504,7 +525,7 @@ function Preparation({
         ) : null}
         <div className="space-y-2">
           {shownChecklist.map((item, index) => (
-            <div key={item.id} className="flex items-center gap-2">
+            <div key={item.id} className="group flex items-center gap-2">
               <Checkbox
                 aria-label={`Complete ${item.label}`}
                 checked={item.completed}
@@ -529,7 +550,10 @@ function Preparation({
                 aria-label={`Checklist item ${index + 1}`}
                 value={item.label}
                 maxLength={200}
-                className="h-8"
+                className={cn(
+                  "h-8 border-transparent bg-transparent px-2 shadow-none hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:bg-background focus-visible:text-foreground focus-visible:no-underline dark:bg-transparent",
+                  item.completed && "text-muted-foreground line-through"
+                )}
                 disabled={pending}
                 onChange={(event) => {
                   setChecklist(
@@ -552,6 +576,7 @@ function Preparation({
                 size="icon-sm"
                 variant="ghost"
                 disabled={pending}
+                className="shrink-0 text-muted-foreground opacity-60 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
                 aria-label={`Remove ${item.label}`}
                 onClick={() => {
                   setChecklist(
@@ -571,7 +596,7 @@ function Preparation({
             </div>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="ghost"
@@ -595,18 +620,20 @@ function Preparation({
             <IconPlus data-icon="inline-start" />
             Add item
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={
-              pending ||
-              !checklistDirty ||
-              shownChecklist.some((item) => !item.label.trim())
-            }
-            onClick={() => void saveChecklist()}
-          >
-            Save checklist
-          </Button>
+          {checklistDirty || checklistConflict ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                pending ||
+                !checklistDirty ||
+                shownChecklist.some((item) => !item.label.trim())
+              }
+              onClick={() => void saveChecklist()}
+            >
+              Save checklist
+            </Button>
+          ) : null}
         </div>
         {checklistConflict ? (
           <Alert>
@@ -620,9 +647,11 @@ function Preparation({
           </Alert>
         ) : null}
       </section>
-      <section className="space-y-2">
+      <section className="space-y-3 border-t pt-5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="bid-notes">Private notes</Label>
+          <Label htmlFor="bid-notes" className="text-sm font-medium">
+            Private notes
+          </Label>
           <span role="status" className="text-xs text-muted-foreground">
             {status === "saving"
               ? "Saving…"
@@ -653,18 +682,22 @@ function Preparation({
           }}
         />
         <div className="flex items-center justify-between">
-          <Button
-            size="sm"
-            disabled={pending || !notesDirty}
-            onClick={() => void saveNotes()}
-          >
-            {status === "failed" || status === "conflict"
-              ? "Retry save notes"
-              : "Save notes"}
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            {notes.length}/10,000
-          </span>
+          {notesDirty || status !== "saved" ? (
+            <Button
+              size="sm"
+              disabled={pending || !notesDirty}
+              onClick={() => void saveNotes()}
+            >
+              {status === "failed" || status === "conflict"
+                ? "Retry save notes"
+                : "Save notes"}
+            </Button>
+          ) : null}
+          {notesDirty || status !== "saved" ? (
+            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+              {notes.length}/10,000
+            </span>
+          ) : null}
         </div>
         {status === "conflict" ? (
           <Alert>

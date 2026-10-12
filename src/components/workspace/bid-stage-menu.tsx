@@ -1,5 +1,7 @@
 "use client"
 import { IconChevronDown } from "@tabler/icons-react"
+import { cn } from "@/lib/utils"
+import { BidStateLabel, bidStateTriggerClass } from "./stage-presentation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -10,8 +12,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   BID_STAGES,
-  STAGE_LABELS,
-  OUTCOME_LABELS,
   type BidStage,
   type BidOutcome,
   type WorkspaceEntry
@@ -33,11 +33,14 @@ export function BidStageMenu({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 max-w-full"
+          className={cn(
+            "h-8 max-w-full gap-2",
+            bidStateTriggerClass(bid.outcome || bid.stage)
+          )}
           disabled={disabled}
           aria-label={`Change stage for ${bid.tender.tender_no || bid.tender.title}`}
         >
-          {bid.outcome ? OUTCOME_LABELS[bid.outcome] : STAGE_LABELS[bid.stage]}
+          <BidStateLabel state={bid.outcome || bid.stage} />
           <IconChevronDown data-icon="inline-end" />
         </Button>
       </DropdownMenuTrigger>
@@ -53,7 +56,7 @@ export function BidStageMenu({
               disabled={stage === bid.stage}
               onSelect={() => onStage(bid, stage)}
             >
-              {STAGE_LABELS[stage]}
+              <BidStateLabel state={stage} />
             </DropdownMenuItem>
           ))
         )}
@@ -63,21 +66,21 @@ export function BidStageMenu({
             {bid.stage === "submitted" ? (
               <>
                 <DropdownMenuItem onSelect={() => onOutcome(bid, "won")}>
-                  Won
+                  <BidStateLabel state="won" />
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => onOutcome(bid, "unsuccessful")}
                 >
-                  Unsuccessful
+                  <BidStateLabel state="unsuccessful" />
                 </DropdownMenuItem>
               </>
             ) : (
               <DropdownMenuItem onSelect={() => onOutcome(bid, "not_bidding")}>
-                Not bidding
+                <BidStateLabel state="not_bidding" />
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onSelect={() => onOutcome(bid, "withdrawn")}>
-              Withdrawn
+              <BidStateLabel state="withdrawn" />
             </DropdownMenuItem>
           </>
         ) : null}
