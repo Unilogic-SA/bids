@@ -12,7 +12,7 @@ export function getSafePublicNextPath(value?: string | null) {
     // Reject encoded path separators, dot segments, and repeated encoding.
     const decoded = decodeURIComponent(path)
     if (decoded !== path || path.includes("//")) return "/"
-    if (path === "/" || path === "/account/settings" || /^\/tenders\/[A-Za-z0-9_-]+$/.test(path)) {
+    if (path === "/" || path === "/workspace" || path === "/account/settings" || /^\/tenders\/[A-Za-z0-9_-]+$/.test(path)) {
       return `${path}${url.search}${url.hash}`
     }
   } catch { /* Invalid URL or percent encoding. */ }

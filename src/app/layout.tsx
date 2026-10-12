@@ -5,6 +5,7 @@ import "./globals.css";
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { PublicAppHeader } from "@/components/public-app-header";
+import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
 import { AccountProvider } from "@/components/account/account-provider";
 
 const figtreeHeading = Figtree({
@@ -87,8 +88,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AccountProvider>
-          <PublicAppHeader />
-          {children}
+          <WorkspaceProvider>
+            <PublicAppHeader />
+            {children}
+          </WorkspaceProvider>
         </AccountProvider>
       </body>
       <Script

@@ -18,3 +18,8 @@ test("trusted callback origin never comes from forwarded hosts", () => {
 test("URL canonicalization cannot hide encoded path confusion", () => {
   for (const path of ["/auth/%2e%2e/tenders/one", "/auth/../tenders/one", "/%2e/tenders/one", "/tenders/one//", "/tenders/one%2f"]) assert.equal(getSafePublicNextPath(path), "/")
 })
+test("workspace login return allows private deep links and rejects nested/encoded paths", () => {
+  assert.equal(getSafePublicNextPath("/workspace?bid=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&view=board"),"/workspace?bid=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&view=board")
+  assert.equal(getSafePublicNextPath("/workspace/other"),"/")
+  assert.equal(getSafePublicNextPath("/work%73pace"),"/")
+})

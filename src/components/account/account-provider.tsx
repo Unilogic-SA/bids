@@ -22,7 +22,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    const publicRoute = pathname === "/" || pathname.startsWith("/tenders/") || pathname.startsWith("/account/") || ["/sign-in", "/sign-up", "/forgot-password"].includes(pathname)
+    const publicRoute = pathname === "/" || pathname === "/workspace" || pathname.startsWith("/tenders/") || pathname.startsWith("/account/") || ["/sign-in", "/sign-up", "/forgot-password"].includes(pathname)
     if (!publicRoute) return
     let disposed = false
     const reader = createAccountSnapshotReader(async signal => {
@@ -35,7 +35,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     const client = createBrowserAuthClient()
     // Queue work outside Supabase's synchronous callback/lock.
     const subscription = client?.auth.onAuthStateChange(event => {
-      if (event !== "INITIAL_SESSION") queueMicrotask(() => { if (!disposed) refresh() })
+      if (event !== "INITIAL_SESSION") queueMicrotask(() => { if (!disposed) { if (event === "TOKEN_REFRESHED") reader.refresh({ background: true }); else refresh() } })
     })
     let channel: BroadcastChannel | null = null
     try {
@@ -46,7 +46,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // emitting a browser SDK event. Notify other tabs to read fresh identity.
       channel.postMessage("refresh")
     } catch { /* Auth SDK events and focus still refresh when channels are unavailable. */ }
-    const focus = () => refresh()
+    // Focus revalidation preserves drafts for the same account. Auth events
+    // and explicit sign-out still clear identity immediately.
+    const focus = () => reader.refresh({ background: true })
     window.addEventListener("focus", focus)
     refresh()
     return () => {
