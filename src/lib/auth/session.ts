@@ -19,14 +19,14 @@ export async function getCustomerAccount(): Promise<AccountSnapshot> {
     const identity = { id: user.id, email: user.email! }
     const [profile, membership] = await Promise.all([
       supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
-      supabase.from("company_memberships").select("company_id,role").eq("user_id", user.id).maybeSingle(),
+      supabase.from("company_memberships").select("company_id,role,companies!inner(id,name)").eq("user_id", user.id).maybeSingle(),
     ])
     if (profile.error || membership.error || !profile.data || !membership.data || membership.data.role !== "owner") {
       return { status: "unavailable", user: identity, message: "Your workspace could not be loaded. Retry account setup or continue browsing." }
     }
-    const company = await supabase.from("companies").select("id,name").eq("id", membership.data.company_id).maybeSingle()
-    if (company.error || !company.data) return { status: "unavailable", user: identity, message: "Your workspace could not be loaded. Retry account setup or continue browsing." }
-    return { status: "signed-in", user: identity, profile: { displayName: profile.data.display_name }, workspace: company.data }
+    const company = membership.data.companies as unknown as { id: string; name: string | null } | null
+    if (!company) return { status: "unavailable", user: identity, message: "Your workspace could not be loaded. Retry account setup or continue browsing." }
+    return { status: "signed-in", user: identity, profile: { displayName: profile.data.display_name }, workspace: company }
   } catch {
     return { status: "unavailable", message: "Your account is temporarily unavailable. Try again." }
   }

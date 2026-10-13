@@ -1,9 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
-import {
-  WorkspaceClient,
-  WorkspaceSkeleton
-} from "@/components/workspace/workspace-client"
+import { WorkspaceClient } from "@/components/workspace/workspace-client"
+import { WorkspaceSkeleton } from "@/components/workspace/workspace-skeleton"
 export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   title: "Workspace",

@@ -19,18 +19,14 @@ export async function workspaceClient() {
   if (error || !isVerifiedCustomer(user)) return null
   const { data: membership, error: membershipError } = await supabase
     .from("company_memberships")
-    .select("company_id,role")
+    .select("company_id,role,companies!inner(id,owner_user_id)")
     .eq("user_id", user.id)
+    .eq("companies.owner_user_id", user.id)
     .maybeSingle()
   if (membershipError || !membership || membership.role !== "owner") return null
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("id", membership.company_id)
-    .eq("owner_user_id", user.id)
-    .maybeSingle()
-  return company && !companyError
-    ? { supabase, companyId: company.id as string }
+  const company = membership.companies as unknown as { id: string; owner_user_id: string } | null
+  return company && company.id === membership.company_id && company.owner_user_id === user.id
+    ? { supabase, companyId: company.id }
     : null
 }
 export async function readWorkspace(

@@ -23,3 +23,10 @@ export class WorkspaceGeneration {
     this.generation++
   }
 }
+
+/** Sheet selection is presentation state, not a new list/filter request. */
+export function workspaceListQuery(query: string) {
+  const params = new URLSearchParams(query)
+  params.delete("bid")
+  return params.toString()
+}
