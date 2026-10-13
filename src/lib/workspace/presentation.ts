@@ -1,5 +1,5 @@
 import { differenceInSastCalendarDays } from "@/lib/sast-date"
-import type { WorkspaceEntry, WorkspaceTender, BidStage } from "./types"
+import type { WorkspaceEntry, WorkspaceTender } from "./types"
 export function workspaceDate(value: string | null) {
   if (!value || !Number.isFinite(Date.parse(value))) return "Not supplied"
   return (
@@ -24,13 +24,6 @@ export function fromSastInput(value: string) {
 }
 export function tenderHref(tender: WorkspaceTender) {
   return `/tenders/${encodeURIComponent(tender.ocid)}`
-}
-export const DEFAULT_ACTIONS: Record<BidStage, string> = {
-  saved: "Review opportunity",
-  reviewing: "Decide whether to bid",
-  preparing: "Complete preparation",
-  ready: "Mark submitted",
-  submitted: "Record outcome"
 }
 export type AttentionSignal = { kind: string; text: string }
 export function attentionSignals(
@@ -85,12 +78,6 @@ export function attentionSignals(
         text: `Compulsory briefing ${days === 0 ? "today" : "tomorrow"} — not checked off`
       })
   }
-  if (
-    active &&
-    bid.next_action_due_at &&
-    Date.parse(bid.next_action_due_at) < now
-  )
-    signals.push({ kind: "action", text: "Next action overdue" })
   if (active && bid.stage !== "submitted" && tender.closing_at) {
     const days = differenceInSastCalendarDays(tender.closing_at, now)
     if (Date.parse(tender.closing_at) < now)
@@ -122,6 +109,7 @@ export function summarizeBid(
         bid.outcome ||
         bid.notes ||
         bid.next_action ||
+        bid.next_action_due_at ||
         bid.checklist_initialized ||
         bid.submitted_at ||
         bid.submission_reference

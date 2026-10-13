@@ -9,11 +9,8 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  attentionSignals,
-  workspaceDate,
-  DEFAULT_ACTIONS
-} from "@/lib/workspace/presentation"
+import { attentionSignals, workspaceDate } from "@/lib/workspace/presentation"
+import { isWorkspaceControl } from "@/lib/workspace/interaction"
 import type {
   BidStage,
   BidOutcome,
@@ -34,10 +31,9 @@ export function WorkspaceList(props: Props) {
       <Table>
         <TableHeader className="hidden md:table-header-group">
           <TableRow>
-            <TableHead className="w-2/5">Tender</TableHead>
+            <TableHead className="w-3/5">Tender</TableHead>
             <TableHead>Bid stage</TableHead>
             <TableHead>Closing</TableHead>
-            <TableHead>Next action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -46,16 +42,33 @@ export function WorkspaceList(props: Props) {
             return (
               <TableRow
                 key={bid.id}
-                className="flex flex-col gap-0 px-3 py-3 md:table-row md:p-0"
+                className="flex cursor-pointer flex-col gap-0 px-3 py-3 md:table-row md:p-0"
+                onClick={(event) => {
+                  if (!isWorkspaceControl(event.target)) props.onOpen(bid)
+                }}
               >
                 <TableCell className="min-w-0 whitespace-normal px-0 py-1 md:px-3 md:py-3">
                   <Button
                     type="button"
                     variant="link"
-                    className="h-auto w-full justify-start whitespace-normal p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
-                    onClick={() => props.onOpen(bid)}
+                    className="h-auto w-full cursor-pointer justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      props.onOpen(bid)
+                    }}
                   >
-                    {bid.tender.title || bid.tender.tender_no || "Saved tender"}
+                    <span
+                      className="line-clamp-2 min-w-0 break-words"
+                      title={
+                        bid.tender.title ||
+                        bid.tender.tender_no ||
+                        "Saved tender"
+                      }
+                    >
+                      {bid.tender.title ||
+                        bid.tender.tender_no ||
+                        "Saved tender"}
+                    </span>
                   </Button>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {bid.tender.tender_no} ·{" "}
@@ -80,14 +93,6 @@ export function WorkspaceList(props: Props) {
                 </TableCell>
                 <TableCell className="whitespace-normal px-0 py-1 text-xs md:px-3 md:py-3">
                   {workspaceDate(bid.tender.closing_at)}
-                </TableCell>
-                <TableCell className="whitespace-normal px-0 py-1 text-xs md:px-3 md:py-3">
-                  {bid.next_action || DEFAULT_ACTIONS[bid.stage]}
-                  {bid.next_action_due_at ? (
-                    <p className="mt-1 text-muted-foreground">
-                      Target: {workspaceDate(bid.next_action_due_at)}
-                    </p>
-                  ) : null}
                 </TableCell>
               </TableRow>
             )

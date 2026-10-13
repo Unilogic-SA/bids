@@ -27,8 +27,6 @@ export const patchSchema = z
     stage: z.enum(BID_STAGES).optional(),
     outcome: z.enum(BID_OUTCOMES).nullable().optional(),
     notes: z.string().max(10000).optional(),
-    next_action: z.string().trim().max(200).nullable().optional(),
-    next_action_due_at: dateSchema.optional(),
     checklist: checklistSchema.optional(),
     submitted_at: dateSchema.optional(),
     submission_reference: z.string().trim().max(500).nullable().optional(),
