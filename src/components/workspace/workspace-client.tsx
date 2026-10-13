@@ -44,7 +44,11 @@ import { useWorkspace } from "./workspace-provider"
 import { GuestImportPrompt } from "./guest-import-prompt"
 import { WorkspaceList } from "./workspace-list"
 import { BidPanelLoading } from "./bid-panel-loading"
-import { WorkspaceSkeleton, WorkspaceRowsSkeleton, WorkspaceBoardSkeleton } from "./workspace-skeleton"
+import {
+  WorkspaceSkeleton,
+  WorkspaceRowsSkeleton,
+  WorkspaceBoardSkeleton
+} from "./workspace-skeleton"
 
 import {
   BID_STAGES,
@@ -62,8 +66,14 @@ import { workspaceListQuery } from "@/lib/workspace/client-state"
 import { parseWorkspaceFilters } from "@/lib/workspace/validation"
 import { boardRounds, mergeBoardPages } from "@/lib/workspace/board"
 import { fromSastInput, sastInput } from "@/lib/workspace/presentation"
-const WorkspaceBoard = dynamic(() => import("./workspace-board").then(module => module.WorkspaceBoard), { loading: () => <WorkspaceBoardSkeleton /> })
-const BidPanel = dynamic(() => import("./bid-panel").then(module => module.BidPanel), { loading: () => <BidPanelLoading /> })
+const WorkspaceBoard = dynamic(
+  () => import("./workspace-board").then((module) => module.WorkspaceBoard),
+  { loading: () => <WorkspaceBoardSkeleton /> }
+)
+const BidPanel = dynamic(
+  () => import("./bid-panel").then((module) => module.BidPanel),
+  { loading: () => <BidPanelLoading /> }
+)
 type Confirmation = {
   bid: WorkspaceEntry
   kind: "submit" | "backward" | "outcome" | "delete"
@@ -115,7 +125,10 @@ export function WorkspaceClient() {
         const preferred = localStorage.getItem(
           `openbids:workspace-view:${identity}`
         )
-        if (!new URLSearchParams(listQuery).has("view") && preferred === "board") {
+        if (
+          !new URLSearchParams(listQuery).has("view") &&
+          preferred === "board"
+        ) {
           const params = new URLSearchParams(window.location.search)
           params.set("view", "board")
           router.replace(`/workspace?${params}`, { scroll: false })
@@ -374,7 +387,7 @@ export function WorkspaceClient() {
       </main>
     )
   return (
-    <main className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-4 py-6 md:px-6">
+    <main className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-4 py-6 md:px-6 [&_button:not([data-workspace-control]):not([data-workspace-open]):not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed">
       <Toaster position="bottom-center" duration={2000} visibleToasts={1} />
       <GuestImportPrompt />
       <div className="flex flex-wrap items-center justify-end gap-3">
@@ -468,7 +481,7 @@ export function WorkspaceClient() {
         >
           <SelectTrigger
             className={cn(
-              "h-8 w-40",
+              "h-8 w-40 cursor-pointer",
               filters.stage !== "all" && bidStateTriggerClass(filters.stage)
             )}
             aria-label="Filter by bid stage"
@@ -476,9 +489,11 @@ export function WorkspaceClient() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All stages</SelectItem>
+            <SelectItem className="cursor-pointer" value="all">
+              All stages
+            </SelectItem>
             {BID_STAGES.map((value) => (
-              <SelectItem key={value} value={value}>
+              <SelectItem className="cursor-pointer" key={value} value={value}>
                 <BidStateLabel state={value} />
               </SelectItem>
             ))}
@@ -529,8 +544,13 @@ export function WorkspaceClient() {
         </Alert>
       ) : null}
       {!error && loadedQuery !== listQuery ? (
-        filters.view === "board" && filters.state === "active" ? <WorkspaceBoardSkeleton /> : <WorkspaceRowsSkeleton />
-      ) : error && loadedQuery !== listQuery ? null : !error && !items.length ? (
+        filters.view === "board" && filters.state === "active" ? (
+          <WorkspaceBoardSkeleton />
+        ) : (
+          <WorkspaceRowsSkeleton />
+        )
+      ) : error && loadedQuery !== listQuery ? null : !error &&
+        !items.length ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -656,7 +676,7 @@ export function WorkspaceClient() {
           if (!open) setConfirmation(null)
         }}
       >
-        <DialogContent>
+        <DialogContent className="[&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed">
           <DialogHeader>
             <DialogTitle>
               {confirmation?.kind === "submit"
