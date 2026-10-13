@@ -7,7 +7,7 @@ Scope: issue #65; based on main `3eec0df`. Existing Next.js 16.2.6 / React 19.2 
 | Finding | Change | Expected effect |
 | --- | --- | --- |
 | Discover pagination uses plain anchors; filter and header searches use native GET forms | Compose shadcn pagination with Next Link and use Next Form | Client navigation preserves the root shell/providers rather than reloading the document |
-| AccountProvider resets on every pathname; same-user SIGNED_IN refocus events also clear identity | One session-lifetime reader; background refresh for the same verified user; explicit account changes still invalidate private state | Stops false guest headers and unnecessary private workspace remounts |
+| AccountProvider resets on every pathname; same-user SIGNED_IN refocus events also clear identity | One session-lifetime reader; background refresh for the same verified user and ordinary path changes; auth-page transitions revalidate before paint, including Server Action redirects; explicit account changes still invalidate private state | Stops false guest headers and unnecessary private workspace remounts |
 | Loading identity is interpreted as logged out | Show shadcn Skeleton while identity is unknown | Avoids misleading login/signup controls before confirmation |
 | Discover awaits the database before returning any page content | Keyed results-only Suspense plus root loading boundary | Filter shell streams independently; a new query/page displays matching skeleton results |
 | Missing auth/admin loading boundaries inherit the root route fallback | Route-specific shadcn form/dashboard skeletons | Relevant placeholders at each route; motion respects reduced-motion preferences |

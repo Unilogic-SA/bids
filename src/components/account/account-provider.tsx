@@ -1,8 +1,9 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
 import type { AccountState, AccountSnapshot } from "@/lib/auth/account-state"
-import { isSameAccountAuthEvent } from "@/lib/auth/account-state"
+import { accountNavigationRefresh, accountRouteKey, isSameAccountAuthEvent } from "@/lib/auth/account-state"
 import { createAccountSnapshotReader } from "@/lib/auth/snapshot-reader"
 import { createBrowserAuthClient } from "@/lib/supabase/client"
 
@@ -15,6 +16,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // preserve the verified shell; identity changes still clear it immediately.
   const account = snapshot
   const refreshRef = useRef<() => void>(() => {})
+  const navigateRef = useRef<(background: boolean) => void>(() => {})
+  const revalidateNavigation = useCallback((background: boolean) => navigateRef.current(background), [])
   const channelRef = useRef<BroadcastChannel | null>(null)
   const refreshAccount = useCallback(() => {
     refreshRef.current()
@@ -24,7 +27,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let confirmed: AccountState = { status: "loading" }
     let disposed = false
-    let firstRead = true
+    let lastBroadcastIdentity: string | null | undefined
     const reader = createAccountSnapshotReader(async signal => {
       const response = await fetch("/api/account/session", { cache: "no-store", credentials: "same-origin", signal })
       if (!response.ok) throw new Error("Account request failed")
@@ -32,15 +35,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }, state => {
       confirmed = state
       setSnapshot(state)
-      if (firstRead && state.status !== "loading") {
-        firstRead = false
-        // Full-document OAuth returns need to notify other tabs. Include the
-        // confirmed identity so an unchanged account can refresh quietly.
-        channelRef.current?.postMessage({ type: "refresh", userId: state.status === "signed-in" ? state.user.id : null })
+      const identity = state.status === "signed-in" ? state.user.id : state.status === "signed-out" ? null : state.status === "unavailable" ? state.user?.id : undefined
+      if (identity !== undefined && identity !== lastBroadcastIdentity) {
+        lastBroadcastIdentity = identity
+        // Includes Server Action cookie changes discovered after navigation.
+        channelRef.current?.postMessage({ type: "refresh", userId: identity })
       }
     })
     const refresh = () => reader.refresh()
     refreshRef.current = refresh
+    navigateRef.current = background => reader.refresh({ background })
     const client = createBrowserAuthClient()
     // Queue work outside Supabase's synchronous callback/lock.
     const subscription = client?.auth.onAuthStateChange((event, session) => {
@@ -72,9 +76,27 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       channel?.close()
       channelRef.current = null
       refreshRef.current = () => {}
+      navigateRef.current = () => {}
       window.removeEventListener("focus", focus)
     }
   }, [])
 
-  return <AccountContext.Provider value={{ account, refreshAccount }}>{children}</AccountContext.Provider>
+  return <AccountContext.Provider value={{ account, refreshAccount }}>
+    <Suspense fallback={null}><AccountRouteObserver revalidate={revalidateNavigation} /></Suspense>
+    {children}
+  </AccountContext.Provider>
+}
+
+// Keep search-param subscription inside its own boundary, not around the app.
+function AccountRouteObserver({ revalidate }: { revalidate: (background: boolean) => void }) {
+  const pathname = usePathname()
+  const search = useSearchParams()
+  const route = accountRouteKey(pathname, search.toString())
+  const previous = useRef(route)
+  useLayoutEffect(() => {
+    const mode = accountNavigationRefresh(previous.current, route)
+    previous.current = route
+    if (mode !== "none") revalidate(mode === "background")
+  }, [route, revalidate])
+  return null
 }

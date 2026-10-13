@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { isSameAccountAuthEvent, workspaceLabel, type AccountSnapshot, type AccountState } from "./account-state"
+import { accountNavigationRefresh, accountRouteKey, isSameAccountAuthEvent, workspaceLabel, type AccountSnapshot, type AccountState } from "./account-state"
 import { createAccountSnapshotReader } from "./snapshot-reader"
 const flush = () => new Promise(resolve => setImmediate(resolve))
 const A: AccountSnapshot = { status: "signed-in", user: { id: "A", email: "a@example.test" }, profile: { displayName: "Alice" }, workspace: { id: "one", name: null } }
@@ -98,5 +98,31 @@ test("refocus SIGNED_IN and same-user updates keep the verified shell; sign-out 
   assert.equal(states.at(-1)?.status, "loading")
   await flush()
   assert.equal(states.at(-1)?.status, "signed-out")
+  reader.dispose()
+})
+
+
+test("Server Action sign-in redirects and same-path workspace errors revalidate without pagination resets", async () => {
+  const states: AccountState[] = []
+  let result: AccountSnapshot = { status: "signed-out" }
+  const reader = createAccountSnapshotReader(async () => result, state => states.push(state))
+  reader.refresh(); await flush()
+  const mode = accountNavigationRefresh(accountRouteKey("/sign-in", "next=%2Fworkspace"), accountRouteKey("/workspace", ""))
+  const background = mode === "background"
+  assert.equal(mode, "foreground")
+  result = A
+  reader.refresh({ background })
+  assert.equal(states.at(-1)?.status, "loading")
+  await flush()
+  assert.equal(states.at(-1)?.status, "signed-in")
+  assert.equal(accountNavigationRefresh(accountRouteKey("/", "page=1"), accountRouteKey("/", "page=2")), "none")
+  assert.equal(accountNavigationRefresh(accountRouteKey("/sign-in", "next=%2F"), accountRouteKey("/sign-in", "next=%2F&error=workspace")), "foreground")
+  const nav = accountNavigationRefresh("/workspace", "/tenders/one")
+  assert.equal(nav, "background")
+  const before = states.length
+  reader.refresh({ background: nav === "background" })
+  assert.equal(states.length, before)
+  await flush()
+  assert.equal(states.at(-1)?.status, "signed-in")
   reader.dispose()
 })

@@ -20,3 +20,16 @@ export function isSameAccountAuthEvent(event: string, userId: string | undefined
   return ["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event) &&
     account.status === "signed-in" && Boolean(userId) && userId === account.user.id
 }
+
+const ACCOUNT_AUTH_PATHS = new Set(["/sign-in", "/sign-up", "/forgot-password", "/account/update-password"])
+
+/** Ordinary listing query changes do not change identity. Auth redirects can. */
+export function accountRouteKey(pathname: string, query: string) {
+  return ACCOUNT_AUTH_PATHS.has(pathname) && query ? `${pathname}?${query}` : pathname
+}
+export function accountNavigationRefresh(previous: string, next: string): "none" | "background" | "foreground" {
+  if (previous === next) return "none"
+  const from = previous.split("?")[0]
+  const to = next.split("?")[0]
+  return ACCOUNT_AUTH_PATHS.has(from) || ACCOUNT_AUTH_PATHS.has(to) ? "foreground" : "background"
+}
