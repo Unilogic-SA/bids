@@ -12,11 +12,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { WorkspaceBulkBar } from "./workspace-bulk-bar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  attentionSignals,
-  workspaceDate,
-  DEFAULT_ACTIONS
-} from "@/lib/workspace/presentation"
+import { attentionSignals, workspaceDate } from "@/lib/workspace/presentation"
+import { isWorkspaceControl } from "@/lib/workspace/interaction"
 import type {
   BidStage,
   BidOutcome,
@@ -35,25 +32,20 @@ type Props = {
 }
 export function WorkspaceList(props: Props) {
   const [selected, setSelected] = useState(new Set<string>())
+  const [busy, setBusy] = useState(false)
   const eligible = props.items.filter(bid => !props.pending.has(bid.id))
   const selectedItems = props.items.filter(bid => selected.has(bid.id))
   const allSelected = eligible.length > 0 && eligible.every(bid => selected.has(bid.id))
-  const [busy, setBusy] = useState(false)
   return (
     <div className={selectedItems.length ? "pb-32" : ""}>
     <div className="overflow-hidden rounded-lg border">
       <Table>
-        <TableHeader>
+        <TableHeader className="hidden md:table-header-group">
           <TableRow>
-            <TableHead className="w-10">
-              <Checkbox className="cursor-pointer" aria-label="Select all tenders on this page" disabled={busy || props.selectionDisabled || !eligible.length}
-                checked={allSelected ? true : selectedItems.length ? "indeterminate" : false}
-                onCheckedChange={checked => setSelected(checked ? new Set(eligible.map(bid => bid.id)) : new Set())} />
-            </TableHead>
+            <TableHead className="w-10"><Checkbox className="cursor-pointer" aria-label="Select all tenders on this page" disabled={busy || props.selectionDisabled || !eligible.length} checked={allSelected ? true : selectedItems.length ? "indeterminate" : false} onCheckedChange={checked => setSelected(checked ? new Set(eligible.map(bid => bid.id)) : new Set())} /></TableHead>
             <TableHead className="min-w-56 md:w-2/5">Tender</TableHead>
             <TableHead>Bid stage</TableHead>
             <TableHead>Closing</TableHead>
-            <TableHead>Next action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -63,25 +55,34 @@ export function WorkspaceList(props: Props) {
               <TableRow
                 key={bid.id}
                 data-state={selected.has(bid.id) ? "selected" : undefined}
+                className="flex cursor-pointer flex-col gap-0 px-3 py-3 md:table-row md:p-0"
+                onClick={(event) => {
+                  if (!isWorkspaceControl(event.target)) props.onOpen(bid)
+                }}
               >
-                <TableCell>
-                  <Checkbox className="cursor-pointer" aria-label={`Select ${bid.tender.title || bid.tender.tender_no || "saved tender"}`}
-                    checked={selected.has(bid.id)} disabled={busy || props.selectionDisabled || props.pending.has(bid.id)}
-                    onCheckedChange={checked => setSelected(previous => {
-                      const next = new Set(previous)
-                      if (checked) next.add(bid.id)
-                      else next.delete(bid.id)
-                      return next
-                    })} />
-                </TableCell>
-                <TableCell className="min-w-0 whitespace-normal px-3 py-3">
+                <TableCell className="px-0 py-1 md:px-3 md:py-3"><Checkbox className="cursor-pointer" aria-label={`Select ${bid.tender.title || bid.tender.tender_no || "saved tender"}`} checked={selected.has(bid.id)} disabled={busy || props.selectionDisabled || props.pending.has(bid.id)} onCheckedChange={checked => setSelected(previous => { const next = new Set(previous); if (checked) next.add(bid.id); else next.delete(bid.id); return next })} /></TableCell>
+                <TableCell className="min-w-0 whitespace-normal px-0 py-1 md:px-3 md:py-3">
                   <Button
                     type="button"
                     variant="link"
-                    className="h-auto w-full justify-start whitespace-normal p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
-                    onClick={() => props.onOpen(bid)}
+                    className="h-auto w-full cursor-pointer justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      props.onOpen(bid)
+                    }}
                   >
-                    {bid.tender.title || bid.tender.tender_no || "Saved tender"}
+                    <span
+                      className="line-clamp-2 min-w-0 break-words"
+                      title={
+                        bid.tender.title ||
+                        bid.tender.tender_no ||
+                        "Saved tender"
+                      }
+                    >
+                      {bid.tender.title ||
+                        bid.tender.tender_no ||
+                        "Saved tender"}
+                    </span>
                   </Button>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {bid.tender.tender_no} ·{" "}
@@ -91,7 +92,7 @@ export function WorkspaceList(props: Props) {
                     <p className="mt-1 text-xs text-primary">{signal.text}</p>
                   ) : null}
                 </TableCell>
-                <TableCell className="px-3 py-3">
+                <TableCell className="px-0 py-1 md:px-3 md:py-3">
                   <BidStageMenu
                     bid={bid}
                     disabled={busy || props.pending.has(bid.id)}
@@ -104,16 +105,8 @@ export function WorkspaceList(props: Props) {
                     </Badge>
                   ) : null}
                 </TableCell>
-                <TableCell className="whitespace-normal px-3 py-3 text-xs">
+                <TableCell className="whitespace-normal px-0 py-1 text-xs md:px-3 md:py-3">
                   {workspaceDate(bid.tender.closing_at)}
-                </TableCell>
-                <TableCell className="whitespace-normal px-3 py-3 text-xs">
-                  {bid.next_action || DEFAULT_ACTIONS[bid.stage]}
-                  {bid.next_action_due_at ? (
-                    <p className="mt-1 text-muted-foreground">
-                      Target: {workspaceDate(bid.next_action_due_at)}
-                    </p>
-                  ) : null}
                 </TableCell>
               </TableRow>
             )
@@ -121,11 +114,7 @@ export function WorkspaceList(props: Props) {
         </TableBody>
       </Table>
     </div>
-    {selectedItems.length > 0 ? <WorkspaceBulkBar items={selectedItems} disabled={props.selectionDisabled}
-      onBusy={setBusy} onClear={() => setSelected(new Set())} onComplete={ids => {
-        setSelected(previous => new Set([...previous].filter(id => !ids.has(id))))
-        props.onBulkComplete()
-      }} /> : null}
+    {selectedItems.length > 0 ? <WorkspaceBulkBar items={selectedItems} disabled={props.selectionDisabled} onBusy={setBusy} onClear={() => setSelected(new Set())} onComplete={ids => { setSelected(previous => new Set([...previous].filter(id => !ids.has(id)))); props.onBulkComplete() }} /> : null}
     </div>
   )
 }
