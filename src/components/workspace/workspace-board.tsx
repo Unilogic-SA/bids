@@ -38,6 +38,11 @@ import {
 import { attentionSignals, workspaceDate } from "@/lib/workspace/presentation"
 import { BidStateLabel, bidStateTriggerClass } from "./stage-presentation"
 import { BidStageMenu } from "./bid-stage-menu"
+import {
+  WorkspaceGesture,
+  canStartWorkspaceDrag,
+  isWorkspaceControl
+} from "@/lib/workspace/interaction"
 import { cn } from "@/lib/utils"
 const keyboardCoordinates: KeyboardCoordinateGetter = (
   event,
@@ -74,6 +79,7 @@ type Props = {
 }
 export function WorkspaceBoard(props: Props) {
   const mobile = useIsMobile()
+  const [gesture] = useState(() => new WorkspaceGesture())
   const [mobileStage, setMobileStage] = useState<BidStage>("saved")
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -93,14 +99,17 @@ export function WorkspaceBoard(props: Props) {
           onValueChange={(value) => setMobileStage(value as BidStage)}
         >
           <SelectTrigger
-            className={cn("w-full", bidStateTriggerClass(mobileStage))}
+            className={cn(
+              "w-full cursor-pointer",
+              bidStateTriggerClass(mobileStage)
+            )}
             aria-label="Board stage"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {BID_STAGES.map((stage) => (
-              <SelectItem value={stage} key={stage}>
+              <SelectItem className="cursor-pointer" value={stage} key={stage}>
                 <BidStateLabel state={stage} />{" "}
                 <span className="text-muted-foreground">
                   ({props.counts[stage]})
@@ -113,6 +122,7 @@ export function WorkspaceBoard(props: Props) {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
+        onDragStart={(event) => gesture.dragStarted(String(event.active.id))}
         onDragEnd={move}
         accessibility={{
           screenReaderInstructions: {
@@ -124,7 +134,7 @@ export function WorkspaceBoard(props: Props) {
         <div className="flex min-w-0 gap-3 overflow-x-auto pb-3">
           {BID_STAGES.filter((stage) => !mobile || stage === mobileStage).map(
             (stage) => (
-              <Column key={stage} stage={stage} {...props} />
+              <Column key={stage} stage={stage} gesture={gesture} {...props} />
             )
           )}
         </div>
@@ -132,7 +142,10 @@ export function WorkspaceBoard(props: Props) {
     </div>
   )
 }
-function Column({ stage, ...props }: Props & { stage: BidStage }) {
+function Column({
+  stage,
+  ...props
+}: Props & { stage: BidStage; gesture: WorkspaceGesture }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage })
   const items = props.items.filter((item) => item.stage === stage)
   return (
@@ -169,7 +182,7 @@ function Column({ stage, ...props }: Props & { stage: BidStage }) {
         <Button
           variant="ghost"
           size="sm"
-          className="mt-3 w-full"
+          className="mt-3 w-full cursor-pointer"
           onClick={() => props.onMore(stage)}
         >
           Load more ({props.counts[stage] - items.length})
@@ -178,17 +191,38 @@ function Column({ stage, ...props }: Props & { stage: BidStage }) {
     </section>
   )
 }
-function BidCard({ bid, ...props }: Props & { bid: WorkspaceEntry }) {
+function BidCard({
+  bid,
+  ...props
+}: Props & { bid: WorkspaceEntry; gesture: WorkspaceGesture }) {
   const disabled = props.pending.has(bid.id)
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: bid.id, data: { stage: bid.stage }, disabled })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    isDragging
+  } = useDraggable({ id: bid.id, data: { stage: bid.stage }, disabled })
   const signal = attentionSignals(bid, props.now)[0]
   return (
     <Card
       ref={setNodeRef}
+      onPointerDownCapture={() => props.gesture.pointerStarted()}
+      onPointerDown={(event) => {
+        if (!disabled && canStartWorkspaceDrag(event.target))
+          listeners?.onPointerDown?.(event)
+      }}
+      onClick={(event) => {
+        if (
+          !isWorkspaceControl(event.target) &&
+          props.gesture.canOpen(event.detail)
+        )
+          props.onOpen(bid)
+      }}
       className={cn(
-        "gap-0 border-border/70 py-0 shadow-none transition-colors hover:border-primary/30",
-        isDragging && "z-20 opacity-70"
+        "touch-pan-y cursor-pointer gap-0 border-border/70 py-0 shadow-none transition-colors hover:border-primary/30",
+        isDragging && "z-20 cursor-grabbing opacity-70"
       )}
       style={
         transform
@@ -201,28 +235,55 @@ function BidCard({ bid, ...props }: Props & { bid: WorkspaceEntry }) {
           <Button
             type="button"
             variant="link"
-            className="h-auto min-w-0 flex-1 justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
-            onClick={() => props.onOpen(bid)}
+            data-workspace-open
+            className={cn(
+              "h-auto min-w-0 cursor-pointer flex-1 justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary",
+              isDragging && "cursor-grabbing"
+            )}
+            onClick={(event) => {
+              event.stopPropagation()
+              if (props.gesture.canOpen(event.detail)) props.onOpen(bid)
+            }}
           >
-            <span className="min-w-0 break-words">
+            <span
+              className="line-clamp-2 min-w-0 break-words"
+              title={bid.tender.title || bid.tender.tender_no || "Saved tender"}
+            >
               {bid.tender.title || bid.tender.tender_no || "Saved tender"}
             </span>
           </Button>
           <Button
+            ref={setActivatorNodeRef}
+            data-workspace-control
             {...attributes}
             {...listeners}
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              listeners?.onPointerDown?.(event)
+            }}
+            onClick={(event) => event.stopPropagation()}
             variant="ghost"
             size="icon-sm"
-            className="touch-none shrink-0 text-muted-foreground hover:text-foreground"
+            className={cn(
+              "touch-none shrink-0 cursor-grab text-muted-foreground hover:text-foreground disabled:cursor-not-allowed",
+              isDragging && "cursor-grabbing"
+            )}
             disabled={disabled}
             aria-label={`Move ${bid.tender.tender_no || bid.tender.title}`}
           >
             <IconGripVertical />
           </Button>
         </div>
-        <p className="break-words text-xs leading-relaxed text-muted-foreground">
-          {bid.tender.buyer_name || "Buyer not supplied"}
-        </p>
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {bid.tender.tender_no &&
+          bid.tender.tender_no.trim().toLowerCase() !==
+            bid.tender.title?.trim().toLowerCase() ? (
+            <p className="break-words">{bid.tender.tender_no}</p>
+          ) : null}
+          <p className="break-words leading-relaxed">
+            {bid.tender.buyer_name || "Buyer not supplied"}
+          </p>
+        </div>
         <p className="flex items-start gap-1.5 text-xs leading-relaxed">
           <IconCalendar
             aria-hidden="true"

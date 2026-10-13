@@ -2,6 +2,7 @@ import {
   createServerAuthClient,
   hasSupabasePublicConfig
 } from "@/lib/supabase/server"
+import { withWorkspaceTitles, type WorkspaceTitleSource } from "./titles"
 import { isVerifiedCustomer } from "@/lib/auth/workspace"
 import type {
   WorkspaceEntry,
@@ -24,8 +25,13 @@ export async function workspaceClient() {
     .eq("companies.owner_user_id", user.id)
     .maybeSingle()
   if (membershipError || !membership || membership.role !== "owner") return null
-  const company = membership.companies as unknown as { id: string; owner_user_id: string } | null
-  return company && company.id === membership.company_id && company.owner_user_id === user.id
+  const company = membership.companies as unknown as {
+    id: string
+    owner_user_id: string
+  } | null
+  return company &&
+    company.id === membership.company_id &&
+    company.owner_user_id === user.id
     ? { supabase, companyId: company.id }
     : null
 }
@@ -44,7 +50,11 @@ export async function readWorkspace(
     p_offsets: filters.offsets
   })
   if (error) throw new Error("Workspace could not be loaded")
-  return data as WorkspacePage
+  const page = data as WorkspacePage
+  return {
+    ...page,
+    items: await enrichWorkspaceTitles(client.supabase, page.items)
+  }
 }
 export async function readWorkspaceEntry(
   id: string
@@ -58,7 +68,11 @@ export async function readWorkspaceEntry(
     .eq("id", id)
     .maybeSingle()
   if (error) throw new Error("Bid could not be loaded")
-  return data as WorkspaceEntry | null
+  return data
+    ? (
+        await enrichWorkspaceTitles(client.supabase, [data as WorkspaceEntry])
+      )[0]
+    : null
 }
 export async function readSavedBids(
   ocids: string[]
@@ -68,7 +82,7 @@ export async function readSavedBids(
   const { data, error } = await client.supabase
     .from("workspace_bids")
     .select(
-      "id,tender_ocid,stage,outcome,archived_at,version,notes,next_action,checklist_initialized,submitted_at,submission_reference"
+      "id,tender_ocid,stage,outcome,archived_at,version,notes,next_action,next_action_due_at,checklist_initialized,submitted_at,submission_reference"
     )
     .eq("company_id", client.companyId)
     .in("tender_ocid", ocids)
@@ -86,9 +100,39 @@ export async function readSavedBids(
         bid.outcome ||
         bid.notes ||
         bid.next_action ||
+        bid.next_action_due_at ||
         bid.checklist_initialized ||
         bid.submitted_at ||
         bid.submission_reference
       )
   }))
+}
+
+export async function enrichWorkspaceTitles(
+  client: NonNullable<Awaited<ReturnType<typeof workspaceClient>>>["supabase"],
+  entries: WorkspaceEntry[]
+) {
+  const ids = Array.from(
+    new Set(
+      entries
+        .filter((entry) => entry.source_available)
+        .map((entry) => entry.tender_ocid)
+    )
+  ).slice(0, 150)
+  if (!ids.length) return withWorkspaceTitles(entries, [])
+  try {
+    const { data, error } = await client
+      .from("tenders")
+      .select("ocid,bid_description,title_snippet,title")
+      .in("ocid", ids)
+      .limit(150)
+    if (error) {
+      console.warn("Workspace tender descriptions could not be loaded")
+      return withWorkspaceTitles(entries, [])
+    }
+    return withWorkspaceTitles(entries, (data || []) as WorkspaceTitleSource[])
+  } catch {
+    console.warn("Workspace tender descriptions could not be loaded")
+    return withWorkspaceTitles(entries, [])
+  }
 }

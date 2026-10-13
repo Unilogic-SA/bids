@@ -78,8 +78,6 @@ export type BidPatch = Partial<
     | "stage"
     | "outcome"
     | "notes"
-    | "next_action"
-    | "next_action_due_at"
     | "checklist"
     | "submitted_at"
     | "submission_reference"

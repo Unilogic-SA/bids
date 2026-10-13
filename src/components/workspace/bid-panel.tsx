@@ -43,9 +43,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import {
   attentionSignals,
   workspaceDate,
-  tenderHref,
-  sastInput,
-  fromSastInput
+  tenderHref
 } from "@/lib/workspace/presentation"
 import type {
   BidOutcome,
@@ -92,7 +90,7 @@ export function BidPanel(props: Props) {
   }, [dirty])
   const discardDialog = (
     <Dialog open={discard} onOpenChange={setDiscard}>
-      <DialogContent>
+      <DialogContent className="[&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed">
         <DialogHeader>
           <DialogTitle>Discard unsaved preparation?</DialogTitle>
           <DialogDescription>
@@ -138,11 +136,17 @@ export function BidPanel(props: Props) {
     <>
       <div className="pr-7">
         {mobile ? (
-          <DrawerTitle className="break-words text-left text-base font-semibold leading-snug">
+          <DrawerTitle
+            title={title}
+            className="line-clamp-3 break-words text-left text-base font-semibold leading-snug"
+          >
             {title}
           </DrawerTitle>
         ) : (
-          <SheetTitle className="break-words text-base font-semibold leading-snug">
+          <SheetTitle
+            title={title}
+            className="line-clamp-3 break-words text-base font-semibold leading-snug"
+          >
             {title}
           </SheetTitle>
         )}
@@ -182,7 +186,7 @@ export function BidPanel(props: Props) {
         }}
       >
         <DrawerContent
-          className="h-[90dvh] data-[vaul-drawer-direction=bottom]:max-h-[90dvh]"
+          className="h-[90dvh] data-[vaul-drawer-direction=bottom]:max-h-[90dvh] [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <DrawerHeader className="shrink-0 border-b px-4 pb-4 text-left">
@@ -214,7 +218,7 @@ export function BidPanel(props: Props) {
       }}
     >
       <SheetContent
-        className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl"
+        className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <SheetHeader className="shrink-0 border-b px-6 py-5">
@@ -246,16 +250,8 @@ function Preparation({
     baseNotes: bid.notes,
     version: bid.version
   })
-  const [next, setNext] = useState({
-    text: bid.next_action || "",
-    due: sastInput(bid.next_action_due_at),
-    baseText: bid.next_action || "",
-    baseDue: bid.next_action_due_at,
-    version: bid.version
-  })
   const [checklist, setChecklist] = useState(bid.checklist)
   const [checklistVersion, setChecklistVersion] = useState(bid.version)
-  const [nextConflict, setNextConflict] = useState(false)
   const [checklistConflict, setChecklistConflict] = useState(false)
   const [checklistBase, setChecklistBase] = useState(
     JSON.stringify(bid.checklist)
@@ -267,19 +263,13 @@ function Preparation({
   const notes = notesDirty ? draft.notes : bid.notes
   const checklistDirty = JSON.stringify(checklist) !== checklistBase
   const shownChecklist = checklistDirty ? checklist : bid.checklist
-  const nextDirty =
-    next.text !== next.baseText || next.due !== sastInput(next.baseDue)
   useEffect(
-    () => onDirty(notesDirty || nextDirty || checklistDirty),
-    [onDirty, notesDirty, nextDirty, checklistDirty]
+    () => onDirty(notesDirty || checklistDirty),
+    [onDirty, notesDirty, checklistDirty]
   )
   const signals = attentionSignals(bid, now)
-  function dirty(
-    notesChanged = notesDirty,
-    nextChanged = nextDirty,
-    checkChanged = checklistDirty
-  ) {
-    onDirty(notesChanged || nextChanged || checkChanged)
+  function dirty(notesChanged = notesDirty, checkChanged = checklistDirty) {
+    onDirty(notesChanged || checkChanged)
   }
   async function saveNotes() {
     setStatus("saving")
@@ -302,31 +292,6 @@ function Preparation({
         setDraft((previous) => ({ ...previous, version: result.bid!.version }))
     }
   }
-  async function saveNext() {
-    const result = await onPatch(
-      bid,
-      {
-        next_action: next.text || null,
-        next_action_due_at: fromSastInput(next.due)
-      },
-      next.version
-    )
-    if (result.ok && result.bid) {
-      setNext({
-        text: result.bid.next_action || "",
-        due: sastInput(result.bid.next_action_due_at),
-        baseText: result.bid.next_action || "",
-        baseDue: result.bid.next_action_due_at,
-        version: result.bid.version
-      })
-      setNextConflict(false)
-      dirty(notesDirty, false)
-    } else if (!result.ok && result.code === "conflict") {
-      setNextConflict(true)
-      if (result.bid)
-        setNext((previous) => ({ ...previous, version: result.bid!.version }))
-    }
-  }
   async function saveChecklist() {
     const result = await onPatch(
       bid,
@@ -338,7 +303,7 @@ function Preparation({
       setChecklistBase(JSON.stringify(result.bid.checklist))
       setChecklistVersion(result.bid.version)
       setChecklistConflict(false)
-      dirty(notesDirty, nextDirty, false)
+      dirty(notesDirty, false)
     } else if (!result.ok && result.code === "conflict") {
       setChecklistConflict(true)
       if (result.bid) setChecklistVersion(result.bid.version)
@@ -437,70 +402,6 @@ function Preparation({
         </div>
       ) : null}
       <section className="space-y-3 border-t pt-5">
-        <Label htmlFor="bid-next-action" className="text-sm font-medium">
-          Next action
-        </Label>
-        <Input
-          id="bid-next-action"
-          maxLength={200}
-          placeholder="What needs to happen next?"
-          value={nextDirty ? next.text : bid.next_action || ""}
-          disabled={pending}
-          onChange={(event) => {
-            const text = event.target.value
-            setNext((previous) => ({
-              ...previous,
-              text,
-              due: nextDirty ? previous.due : sastInput(bid.next_action_due_at),
-              version: nextDirty ? previous.version : bid.version,
-              baseText: nextDirty ? previous.baseText : bid.next_action || "",
-              baseDue: nextDirty ? previous.baseDue : bid.next_action_due_at
-            }))
-            dirty(notesDirty, true)
-          }}
-        />
-        <Label htmlFor="bid-next-due" className="text-xs text-muted-foreground">
-          Your target date (SAST, optional)
-        </Label>
-        <Input
-          id="bid-next-due"
-          type="datetime-local"
-          value={nextDirty ? next.due : sastInput(bid.next_action_due_at)}
-          disabled={pending}
-          onChange={(event) => {
-            const due = event.target.value
-            setNext((previous) => ({
-              ...previous,
-              text: nextDirty ? previous.text : bid.next_action || "",
-              due,
-              version: nextDirty ? previous.version : bid.version,
-              baseText: nextDirty ? previous.baseText : bid.next_action || "",
-              baseDue: nextDirty ? previous.baseDue : bid.next_action_due_at
-            }))
-            dirty(notesDirty, true)
-          }}
-        />
-        {nextDirty || nextConflict ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending || !nextDirty}
-            onClick={() => void saveNext()}
-          >
-            Save next action
-          </Button>
-        ) : null}
-        {nextConflict ? (
-          <Alert>
-            <AlertDescription className="text-xs">
-              The next action changed. Your draft is kept. Latest:{" "}
-              {bid.next_action || "Not supplied"} ·{" "}
-              {workspaceDate(bid.next_action_due_at)}. Review before retrying.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-      </section>
-      <section className="space-y-3 border-t pt-5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Preparation checklist</h3>
           {shownChecklist.length ? (
@@ -543,7 +444,7 @@ function Preparation({
                       ? checklistBase
                       : JSON.stringify(bid.checklist)
                   )
-                  dirty(notesDirty, nextDirty, true)
+                  dirty(notesDirty, true)
                 }}
               />
               <Input
@@ -569,7 +470,7 @@ function Preparation({
                       ? checklistBase
                       : JSON.stringify(bid.checklist)
                   )
-                  dirty(notesDirty, nextDirty, true)
+                  dirty(notesDirty, true)
                 }}
               />
               <Button
@@ -588,7 +489,7 @@ function Preparation({
                       ? checklistBase
                       : JSON.stringify(bid.checklist)
                   )
-                  dirty(notesDirty, nextDirty, true)
+                  dirty(notesDirty, true)
                 }}
               >
                 <IconTrash />
@@ -614,7 +515,7 @@ function Preparation({
               setChecklistBase(
                 checklistDirty ? checklistBase : JSON.stringify(bid.checklist)
               )
-              dirty(notesDirty, nextDirty, true)
+              dirty(notesDirty, true)
             }}
           >
             <IconPlus data-icon="inline-start" />
