@@ -14,7 +14,6 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -390,33 +389,11 @@ export function WorkspaceClient() {
   return (
     <main className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-4 py-6 md:px-6 [&_button:not([data-workspace-control]):not([data-workspace-open]):not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed">
       <Toaster position="bottom-center" duration={2000} visibleToasts={1} />
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-xl font-semibold tracking-tight">
-            Workspace
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your opportunities, preparation and bid outcomes.
-          </p>
-        </div>
-        <Button asChild size="sm" variant="outline">
-          <Link href="/">Find tenders</Link>
-        </Button>
-      </div>
       <GuestImportPrompt />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs
-          value={filters.state}
-          onValueChange={(value) =>
-            changeFilter("state", value === "active" ? "" : value)
-          }
-        >
-          <TabsList>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="archived">Archived</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Button asChild size="sm">
+          <Link href="/">Browse Tenders</Link>
+        </Button>
         <div className="flex gap-1">
           <Button
             size="icon-sm"
@@ -488,6 +465,14 @@ export function WorkspaceClient() {
         <Button size="sm" variant="outline" className="h-8" type="submit">
           Search
         </Button>
+        <Select value={filters.state} onValueChange={(value) => changeFilter("state", value === "active" ? "" : value)}>
+          <SelectTrigger className="h-8 w-36" aria-label="Filter workspace records"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active bids</SelectItem>
+            <SelectItem value="completed">Completed bids</SelectItem>
+            <SelectItem value="archived">Archived bids</SelectItem>
+          </SelectContent>
+        </Select>
         <Select
           value={filters.stage}
           onValueChange={(value) =>
@@ -607,6 +592,9 @@ export function WorkspaceClient() {
         />
       ) : (
         <WorkspaceList
+          key={`${identity}:${listQuery}`}
+          selectionDisabled={loading || error}
+          onBulkComplete={() => setRefresh((value) => value + 1)}
           items={items}
           pending={pending}
           now={now}
