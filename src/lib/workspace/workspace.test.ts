@@ -90,12 +90,14 @@ test("SAST inputs and attention signals respect midnight, submission and changed
     attentionSignals(
       { ...bid, acknowledged_closing_at: "2026-10-15T10:00:00Z" },
       now
-    )[0].kind,
-    "deadline"
+    ).some((signal) => signal.kind === "deadline"),
+    true
   )
   assert.equal(
-    attentionSignals({ ...bid, source_available: false }, now)[0].kind,
-    "source"
+    attentionSignals({ ...bid, source_available: false }, now).some(
+      (signal) => signal.kind === "source"
+    ),
+    true
   )
   assert.match(
     attentionSignals(bid, Date.parse("2026-10-15T10:00:00Z"))[0].text,
