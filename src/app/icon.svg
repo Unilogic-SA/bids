@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
   <title>OpenBids</title>
   <rect width="64" height="64" rx="14" fill="#6d28d9"/>
-  <path d="M18 16h28v8H26v8h16v8H26v8h20v8H18z" fill="#fff"/>
-  <path d="M18 16h8v40h-8z" fill="#ede9fe"/>
+  <path d="M14 25h36a4 4 0 0 1 4 4v19a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V29a4 4 0 0 1 4-4Z" fill="#fff"/>
+  <path d="M23 25v-5a5 5 0 0 1 5-5h8a5 5 0 0 1 5 5v5h-6v-4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v4Z" fill="#ede9fe"/>
+  <path d="M10 33h44v6H10z" fill="#ddd6fe"/>
+  <path d="M28 33h8v7h-8z" fill="#6d28d9"/>
 </svg>
