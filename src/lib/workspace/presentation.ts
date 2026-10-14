@@ -1,5 +1,11 @@
 import { differenceInSastCalendarDays } from "@/lib/sast-date"
-import type { WorkspaceEntry, WorkspaceTender } from "./types"
+import {
+  OUTCOME_LABELS,
+  STAGE_LABELS,
+  type BidPatch,
+  type WorkspaceEntry,
+  type WorkspaceTender
+} from "./types"
 export function workspaceDate(value: string | null) {
   if (!value || !Number.isFinite(Date.parse(value))) return "Not supplied"
   return (
@@ -47,10 +53,8 @@ export function attentionSignals(
     })
   if (
     bid.source_available &&
-    (tender.closing_at ? Date.parse(tender.closing_at) : null) !==
-      (bid.acknowledged_closing_at
-        ? Date.parse(bid.acknowledged_closing_at)
-        : null)
+    validTimestamp(tender.closing_at) !==
+      validTimestamp(bid.acknowledged_closing_at)
   )
     signals.push({
       kind: "deadline",
@@ -91,7 +95,7 @@ export function attentionSignals(
         text: `Closes ${days === 0 ? "today" : days === 1 ? "tomorrow" : "in 2 days"} — ${bid.stage === "preparing" ? "still preparing" : "not submitted"}`
       })
   }
-  return signals
+  return signals.sort((a, b) => signalPriority(a.kind) - signalPriority(b.kind))
 }
 export function summarizeBid(
   bid: import("./types").WorkspaceBid
@@ -115,4 +119,57 @@ export function summarizeBid(
         bid.submission_reference
       )
   }
+}
+
+function validTimestamp(value: string | null) {
+  const timestamp = value ? Date.parse(value) : NaN
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+function signalPriority(kind: string) {
+  return ["close", "briefing", "deadline", "source"].indexOf(kind)
+}
+export function compactWorkspaceDate(value: string | null) {
+  if (validTimestamp(value) === null) return "Not supplied"
+  return new Intl.DateTimeFormat("en-ZA", {
+    timeZone: "Africa/Johannesburg",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).format(new Date(value!))
+}
+export function closingUrgency(bid: WorkspaceEntry, now: number) {
+  const timestamp = validTimestamp(bid.tender.closing_at)
+  if (
+    timestamp === null ||
+    bid.stage === "submitted" ||
+    bid.outcome ||
+    bid.archived_at
+  )
+    return null
+  if (timestamp < now) return "Deadline passed"
+  const days = differenceInSastCalendarDays(timestamp, now)
+  return days === 0
+    ? "Today"
+    : days === 1
+      ? "Tomorrow"
+      : days === 2
+        ? "2 days left"
+        : null
+}
+export function workspaceMutationMessage(changes: BidPatch) {
+  if (changes.checklist) return "Checklist saved"
+  if (changes.archive !== undefined)
+    return changes.archive ? "Bid archived" : "Restored to workspace"
+  if (changes.acknowledge_deadline) return "Deadline change acknowledged"
+  if (changes.stage)
+    return changes.stage === "submitted"
+      ? "Submission recorded"
+      : `Moved to ${STAGE_LABELS[changes.stage].toLowerCase()}`
+  if ("outcome" in changes)
+    return changes.outcome
+      ? `Recorded as ${OUTCOME_LABELS[changes.outcome].toLowerCase()}`
+      : "Bid reopened"
+  return "Bid updated"
 }

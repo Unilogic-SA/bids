@@ -1,28 +1,20 @@
 "use client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   IconExternalLink,
   IconPlus,
   IconTrash,
   IconArchive,
+  IconDots,
   IconRefresh
 } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription
-} from "@/components/ui/sheet"
 import {
   Dialog,
   DialogContent,
@@ -39,6 +31,13 @@ import {
   DrawerDescription,
   DrawerClose
 } from "@/components/ui/drawer"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from "@/components/ui/dropdown-menu"
+import { signalClass, SignalIcon } from "./bid-summary"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
   attentionSignals,
@@ -56,6 +55,7 @@ import { cn } from "@/lib/utils"
 import { BidStageMenu } from "./bid-stage-menu"
 
 type Props = {
+  opener?: HTMLElement | null
   bid: WorkspaceEntry
   pending: boolean
   now: number
@@ -75,6 +75,20 @@ export function BidPanel(props: Props) {
   const [navigateAfterDiscard, setNavigateAfterDiscard] = useState(false)
   const [discard, setDiscard] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [opener] = useState(
+    () =>
+      props.opener ??
+      (typeof document !== "undefined"
+        ? (document.activeElement as HTMLElement | null)
+        : null)
+  )
+  const restoreFocus = (event: Event) => {
+    if (opener?.isConnected) {
+      event.preventDefault()
+      opener.focus()
+    }
+  }
   const close = () => {
     setNavigateAfterDiscard(false)
     if (dirty) setDiscard(true)
@@ -138,27 +152,44 @@ export function BidPanel(props: Props) {
         {mobile ? (
           <DrawerTitle
             title={title}
-            className="line-clamp-3 break-words text-left text-base font-semibold leading-snug"
+            className={cn(
+              !expanded && "line-clamp-3",
+              "break-words text-left text-base font-semibold leading-snug"
+            )}
           >
             {title}
           </DrawerTitle>
         ) : (
-          <SheetTitle
+          <DialogTitle
             title={title}
-            className="line-clamp-3 break-words text-base font-semibold leading-snug"
+            className={cn(
+              !expanded && "line-clamp-3",
+              "break-words text-base font-semibold leading-snug"
+            )}
           >
             {title}
-          </SheetTitle>
+          </DialogTitle>
         )}
+        {title.length > 100 ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-1 h-6 px-0 text-xs"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? "Show less" : "Show full title"}
+          </Button>
+        ) : null}
       </div>
       {mobile ? (
         <DrawerDescription className="mt-2 text-left text-xs leading-relaxed">
           {description}
         </DrawerDescription>
       ) : (
-        <SheetDescription className="mt-2 text-xs leading-relaxed">
+        <DialogDescription className="mt-2 text-xs leading-relaxed">
           {description}
-        </SheetDescription>
+        </DialogDescription>
       )}
     </>
   )
@@ -188,8 +219,9 @@ export function BidPanel(props: Props) {
         <DrawerContent
           className="h-[90dvh] data-[vaul-drawer-direction=bottom]:max-h-[90dvh] [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
           onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={restoreFocus}
         >
-          <DrawerHeader className="shrink-0 border-b px-4 pb-4 text-left">
+          <DrawerHeader className="max-h-[30dvh] shrink-0 overflow-y-auto border-b px-4 pb-4 text-left">
             {header}
           </DrawerHeader>
           {body}
@@ -211,22 +243,22 @@ export function BidPanel(props: Props) {
       </Drawer>
     )
   return (
-    <Sheet
+    <Dialog
       open
       onOpenChange={(open) => {
         if (!open) close()
       }}
     >
-      <SheetContent
-        className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
-        onOpenAutoFocus={(event) => event.preventDefault()}
+      <DialogContent
+        className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
+        onCloseAutoFocus={restoreFocus}
       >
-        <SheetHeader className="shrink-0 border-b px-6 py-5">
+        <DialogHeader className="max-h-[30dvh] shrink-0 overflow-y-auto border-b px-6 py-5">
           {header}
-        </SheetHeader>
+        </DialogHeader>
         {body}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
 function Preparation({
@@ -245,67 +277,53 @@ function Preparation({
   dirty: boolean
   onNavigate: () => void
 }) {
-  const [draft, setDraft] = useState({
-    notes: bid.notes,
-    baseNotes: bid.notes,
-    version: bid.version
-  })
   const [checklist, setChecklist] = useState(bid.checklist)
   const [checklistVersion, setChecklistVersion] = useState(bid.version)
-  const [checklistConflict, setChecklistConflict] = useState(false)
   const [checklistBase, setChecklistBase] = useState(
     JSON.stringify(bid.checklist)
   )
   const [status, setStatus] = useState<
     "saved" | "saving" | "failed" | "conflict"
   >("saved")
-  const notesDirty = draft.notes !== draft.baseNotes
-  const notes = notesDirty ? draft.notes : bid.notes
+  const saveLock = useRef(false)
+  const newItem = useRef<string | null>(null)
   const checklistDirty = JSON.stringify(checklist) !== checklistBase
   const shownChecklist = checklistDirty ? checklist : bid.checklist
-  useEffect(
-    () => onDirty(notesDirty || checklistDirty),
-    [onDirty, notesDirty, checklistDirty]
-  )
+  useEffect(() => onDirty(checklistDirty), [onDirty, checklistDirty])
   const signals = attentionSignals(bid, now)
-  function dirty(notesChanged = notesDirty, checkChanged = checklistDirty) {
-    onDirty(notesChanged || checkChanged)
-  }
-  async function saveNotes() {
-    setStatus("saving")
-    const result = await onPatch(
-      bid,
-      { notes },
-      notesDirty ? draft.version : bid.version
-    )
-    if (result.ok && result.bid) {
-      setDraft({
-        notes: result.bid.notes,
-        baseNotes: result.bid.notes,
-        version: result.bid.version
-      })
-      setStatus("saved")
-      dirty(false)
-    } else if (!result.ok) {
-      setStatus(result.code === "conflict" ? "conflict" : "failed")
-      if (result.bid)
-        setDraft((previous) => ({ ...previous, version: result.bid!.version }))
-    }
+  function dirty() {
+    onDirty(true)
   }
   async function saveChecklist() {
-    const result = await onPatch(
-      bid,
-      { checklist: shownChecklist },
-      checklistVersion
-    )
+    if (saveLock.current || pending) return
+    saveLock.current = true
+    setStatus("saving")
+    const version =
+      status === "conflict" || JSON.stringify(bid.checklist) !== checklistBase
+        ? checklistVersion
+        : bid.version
+    let result: MutationResult
+    try {
+      result = await onPatch(bid, { checklist: shownChecklist }, version)
+    } catch {
+      result = {
+        ok: false,
+        code: "unavailable",
+        message: "Checklist could not be saved. Please retry."
+      }
+    } finally {
+      saveLock.current = false
+    }
     if (result.ok && result.bid) {
       setChecklist(result.bid.checklist)
       setChecklistBase(JSON.stringify(result.bid.checklist))
       setChecklistVersion(result.bid.version)
-      setChecklistConflict(false)
-      dirty(notesDirty, false)
-    } else if (!result.ok && result.code === "conflict") {
-      setChecklistConflict(true)
+      setStatus("saved")
+      onDirty(false)
+    } else {
+      setStatus(
+        !result.ok && result.code === "conflict" ? "conflict" : "failed"
+      )
       if (result.bid) setChecklistVersion(result.bid.version)
     }
   }
@@ -336,7 +354,11 @@ function Preparation({
       {signals.length ? (
         <div className="space-y-2">
           {signals.map((signal) => (
-            <Alert key={signal.kind} className="py-2">
+            <Alert
+              key={signal.kind}
+              className={cn("py-2", signalClass(signal.kind))}
+            >
+              <SignalIcon kind={signal.kind} />
               <AlertDescription className="text-xs">
                 {signal.text}
                 {signal.kind === "deadline" ? (
@@ -404,6 +426,23 @@ function Preparation({
       <section className="space-y-3 border-t pt-5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Preparation checklist</h3>
+          <span
+            role="status"
+            className={cn(
+              "ml-auto mr-3 text-xs",
+              status === "failed" ? "text-destructive" : "text-muted-foreground"
+            )}
+          >
+            {status === "saving"
+              ? "Saving…"
+              : status === "failed"
+                ? "Save failed"
+                : status === "conflict"
+                  ? "Review latest version"
+                  : checklistDirty
+                    ? "Unsaved"
+                    : "Saved"}
+          </span>
           {shownChecklist.length ? (
             <span className="text-xs tabular-nums text-muted-foreground">
               {shownChecklist.filter((item) => item.completed).length}/
@@ -444,10 +483,17 @@ function Preparation({
                       ? checklistBase
                       : JSON.stringify(bid.checklist)
                   )
-                  dirty(notesDirty, true)
+                  dirty()
                 }}
               />
               <Input
+                ref={(node) => {
+                  if (node && newItem.current === item.id) {
+                    node.focus()
+                    node.select()
+                    newItem.current = null
+                  }
+                }}
                 aria-label={`Checklist item ${index + 1}`}
                 value={item.label}
                 maxLength={200}
@@ -470,7 +516,7 @@ function Preparation({
                       ? checklistBase
                       : JSON.stringify(bid.checklist)
                   )
-                  dirty(notesDirty, true)
+                  dirty()
                 }}
               />
               <Button
@@ -489,7 +535,7 @@ function Preparation({
                       ? checklistBase
                       : JSON.stringify(bid.checklist)
                   )
-                  dirty(notesDirty, true)
+                  dirty()
                 }}
               >
                 <IconTrash />
@@ -503,10 +549,12 @@ function Preparation({
             variant="ghost"
             disabled={pending || shownChecklist.length >= 50}
             onClick={() => {
+              const id = crypto.randomUUID()
+              newItem.current = id
               setChecklist([
                 ...shownChecklist,
                 {
-                  id: crypto.randomUUID(),
+                  id,
                   label: "New preparation item",
                   completed: false
                 }
@@ -515,28 +563,38 @@ function Preparation({
               setChecklistBase(
                 checklistDirty ? checklistBase : JSON.stringify(bid.checklist)
               )
-              dirty(notesDirty, true)
+              dirty()
             }}
           >
             <IconPlus data-icon="inline-start" />
             Add item
           </Button>
-          {checklistDirty || checklistConflict ? (
+          {checklistDirty || status !== "saved" ? (
             <Button
               size="sm"
               variant="outline"
               disabled={
                 pending ||
+                status === "saving" ||
                 !checklistDirty ||
                 shownChecklist.some((item) => !item.label.trim())
               }
               onClick={() => void saveChecklist()}
             >
-              Save checklist
+              {status === "saving"
+                ? "Saving…"
+                : status === "failed" || status === "conflict"
+                  ? "Retry save checklist"
+                  : "Save checklist"}
             </Button>
           ) : null}
         </div>
-        {checklistConflict ? (
+        {status === "failed" ? (
+          <p role="alert" className="text-xs text-destructive">
+            Your checklist draft is kept. Retry saving when you’re ready.
+          </p>
+        ) : null}
+        {status === "conflict" ? (
           <Alert>
             <AlertDescription className="text-xs">
               The checklist changed. Your draft is kept. Latest saved items:{" "}
@@ -548,93 +606,32 @@ function Preparation({
           </Alert>
         ) : null}
       </section>
-      <section className="space-y-3 border-t pt-5">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="bid-notes" className="text-sm font-medium">
-            Private notes
-          </Label>
-          <span role="status" className="text-xs text-muted-foreground">
-            {status === "saving"
-              ? "Saving…"
-              : status === "failed"
-                ? "Save failed"
-                : status === "conflict"
-                  ? "Review latest version"
-                  : notesDirty
-                    ? "Unsaved"
-                    : "Saved"}
-          </span>
-        </div>
-        <Textarea
-          id="bid-notes"
-          rows={5}
-          maxLength={10000}
-          value={notes}
-          placeholder="Pricing, questions, requirements or reminders…"
-          onChange={(event) => {
-            const value = event.target.value
-            setDraft((previous) => ({
-              notes: value,
-              baseNotes: notesDirty ? previous.baseNotes : bid.notes,
-              version: notesDirty ? previous.version : bid.version
-            }))
-            setStatus("saved")
-            dirty(true)
-          }}
-        />
-        <div className="flex items-center justify-between">
-          {notesDirty || status !== "saved" ? (
-            <Button
-              size="sm"
-              disabled={pending || !notesDirty}
-              onClick={() => void saveNotes()}
-            >
-              {status === "failed" || status === "conflict"
-                ? "Retry save notes"
-                : "Save notes"}
+      <div className="flex justify-end border-t pt-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost" disabled={pending}>
+              <IconDots data-icon="inline-start" />
+              More actions
             </Button>
-          ) : null}
-          {notesDirty || status !== "saved" ? (
-            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-              {notes.length}/10,000
-            </span>
-          ) : null}
-        </div>
-        {status === "conflict" ? (
-          <Alert>
-            <AlertDescription className="text-xs">
-              The bid changed in another tab. Your draft is kept. Review the
-              latest saved notes below before retrying.
-              <p className="mt-2 whitespace-pre-wrap break-words">
-                {bid.notes || "No saved notes."}
-              </p>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-      </section>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() => void onPatch(bid, { archive: !bid.archived_at })}
-        >
-          {bid.archived_at ? (
-            <IconRefresh data-icon="inline-start" />
-          ) : (
-            <IconArchive data-icon="inline-start" />
-          )}
-          {bid.archived_at ? "Restore to workspace" : "Archive bid"}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={pending}
-          className="text-destructive"
-          onClick={() => onDelete(bid)}
-        >
-          Delete permanently
-        </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              disabled={pending}
+              onSelect={() => void onPatch(bid, { archive: !bid.archived_at })}
+            >
+              {bid.archived_at ? <IconRefresh /> : <IconArchive />}
+              {bid.archived_at ? "Restore to workspace" : "Archive bid"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={pending}
+              onSelect={() => onDelete(bid)}
+            >
+              <IconTrash />
+              Delete permanently
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )

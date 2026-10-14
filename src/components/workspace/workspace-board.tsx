@@ -35,7 +35,14 @@ import {
   type BidOutcome,
   type WorkspaceEntry
 } from "@/lib/workspace/types"
-import { attentionSignals, workspaceDate } from "@/lib/workspace/presentation"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
+import { BidDeadline, BidSignals } from "./bid-summary"
+import { useWorkspace } from "./workspace-provider"
+import { preferredBoardStage } from "@/lib/workspace/client-state"
 import { BidStateLabel, bidStateTriggerClass } from "./stage-presentation"
 import { BidStageMenu } from "./bid-stage-menu"
 import {
@@ -68,6 +75,8 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
   return rect ? { x: rect.left + 20, y: rect.top + 60 } : currentCoordinates
 }
 type Props = {
+  mobile?: boolean
+  stageFilter: BidStage | "all"
   items: WorkspaceEntry[]
   counts: Record<BidStage, number>
   pending: Set<string>
@@ -80,7 +89,20 @@ type Props = {
 export function WorkspaceBoard(props: Props) {
   const mobile = useIsMobile()
   const [gesture] = useState(() => new WorkspaceGesture())
-  const [mobileStage, setMobileStage] = useState<BidStage>("saved")
+  const { identity } = useWorkspace()
+  const [preferredStage, setPreferredStage] = useState<BidStage>(() => {
+    try {
+      return preferredBoardStage(
+        typeof window === "undefined"
+          ? null
+          : localStorage.getItem(`openbids:workspace-stage:${identity}`)
+      )
+    } catch {
+      return "saved"
+    }
+  })
+  const mobileStage =
+    props.stageFilter === "all" ? preferredStage : props.stageFilter
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates })
@@ -96,7 +118,16 @@ export function WorkspaceBoard(props: Props) {
       {mobile ? (
         <Select
           value={mobileStage}
-          onValueChange={(value) => setMobileStage(value as BidStage)}
+          onValueChange={(value) => {
+            const stage = preferredBoardStage(value)
+            setPreferredStage(stage)
+            try {
+              localStorage.setItem(
+                `openbids:workspace-stage:${identity}`,
+                stage
+              )
+            } catch {}
+          }}
         >
           <SelectTrigger
             className={cn(
@@ -108,7 +139,10 @@ export function WorkspaceBoard(props: Props) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {BID_STAGES.map((stage) => (
+            {BID_STAGES.filter(
+              (stage) =>
+                props.stageFilter === "all" || stage === props.stageFilter
+            ).map((stage) => (
               <SelectItem className="cursor-pointer" value={stage} key={stage}>
                 <BidStateLabel state={stage} />{" "}
                 <span className="text-muted-foreground">
@@ -132,11 +166,19 @@ export function WorkspaceBoard(props: Props) {
         }}
       >
         <div className="flex min-w-0 gap-3 overflow-x-auto pb-3">
-          {BID_STAGES.filter((stage) => !mobile || stage === mobileStage).map(
-            (stage) => (
-              <Column key={stage} stage={stage} gesture={gesture} {...props} />
-            )
-          )}
+          {BID_STAGES.filter(
+            (stage) =>
+              (props.stageFilter === "all" || stage === props.stageFilter) &&
+              (!mobile || stage === mobileStage)
+          ).map((stage) => (
+            <Column
+              key={stage}
+              stage={stage}
+              gesture={gesture}
+              {...props}
+              mobile={mobile}
+            />
+          ))}
         </div>
       </DndContext>
     </div>
@@ -174,7 +216,16 @@ function Column({
         ))}
         {!items.length ? (
           <p className="py-6 text-center text-xs text-muted-foreground">
-            No bids in this stage
+            {
+              {
+                saved: "Save opportunities to start your bid pipeline.",
+                reviewing:
+                  "Move bids here while you assess their requirements.",
+                preparing: "Move bids here when you start preparing.",
+                ready: "Move bids here once preparation is complete.",
+                submitted: "Record bids you’ve submitted outside OpenBids."
+              }[stage]
+            }
           </p>
         ) : null}
       </div>
@@ -204,7 +255,6 @@ function BidCard({
     transform,
     isDragging
   } = useDraggable({ id: bid.id, data: { stage: bid.stage }, disabled })
-  const signal = attentionSignals(bid, props.now)[0]
   return (
     <Card
       ref={setNodeRef}
@@ -217,8 +267,12 @@ function BidCard({
         if (
           !isWorkspaceControl(event.target) &&
           props.gesture.canOpen(event.detail)
-        )
+        ) {
+          event.currentTarget
+            .querySelector<HTMLButtonElement>("[data-workspace-open]")
+            ?.focus()
           props.onOpen(bid)
+        }
       }}
       className={cn(
         "touch-pan-y cursor-pointer gap-0 border-border/70 py-0 shadow-none transition-colors hover:border-primary/30",
@@ -232,26 +286,35 @@ function BidCard({
     >
       <CardContent className="space-y-3 p-3">
         <div className="flex items-start gap-1">
-          <Button
-            type="button"
-            variant="link"
-            data-workspace-open
-            className={cn(
-              "h-auto min-w-0 cursor-pointer flex-1 justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary",
-              isDragging && "cursor-grabbing"
-            )}
-            onClick={(event) => {
-              event.stopPropagation()
-              if (props.gesture.canOpen(event.detail)) props.onOpen(bid)
-            }}
-          >
-            <span
-              className="line-clamp-2 min-w-0 break-words"
-              title={bid.tender.title || bid.tender.tender_no || "Saved tender"}
-            >
+          <Tooltip open={props.mobile ? false : undefined}>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="link"
+                data-workspace-open
+                className={cn(
+                  "h-auto min-w-0 cursor-pointer flex-1 justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary",
+                  isDragging && "cursor-grabbing"
+                )}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  if (props.gesture.canOpen(event.detail)) props.onOpen(bid)
+                }}
+              >
+                <span
+                  className="line-clamp-2 min-w-0 break-words"
+                  title={
+                    bid.tender.title || bid.tender.tender_no || "Saved tender"
+                  }
+                >
+                  {bid.tender.title || bid.tender.tender_no || "Saved tender"}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent sideOffset={6} className="pointer-events-none">
               {bid.tender.title || bid.tender.tender_no || "Saved tender"}
-            </span>
-          </Button>
+            </TooltipContent>
+          </Tooltip>
           <Button
             ref={setActivatorNodeRef}
             data-workspace-control
@@ -284,16 +347,13 @@ function BidCard({
             {bid.tender.buyer_name || "Buyer not supplied"}
           </p>
         </div>
-        <p className="flex items-start gap-1.5 text-xs leading-relaxed">
+        <div className="flex items-start gap-1.5 text-xs leading-relaxed">
           <IconCalendar
             aria-hidden="true"
             className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
           />
-          <span>
-            <span className="text-muted-foreground">Closes </span>
-            {workspaceDate(bid.tender.closing_at)}
-          </span>
-        </p>
+          <BidDeadline bid={bid} now={props.now} mobile={props.mobile} />
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           {bid.checklist.length ? (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -310,7 +370,7 @@ function BidCard({
             onOutcome={props.onOutcome}
           />
         </div>
-        {signal ? <p className="text-xs text-primary">{signal.text}</p> : null}
+        <BidSignals bid={bid} now={props.now} />
         {disabled ? (
           <p role="status" className="text-xs text-muted-foreground">
             Saving…

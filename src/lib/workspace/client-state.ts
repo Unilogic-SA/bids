@@ -30,3 +30,34 @@ export function workspaceListQuery(query: string) {
   params.delete("bid")
   return params.toString()
 }
+
+export function preferredBoardStage(
+  value: string | null
+): import("./types").BidStage {
+  return ["saved", "reviewing", "preparing", "ready", "submitted"].includes(
+    value || ""
+  )
+    ? (value as import("./types").BidStage)
+    : "saved"
+}
+export function workspacePagination(
+  total: number,
+  page: number,
+  itemCount: number,
+  size = 50
+) {
+  const pages = Math.max(1, Math.ceil(total / size))
+  const start = itemCount ? (page - 1) * size + 1 : 0
+  return {
+    start,
+    end: itemCount ? Math.min(total, start + itemCount - 1) : 0,
+    pages
+  }
+}
+export function clearWorkspaceFilters(query: string) {
+  const params = new URLSearchParams(query)
+  for (const name of ["q", "stage", "week", "page"]) params.delete(name)
+  for (const stage of ["saved", "reviewing", "preparing", "ready", "submitted"])
+    params.delete(`offset_${stage}`)
+  return params.toString()
+}
