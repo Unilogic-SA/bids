@@ -10,7 +10,8 @@ import type {
   WorkspacePage,
   SavedBid
 } from "./types"
-export async function workspaceClient() {
+export async function workspaceClient(companyId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(companyId)) return null
   if (!hasSupabasePublicConfig()) return null
   const supabase = await createServerAuthClient()
   const {
@@ -20,27 +21,21 @@ export async function workspaceClient() {
   if (error || !isVerifiedCustomer(user)) return null
   const { data: membership, error: membershipError } = await supabase
     .from("company_memberships")
-    .select("company_id,role,companies!inner(id,owner_user_id)")
+    .select("company_id,role")
     .eq("user_id", user.id)
-    .eq("companies.owner_user_id", user.id)
+    .eq("company_id", companyId)
     .maybeSingle()
-  if (membershipError || !membership || membership.role !== "owner") return null
-  const company = membership.companies as unknown as {
-    id: string
-    owner_user_id: string
-  } | null
-  return company &&
-    company.id === membership.company_id &&
-    company.owner_user_id === user.id
-    ? { supabase, companyId: company.id }
+  return !membershipError && membership && ["owner", "member"].includes(membership.role)
+    ? { supabase, companyId, user }
     : null
 }
 export async function readWorkspace(
-  filters: WorkspaceFilters
+  companyId: string, filters: WorkspaceFilters
 ): Promise<WorkspacePage | null> {
-  const client = await workspaceClient()
+  const client = await workspaceClient(companyId)
   if (!client) return null
   const { data, error } = await client.supabase.rpc("list_workspace_bids", {
+    p_company_id: client.companyId,
     p_q: filters.q,
     p_state: filters.state,
     p_stage: filters.stage,
@@ -57,9 +52,9 @@ export async function readWorkspace(
   }
 }
 export async function readWorkspaceEntry(
-  id: string
+  companyId: string, id: string
 ): Promise<WorkspaceEntry | null> {
-  const client = await workspaceClient()
+  const client = await workspaceClient(companyId)
   if (!client) return null
   const { data, error } = await client.supabase
     .from("workspace_bid_entries")
@@ -75,9 +70,9 @@ export async function readWorkspaceEntry(
     : null
 }
 export async function readSavedBids(
-  ocids: string[]
+  companyId: string, ocids: string[]
 ): Promise<SavedBid[] | null> {
-  const client = await workspaceClient()
+  const client = await workspaceClient(companyId)
   if (!client) return null
   const { data, error } = await client.supabase
     .from("workspace_bids")

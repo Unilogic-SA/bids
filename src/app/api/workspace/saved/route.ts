@@ -5,6 +5,8 @@ import { importSchema } from "@/lib/workspace/validation"
 export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   try {
+    const companyId = request.nextUrl.searchParams.get("company") || ""
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) return NextResponse.json({ message: "Select a workspace." }, { status: 400, headers: ACCOUNT_CACHE_HEADERS })
     const parsed = importSchema.safeParse(
       JSON.parse(request.nextUrl.searchParams.get("ocids") || "[]")
     )
@@ -13,10 +15,10 @@ export async function GET(request: NextRequest) {
         { message: "Invalid tender references." },
         { status: 400, headers: ACCOUNT_CACHE_HEADERS }
       )
-    const bids = await readSavedBids(parsed.data)
+    const bids = await readSavedBids(companyId, parsed.data)
     return NextResponse.json(
       { bids },
-      { status: bids ? 200 : 401, headers: ACCOUNT_CACHE_HEADERS }
+      { status: bids ? 200 : 403, headers: ACCOUNT_CACHE_HEADERS }
     )
   } catch {
     return NextResponse.json(

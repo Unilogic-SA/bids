@@ -1,8 +1,9 @@
 export type AccountIdentity = { id: string; email: string }
+export type AccountWorkspace = { id: string; name: string | null; role: "owner" | "member" }
 export type AccountSnapshot =
   | { status: "signed-out" }
   | { status: "unavailable"; message: string; user?: AccountIdentity }
-  | { status: "signed-in"; user: AccountIdentity; profile: { displayName: string | null }; workspace: { id: string; name: string | null } }
+  | { status: "signed-in"; user: AccountIdentity; profile: { displayName: string | null }; workspace: AccountWorkspace; workspaces: AccountWorkspace[]; invitationsEnabled: boolean }
 export type AccountState = AccountSnapshot | { status: "loading" }
 
 export type CustomerActionState = {
@@ -32,4 +33,9 @@ export function accountNavigationRefresh(previous: string, next: string): "none"
   const from = previous.split("?")[0]
   const to = next.split("?")[0]
   return ACCOUNT_AUTH_PATHS.has(from) || ACCOUNT_AUTH_PATHS.has(to) ? "foreground" : "background"
+}
+
+/** Selection is a preference; only the live membership projection is authoritative. */
+export function resolveWorkspace(workspaces: AccountWorkspace[], selected?: string) {
+  return workspaces.find(workspace => workspace.id === selected) || workspaces.find(workspace => workspace.role === "owner") || workspaces[0]
 }

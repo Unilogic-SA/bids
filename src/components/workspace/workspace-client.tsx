@@ -74,6 +74,7 @@ import {
   workspacePagination,
   workspaceListQuery
 } from "@/lib/workspace/client-state"
+import { workspaceLabel } from "@/lib/auth/account-state"
 import { parseWorkspaceFilters } from "@/lib/workspace/validation"
 import { boardRounds, mergeBoardPages } from "@/lib/workspace/board"
 import {
@@ -115,6 +116,7 @@ export function WorkspaceClient() {
   const [page, setPage] = useState<WorkspacePage>(emptyPage)
   const [loading, setLoading] = useState(true)
   const [loadedQuery, setLoadedQuery] = useState<string | null>(null)
+  const loadedQueryRef = useRef<string | null>(null)
   const [error, setError] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const [selected, setSelected] = useState<WorkspaceEntry | null>(null)
@@ -165,10 +167,11 @@ export function WorkspaceClient() {
     const controller = new AbortController()
     const current = accountGuard()
     const load = async () => {
-      setLoading(true)
+      if (loadedQueryRef.current !== listQuery) setLoading(true)
       setError(false)
       try {
         const params = new URLSearchParams(listQuery)
+        params.set("company", workspace.companyId!)
         params.delete("bid")
         const isBoard = filters.view === "board" && filters.state === "active"
         if (isBoard)
@@ -179,6 +182,7 @@ export function WorkspaceClient() {
             credentials: "same-origin",
             signal: controller.signal
           })
+          if (response.status === 403) refreshAccount()
           if (!response.ok) throw new Error("Workspace unavailable")
           return (await response.json()) as WorkspacePage
         }
@@ -210,6 +214,7 @@ export function WorkspaceClient() {
         }
         if (!controller.signal.aborted && current()) {
           setPage(data)
+          loadedQueryRef.current = listQuery
           setLoadedQuery(listQuery)
           setLoading(false)
         }
@@ -223,7 +228,7 @@ export function WorkspaceClient() {
     }
     void load()
     return () => controller.abort()
-  }, [listQuery, identity, revision, refresh, accountGuard, router, filters, mobile])
+  }, [listQuery, identity, revision, refresh, accountGuard, router, filters, mobile, workspace.companyId, refreshAccount])
   const selectedId = search.get("bid")
   if (dismissedId && selectedId !== dismissedId) setDismissedId(null)
   useEffect(() => {
@@ -235,13 +240,14 @@ export function WorkspaceClient() {
       setSelectionError(false)
       try {
         const response = await fetch(
-          `/api/workspace?bid=${encodeURIComponent(selectedId)}`,
+          `/api/workspace?company=${workspace.companyId}&bid=${encodeURIComponent(selectedId)}`,
           {
             cache: "no-store",
             credentials: "same-origin",
             signal: controller.signal
           }
         )
+        if (response.status === 403) refreshAccount()
         if (!response.ok) throw new Error("Bid unavailable")
         const bid = (await response.json()) as WorkspaceEntry
         if (
@@ -260,7 +266,7 @@ export function WorkspaceClient() {
     }
     void load()
     return () => controller.abort()
-  }, [selectedId, dismissedId, identity, revision, refresh, accountGuard])
+  }, [selectedId, dismissedId, identity, revision, refresh, accountGuard, workspace.companyId, refreshAccount])
   function changeFilter(name: string, value: string) {
     const params = new URLSearchParams(query)
     if (value) params.set(name, value)
@@ -439,7 +445,7 @@ export function WorkspaceClient() {
               className="ml-3"
               size="sm"
               variant="outline"
-              onClick={refreshAccount}
+              onClick={() => refreshAccount()}
             >
               Retry account
             </Button>
@@ -472,8 +478,9 @@ export function WorkspaceClient() {
     )
   return (
     <TooltipProvider delayDuration={250}>
-      <main className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-4 py-6 md:px-6 [&_button:not([data-workspace-control]):not([data-workspace-open]):not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed">
+      <main inert={workspace.switching} className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-4 py-6 md:px-6 [&_button:not([data-workspace-control]):not([data-workspace-open]):not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed">
         <Toaster position="top-center" duration={2000} visibleToasts={1} />
+        <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="min-w-0 wrap-anywhere font-heading text-lg font-medium">{workspaceLabel(account.workspace.name)}</h1></div>
         <GuestImportPrompt />
         <form
           className="flex flex-wrap items-center gap-x-3 gap-y-3"

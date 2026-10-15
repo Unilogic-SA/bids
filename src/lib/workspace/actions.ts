@@ -13,11 +13,11 @@ const unavailable = (): MutationResult => ({
   code: "unavailable",
   message: "Your bid could not be saved. Please retry."
 })
-export async function saveBid(ocid: string): Promise<MutationResult> {
+export async function saveBid(companyId: string, ocid: string): Promise<MutationResult> {
   if (!ocidSchema.safeParse(ocid).success)
     return { ok: false, code: "invalid", message: "Invalid tender reference." }
   try {
-    const client = await workspaceClient()
+    const client = await workspaceClient(companyId)
     if (!client)
       return {
         ok: false,
@@ -25,6 +25,7 @@ export async function saveBid(ocid: string): Promise<MutationResult> {
         message: "Sign in to save this tender to your workspace."
       }
     const { data, error } = await client.supabase.rpc("save_workspace_bid", {
+      p_company_id: client.companyId,
       p_ocid: ocid
     })
     if (error) return unavailable()
@@ -34,7 +35,7 @@ export async function saveBid(ocid: string): Promise<MutationResult> {
   }
 }
 export async function updateBid(
-  id: string,
+  companyId: string, id: string,
   version: number,
   patch: BidPatch
 ): Promise<MutationResult> {
@@ -46,7 +47,7 @@ export async function updateBid(
       message: parsed.error.issues[0].message
     }
   try {
-    const client = await workspaceClient()
+    const client = await workspaceClient(companyId)
     if (!client)
       return {
         ok: false,
@@ -54,6 +55,7 @@ export async function updateBid(
         message: "Your account changed. Sign in and try again."
       }
     const { data, error } = await client.supabase.rpc("update_workspace_bid", {
+      p_company_id: client.companyId,
       p_id: id,
       p_version: version,
       p_patch: parsed.data.patch
@@ -69,7 +71,7 @@ export async function updateBid(
         ok: false,
         code: "conflict",
         message:
-          "This bid changed in another tab. Your draft is kept; review the latest version and retry.",
+          "Someone else updated this bid. Your draft is kept; review the latest version and retry.",
         bid: current as WorkspaceBid | undefined
       }
     }
@@ -80,7 +82,7 @@ export async function updateBid(
   }
 }
 export async function deleteBid(
-  id: string,
+  companyId: string, id: string,
   version: number
 ): Promise<MutationResult> {
   if (
@@ -90,7 +92,7 @@ export async function deleteBid(
   )
     return { ok: false, code: "invalid", message: "Invalid bid." }
   try {
-    const client = await workspaceClient()
+    const client = await workspaceClient(companyId)
     if (!client)
       return {
         ok: false,
@@ -98,6 +100,7 @@ export async function deleteBid(
         message: "Sign in and try again."
       }
     const { error } = await client.supabase.rpc("delete_workspace_bid", {
+      p_company_id: client.companyId,
       p_id: id,
       p_version: version
     })
@@ -113,15 +116,16 @@ export async function deleteBid(
   }
 }
 export async function importGuestBids(
-  ocids: string[]
+  companyId: string, ocids: string[]
 ): Promise<ImportResult[]> {
   const parsed = importSchema.safeParse(ocids)
   if (!parsed.success)
     return ocids.slice(0, 50).map((ocid) => ({ ocid, status: "failed" }))
   try {
-    const client = await workspaceClient()
+    const client = await workspaceClient(companyId)
     if (!client) return ocids.map((ocid) => ({ ocid, status: "failed" }))
     const { data, error } = await client.supabase.rpc("import_workspace_bids", {
+      p_company_id: client.companyId,
       p_ocids: parsed.data
     })
     return error

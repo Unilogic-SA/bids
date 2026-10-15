@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
-import { IconLogin, IconLogout, IconRefresh, IconUser, IconUserPlus } from "@tabler/icons-react"
+import { useRef, useState, useTransition } from "react"
+import { IconLogin, IconLogout, IconRefresh, IconUser, IconUserPlus, IconSettings } from "@tabler/icons-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -12,10 +13,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { signOutCustomer } from "@/lib/auth/actions"
 import { initialCustomerActionState, workspaceLabel } from "@/lib/auth/account-state"
 import { authPageHref, getSafePublicNextPath } from "@/lib/auth/redirects"
+import { useWorkspace } from "@/components/workspace/workspace-provider"
 import { useAccount } from "./account-provider"
+
+const AccountWorkspaceDialog = dynamic(() => import("./account-workspace-dialog").then(module => module.AccountWorkspaceDialog), { ssr: false, loading: () => <span role="status" className="sr-only">Opening account settings…</span> })
 
 export function AccountMenu({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { account, refreshAccount } = useAccount()
+  const workspace = useWorkspace()
+  const trigger = useRef<HTMLButtonElement>(null)
+  const [settings, setSettings] = useState<HTMLElement | null>(null)
   const router = useRouter()
   const [next, setNext] = useState("/")
   const [error, setError] = useState("")
@@ -27,24 +34,25 @@ export function AccountMenu({ open, onOpenChange }: { open: boolean; onOpenChang
     setError("")
     startTransition(async () => {
       try {
+        if (!await workspace.prepareToLeave()) { setError("Save your checklist before signing out."); return }
         const form = new FormData()
         form.set("next", next)
         const result = await signOutCustomer(initialCustomerActionState, form)
         if (result.status !== "success") { setError(result.message); return }
-        refreshAccount()
+        refreshAccount({ foreground: true })
         router.refresh()
-      } catch { setError("Sign out failed. Try again.") }
+      } catch { setError("Sign out failed. Try again.") } finally { workspace.releaseSwitch() }
     })
   }
 
-  return <DropdownMenu modal={false} open={open} onOpenChange={open => {
+  return <><DropdownMenu modal={false} open={open} onOpenChange={open => {
     onOpenChange(open)
     if (open) setNext(getSafePublicNextPath(`${window.location.pathname}${window.location.search}${window.location.hash}`))
   }}>
     <Tooltip>
       <TooltipTrigger asChild>
         <DropdownMenuTrigger asChild>
-          <Button aria-label="Account menu" variant="ghost" size="icon" className="size-11 rounded-full data-[state=open]:bg-accent md:size-8">
+          <Button ref={trigger} aria-label="Account menu" variant="ghost" size="icon" className="size-11 rounded-full data-[state=open]:bg-accent md:size-8">
             {account.status === "loading" ? <Skeleton className="size-7 rounded-full" aria-label="Loading account" /> : <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary">{displayName ? displayName.slice(0, 2).toUpperCase() : <IconUser className="size-4" aria-hidden="true" />}</AvatarFallback></Avatar>}
           </Button>
         </DropdownMenuTrigger>
@@ -61,6 +69,7 @@ export function AccountMenu({ open, onOpenChange }: { open: boolean; onOpenChang
       <DropdownMenuSeparator />
       <DropdownMenuGroup className="[&_[data-slot=dropdown-menu-item]]:min-h-11 [&_[data-slot=dropdown-menu-item]]:gap-2 [&_[data-slot=dropdown-menu-item]]:px-3 md:[&_[data-slot=dropdown-menu-item]]:min-h-8">
         {account.status === "loading" ? <DropdownMenuItem disabled>Loading account…</DropdownMenuItem> : user ? <>
+          {account.status === "signed-in" ? <DropdownMenuItem onSelect={() => { onOpenChange(false); setSettings(trigger.current) }}><IconSettings />Account & workspace</DropdownMenuItem> : null}
           {account.status === "unavailable" ? <DropdownMenuItem asChild><Link prefetch={false} href={`${authPageHref("/sign-in", next)}&error=workspace`}><IconRefresh />Retry account setup</Link></DropdownMenuItem> : null}
           <DropdownMenuItem disabled={pending} onSelect={event => { event.preventDefault(); signOut() }}><IconLogout />{pending ? "Signing out…" : "Sign out on this device"}</DropdownMenuItem>
         </> : account.status === "unavailable" ? <DropdownMenuItem onSelect={event => { event.preventDefault(); refreshAccount() }}><IconRefresh />Retry</DropdownMenuItem> : <>
@@ -69,5 +78,5 @@ export function AccountMenu({ open, onOpenChange }: { open: boolean; onOpenChang
         </>}
       </DropdownMenuGroup>
     </DropdownMenuContent>
-  </DropdownMenu>
+  </DropdownMenu>{settings && account.status === "signed-in" ? <AccountWorkspaceDialog onClose={() => setSettings(null)} opener={settings} /> : null}</>
 }

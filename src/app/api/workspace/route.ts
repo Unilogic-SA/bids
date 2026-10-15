@@ -6,6 +6,8 @@ import { z } from "zod"
 export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   try {
+    const companyId = request.nextUrl.searchParams.get("company") || ""
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) return NextResponse.json({ message: "Select a workspace." }, { status: 400, headers: ACCOUNT_CACHE_HEADERS })
     const id = request.nextUrl.searchParams.get("bid")
     if (id && !z.uuid().safeParse(id).success)
       return NextResponse.json(
@@ -13,10 +15,10 @@ export async function GET(request: NextRequest) {
         { status: 400, headers: ACCOUNT_CACHE_HEADERS }
       )
     const data = id
-      ? await readWorkspaceEntry(id)
-      : await readWorkspace(parseWorkspaceFilters(request.nextUrl.searchParams))
+      ? await readWorkspaceEntry(companyId, id)
+      : await readWorkspace(companyId, parseWorkspaceFilters(request.nextUrl.searchParams))
     return NextResponse.json(data, {
-      status: data ? 200 : 401,
+      status: data ? 200 : 403,
       headers: ACCOUNT_CACHE_HEADERS
     })
   } catch {
