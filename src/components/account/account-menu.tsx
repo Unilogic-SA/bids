@@ -6,7 +6,7 @@ import { useState, useTransition } from "react"
 import { IconLogin, IconLogout, IconRefresh, IconUser, IconUserPlus } from "@tabler/icons-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { signOutCustomer } from "@/lib/auth/actions"
@@ -14,7 +14,7 @@ import { initialCustomerActionState, workspaceLabel } from "@/lib/auth/account-s
 import { authPageHref, getSafePublicNextPath } from "@/lib/auth/redirects"
 import { useAccount } from "./account-provider"
 
-export function AccountMenu() {
+export function AccountMenu({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { account, refreshAccount } = useAccount()
   const router = useRouter()
   const [next, setNext] = useState("/")
@@ -37,27 +37,29 @@ export function AccountMenu() {
     })
   }
 
-  return <DropdownMenu onOpenChange={open => {
+  return <DropdownMenu modal={false} open={open} onOpenChange={open => {
+    onOpenChange(open)
     if (open) setNext(getSafePublicNextPath(`${window.location.pathname}${window.location.search}${window.location.hash}`))
   }}>
     <Tooltip>
       <TooltipTrigger asChild>
         <DropdownMenuTrigger asChild>
-          <Button aria-label="Account menu" variant="ghost" size="icon" className="rounded-full">
+          <Button aria-label="Account menu" variant="ghost" size="icon" className="size-11 rounded-full data-[state=open]:bg-accent md:size-8">
             {account.status === "loading" ? <Skeleton className="size-7 rounded-full" aria-label="Loading account" /> : <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary">{displayName ? displayName.slice(0, 2).toUpperCase() : <IconUser className="size-4" aria-hidden="true" />}</AvatarFallback></Avatar>}
           </Button>
         </DropdownMenuTrigger>
       </TooltipTrigger>
       <TooltipContent>Account</TooltipContent>
     </Tooltip>
-    <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-2rem)]">
-      <DropdownMenuLabel className="rounded-md bg-muted p-3">
-        <p className="break-words text-sm font-medium">{displayName || "Your account"}</p>
-        <p className="mt-1 break-words text-xs font-normal text-muted-foreground">{user?.email || (account.status === "loading" ? "Loading account…" : "Sign in or create an account.")}</p>
-        {account.status === "signed-in" ? <p className="mt-1 break-words text-xs font-normal text-muted-foreground">{workspaceLabel(account.workspace.name)}</p> : null}
+    <DropdownMenuContent aria-labelledby={undefined} aria-label="Account" align="end" sideOffset={8} collisionPadding={16} className="w-72 max-w-[calc(100vw-2rem)]">
+      <DropdownMenuLabel className="px-3 py-2.5">
+        <p className="wrap-anywhere text-sm font-medium text-foreground">{displayName || "Your account"}</p>
+        <p className="mt-1 wrap-anywhere text-xs font-normal text-muted-foreground">{user?.email || (account.status === "loading" ? "Loading account…" : "Sign in or create an account.")}</p>
+        {account.status === "signed-in" ? <p className="mt-1 wrap-anywhere text-xs font-normal text-muted-foreground">{workspaceLabel(account.workspace.name)}</p> : null}
       </DropdownMenuLabel>
       {account.status === "unavailable" || error ? <p role="alert" className="px-3 py-2 text-xs text-destructive">{error || (account.status === "unavailable" ? account.message : "")}</p> : null}
-      <DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup className="[&_[data-slot=dropdown-menu-item]]:min-h-11 [&_[data-slot=dropdown-menu-item]]:gap-2 [&_[data-slot=dropdown-menu-item]]:px-3 md:[&_[data-slot=dropdown-menu-item]]:min-h-8">
         {account.status === "loading" ? <DropdownMenuItem disabled>Loading account…</DropdownMenuItem> : user ? <>
           {account.status === "unavailable" ? <DropdownMenuItem asChild><Link prefetch={false} href={`${authPageHref("/sign-in", next)}&error=workspace`}><IconRefresh />Retry account setup</Link></DropdownMenuItem> : null}
           <DropdownMenuItem disabled={pending} onSelect={event => { event.preventDefault(); signOut() }}><IconLogout />{pending ? "Signing out…" : "Sign out on this device"}</DropdownMenuItem>
