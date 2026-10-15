@@ -6,13 +6,16 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode
 } from "react"
 import { useAccount } from "@/components/account/account-provider"
-import { saveBid, updateBid, deleteBid } from "@/lib/workspace/actions"
+import { saveBid, updateBid, deleteBid, importGuestBids } from "@/lib/workspace/actions"
 import { summarizeBid } from "@/lib/workspace/presentation"
+import { WorkspaceSwitchGuard } from "@/lib/workspace/switch-guard"
+import { usePathname } from "next/navigation"
 import { WorkspaceGeneration } from "@/lib/workspace/client-state"
-import type { BidPatch, MutationResult, SavedBid } from "@/lib/workspace/types"
+import type { BidPatch, MutationResult, SavedBid, ImportResult } from "@/lib/workspace/types"
 
 type Snapshot = {
   scope: string | null
@@ -33,6 +36,8 @@ type Context = {
     error: boolean
     pending: boolean
   }
+  trackOperation: <T>(operation: Promise<T>) => Promise<T>
+  importBids: (ocids: string[]) => Promise<ImportResult[]>
   save: (ocid: string) => Promise<MutationResult>
   update: (
     id: string,
@@ -41,6 +46,11 @@ type Context = {
   ) => Promise<MutationResult>
   remove: (id: string, version: number) => Promise<MutationResult>
   refresh: () => void
+  switching: boolean
+  companyId: string | null
+  prepareToLeave: () => Promise<boolean>
+  releaseSwitch: () => void
+  registerLeaveGuard: (guard: () => Promise<boolean>) => () => void
 }
 const WorkspaceContext = createContext<Context | null>(null)
 export function useWorkspace() {
@@ -75,6 +85,15 @@ function ScopedWorkspaceProvider({
   children: ReactNode
   identity: string | null
 }) {
+  const { refreshAccount, registerWorkspaceGuard } = useAccount()
+  const pathname = usePathname()
+  const companyId = identity?.split(":")[1] || null
+  const [switchGuard] = useState(() => new WorkspaceSwitchGuard())
+  const switching = useSyncExternalStore(switchGuard.subscribe, switchGuard.getSnapshot, switchGuard.getSnapshot)
+  const registerLeaveGuard = useCallback((guard: () => Promise<boolean>) => switchGuard.register(guard), [switchGuard])
+  const prepareToLeave = useCallback(() => switchGuard.prepare(), [switchGuard])
+  const releaseSwitch = useCallback(() => switchGuard.release(), [switchGuard])
+  useEffect(() => registerWorkspaceGuard(async () => { const ready = await switchGuard.prepare(); switchGuard.release(); return ready }), [registerWorkspaceGuard, switchGuard])
   const [snapshot, setSnapshot] = useState<Snapshot>({
     scope: null,
     bids: {},
@@ -105,6 +124,7 @@ function ScopedWorkspaceProvider({
           pending: new Set<string>(),
           revision: 0
         }
+  const trackOperation = useCallback(<T,>(operation: Promise<T>) => switchGuard.track(operation), [switchGuard])
   const refresh = useCallback(() => refreshRef.current(), [])
   const register = useCallback((ocid: string) => {
     visible.current.set(ocid, (visible.current.get(ocid) || 0) + 1)
@@ -121,13 +141,17 @@ function ScopedWorkspaceProvider({
     queues.current.clear()
     const controllers = new Set<AbortController>()
     let request = 0
+    let active = false
+    let again = false
     const load = async (notify = false) => {
-      if (!identity) return
+      if (!identity || !gate.current(generation, identity)) return
+      if (active) { again ||= notify; return }
       const ids = Array.from(visible.current.keys())
       if (!ids.length) {
         if (notify) setSnapshot(previous => ({ ...previous, scope: identity, revision: previous.revision + 1 }))
         return
       }
+      active = true
       const sequence = ++request
       for (const previous of controllers) previous.abort()
       controllers.clear()
@@ -137,13 +161,14 @@ function ScopedWorkspaceProvider({
           const controller = new AbortController()
           controllers.add(controller)
           const response = await fetch(
-            `/api/workspace/saved?ocids=${encodeURIComponent(JSON.stringify(ids.slice(i, i + 50)))}`,
+            `/api/workspace/saved?company=${companyId}&ocids=${encodeURIComponent(JSON.stringify(ids.slice(i, i + 50)))}`,
             {
               cache: "no-store",
               credentials: "same-origin",
               signal: controller.signal
             }
           )
+          if (response.status === 403) refreshAccount()
           if (!response.ok) throw new Error("Saved state unavailable")
           bids.push(...((await response.json()).bids as SavedBid[]))
         }
@@ -166,7 +191,7 @@ function ScopedWorkspaceProvider({
             loaded: new Set(ids),
             bids: previous.scope === identity ? previous.bids : {}
           }))
-      }
+      } finally { active = false; if (again) { again = false; void load(true) } }
     }
     refreshRef.current = () => {
       void load(true)
@@ -175,7 +200,10 @@ function ScopedWorkspaceProvider({
     const focus = () => {
       void load(true)
     }
-    window.addEventListener("focus", focus)
+    const visibleFocus = () => { if (document.visibilityState === "visible" && navigator.onLine) focus() }
+    document.addEventListener("visibilitychange", visibleFocus)
+    window.addEventListener("online", visibleFocus)
+    window.addEventListener("focus", visibleFocus)
     let broadcast: BroadcastChannel | null = null
     if (identity)
       try {
@@ -189,12 +217,21 @@ function ScopedWorkspaceProvider({
       refreshRef.current = () => {}
       channel.current = null
       broadcast?.close()
-      window.removeEventListener("focus", focus)
+      document.removeEventListener("visibilitychange", visibleFocus)
+      window.removeEventListener("online", visibleFocus)
+      window.removeEventListener("focus", visibleFocus)
     }
-  }, [identity, gate])
+  }, [identity, companyId, gate, refreshAccount])
+  useEffect(() => {
+    if (pathname !== "/workspace" || !identity) return
+    const poll = setInterval(() => {
+      if (document.visibilityState === "visible" && navigator.onLine) { refreshRef.current(); refreshAccount() }
+    }, 30000)
+    return () => clearInterval(poll)
+  }, [pathname, identity, refreshAccount])
   const mutate = useCallback(
     async (key: string, operation: () => Promise<MutationResult>) => {
-      if (!identity) return changedAccount()
+      if (!identity || !switchGuard.canMutate()) return changedAccount()
       const generation = gate.token()
       if (!gate.current(generation, identity)) return changedAccount()
       pendingCounts.current.set(key, (pendingCounts.current.get(key) || 0) + 1)
@@ -247,22 +284,34 @@ function ScopedWorkspaceProvider({
           if (queues.current.get(key) === promise) queues.current.delete(key)
         })
       queues.current.set(key, promise)
-      return promise
+      return switchGuard.track(promise)
     },
-    [identity, gate]
+    [identity, gate, switchGuard]
   )
+  const importBids = useCallback((ocids: string[]) => {
+    if (!identity || !switchGuard.canMutate()) return Promise.resolve(ocids.map(ocid => ({ ocid, status: "failed" as const })))
+    const generation = gate.token()
+    return switchGuard.track((async () => {
+      const results: ImportResult[] = []
+      for (let i = 0; i < ocids.length; i += 50) {
+        if (!gate.current(generation, identity)) break
+        results.push(...await importGuestBids(companyId!, ocids.slice(i, i + 50)))
+      }
+      return results
+    })())
+  }, [identity, companyId, switchGuard, gate])
   const save = useCallback(
-    (ocid: string) => mutate(ocid, () => saveBid(ocid)),
-    [mutate]
+    (ocid: string) => mutate(ocid, () => saveBid(companyId!, ocid)),
+    [mutate, companyId]
   )
   const update = useCallback(
     (id: string, version: number, patch: BidPatch) =>
-      mutate(id, () => updateBid(id, version, patch)),
-    [mutate]
+      mutate(id, () => updateBid(companyId!, id, version, patch)),
+    [mutate, companyId]
   )
   const remove = useCallback(
-    (id: string, version: number) => mutate(id, () => deleteBid(id, version)),
-    [mutate]
+    (id: string, version: number) => mutate(id, () => deleteBid(companyId!, id, version)),
+    [mutate, companyId]
   )
   const accountGuard = useCallback(() => {
     const generation = gate.token()
@@ -272,6 +321,11 @@ function ScopedWorkspaceProvider({
     <WorkspaceContext.Provider
       value={{
         identity,
+        companyId,
+        switching,
+        prepareToLeave,
+        releaseSwitch,
+        registerLeaveGuard,
         accountGuard,
         revision: state.revision,
         register,
@@ -283,6 +337,8 @@ function ScopedWorkspaceProvider({
             state.pending.has(ocid) ||
             Boolean(state.bids[ocid] && state.pending.has(state.bids[ocid].id))
         }),
+        trackOperation,
+        importBids,
         save,
         update,
         remove,

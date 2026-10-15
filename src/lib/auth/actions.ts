@@ -1,5 +1,7 @@
 "use server"
 
+import { SELECTED_WORKSPACE_COOKIE, workspaceCookieOptions } from "./workspace-selection"
+import { PENDING_INVITATION_COOKIE, pendingInvitationCookieOptions } from "@/lib/workspace/invitations"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerAuthClient, hasSupabasePublicConfig } from "@/lib/supabase/server"
@@ -18,7 +20,9 @@ async function perform(kind: Parameters<typeof runCustomerFlow>[0], form: FormDa
     confirmation: formString(form, "confirm-password"), next: getSafePublicNextPath(formString(form, "next")),
   }, { auth: supabase.auth, bootstrap: ensureCustomerWorkspace })
   if (kind === "signout" && result.redirect) {
-    (await cookies()).set(RECOVERY_COOKIE, "", { path: "/account/update-password", maxAge: 0, httpOnly: true, sameSite: "lax" })
+    ;(await cookies()).set(SELECTED_WORKSPACE_COOKIE, "", { ...workspaceCookieOptions, maxAge: 0 })
+    ;(await cookies()).set(PENDING_INVITATION_COOKIE, "", { ...pendingInvitationCookieOptions, maxAge: 0 })
+    ;(await cookies()).set(RECOVERY_COOKIE, "", { path: "/account/update-password", maxAge: 0, httpOnly: true, sameSite: "lax" })
     return result.state
   }
   if (result.redirect) redirect(result.redirect)

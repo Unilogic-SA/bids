@@ -65,13 +65,13 @@ export function WorkspaceBulkBar({
     setFailure("")
     const current = workspace.accountGuard()
     try {
-      const result = await updateBidStages(
+      const result = await workspace.trackOperation(updateBidStages(
         items,
         stage,
         fromSastInput(submitted),
         current,
         workspace.update
-      )
+      ))
       if (!result || !current()) return
       const { succeeded, updated, failed, message } = result
       if (updated)

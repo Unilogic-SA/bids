@@ -1,9 +1,9 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { accountNavigationRefresh, accountRouteKey, isSameAccountAuthEvent, workspaceLabel, type AccountSnapshot, type AccountState } from "./account-state"
+import { accountNavigationRefresh, accountRouteKey, isSameAccountAuthEvent, resolveWorkspace, workspaceLabel, type AccountSnapshot, type AccountState } from "./account-state"
 import { createAccountSnapshotReader } from "./snapshot-reader"
 const flush = () => new Promise(resolve => setImmediate(resolve))
-const A: AccountSnapshot = { status: "signed-in", user: { id: "A", email: "a@example.test" }, profile: { displayName: "Alice" }, workspace: { id: "one", name: null } }
+const A: AccountSnapshot = { status: "signed-in", user: { id: "A", email: "a@example.test" }, profile: { displayName: "Alice" }, workspace: { id: "one", name: null, role: "owner" }, workspaces: [{ id: "one", name: null, role: "owner" }], invitationsEnabled: false }
 
 test("workspace has a useful unnamed fallback", () => { assert.equal(workspaceLabel(null), "Your workspace"); assert.equal(workspaceLabel("Named workspace"), "Named workspace") })
 test("shared reads coalesce and late previous-user responses cannot resurrect identity", async () => {
@@ -125,4 +125,12 @@ test("Server Action sign-in redirects and same-path workspace errors revalidate 
   await flush()
   assert.equal(states.at(-1)?.status, "signed-in")
   reader.dispose()
+})
+
+test("workspace preference cannot introduce access and falls back to owned then earliest membership", () => {
+  const joined = { id: "joined", name: "Shared", role: "member" as const }, owned = { id: "owned", name: "Personal", role: "owner" as const }
+  assert.deepEqual(resolveWorkspace([joined, owned], "joined"), joined)
+  assert.deepEqual(resolveWorkspace([joined, owned], "outsider"), owned)
+  assert.deepEqual(resolveWorkspace([joined], "removed"), joined)
+  assert.equal(resolveWorkspace([], "anything"), undefined)
 })

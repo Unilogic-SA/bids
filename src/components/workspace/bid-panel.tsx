@@ -52,6 +52,7 @@ import type {
 } from "@/lib/workspace/types"
 import { cn } from "@/lib/utils"
 import { BidStageMenu } from "./bid-stage-menu"
+import { useWorkspace } from "./workspace-provider"
 import { ChecklistAutosave, type ChecklistSnapshot } from "@/lib/workspace/checklist-autosave"
 
 type Props = {
@@ -70,6 +71,7 @@ type Props = {
   onDelete: (bid: WorkspaceEntry) => void
 }
 export function BidPanel(props: Props) {
+  const { registerLeaveGuard, switching } = useWorkspace()
   const mobile = useIsMobile()
   const router = useRouter()
   const { bid: currentBid, onPatch: patchBid } = props
@@ -86,6 +88,7 @@ export function BidPanel(props: Props) {
     autosave.activate()
     return autosave.dispose
   }, [autosave])
+  useEffect(() => registerLeaveGuard(() => autosave.flush()), [registerLeaveGuard, autosave])
   const [expanded, setExpanded] = useState(false)
   const [opener] = useState(
     () =>
@@ -188,7 +191,7 @@ export function BidPanel(props: Props) {
         {...props}
         autosave={autosave}
         checklistState={checklistState}
-        leaving={leaving}
+        leaving={leaving || switching}
         onNavigate={() => { void leave(() => router.push(tenderHref(props.bid.tender))) }}
         onStage={(bid, stage) => { void autosave.flush().then(saved => {
           if (saved) props.onStage({ ...bid, version: autosave.getSnapshot().version }, stage)

@@ -3,8 +3,9 @@ import { useState, useSyncExternalStore } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+import { useAccount } from "@/components/account/account-provider"
+import { workspaceLabel } from "@/lib/auth/account-state"
 import { useWorkspace } from "./workspace-provider"
-import { importGuestBids } from "@/lib/workspace/actions"
 import {
   acknowledgeGuestImport,
   browserBookmarkStorage,
@@ -21,6 +22,8 @@ const subscribe = (notify: () => void) => {
 }
 export function GuestImportPrompt({ compact = false }: { compact?: boolean }) {
   const workspace = useWorkspace()
+  const { account } = useAccount()
+  const name = account.status === "signed-in" ? workspaceLabel(account.workspace.name) : "workspace"
   const ids = useSyncExternalStore(
     subscribe,
     () => JSON.stringify(readTenderBookmarks(browserBookmarkStorage())),
@@ -37,10 +40,7 @@ export function GuestImportPrompt({ compact = false }: { compact?: boolean }) {
     const results = []
     const captured = JSON.parse(ids) as string[]
     try {
-      for (let i = 0; i < captured.length; i += 50) {
-        if (!current()) return
-        results.push(...(await importGuestBids(captured.slice(i, i + 50))))
-      }
+      results.push(...await workspace.importBids(captured))
       if (!current()) return
       acknowledgeGuestImport(browserBookmarkStorage(), results, true)
       window.dispatchEvent(new Event(BOOKMARK_CHANGE_EVENT))
@@ -65,7 +65,7 @@ export function GuestImportPrompt({ compact = false }: { compact?: boolean }) {
   }
   if (compact)
     return (
-      <Button
+      <div className="space-y-1"><Button
         variant="link"
         size="sm"
         disabled={busy}
@@ -73,18 +73,17 @@ export function GuestImportPrompt({ compact = false }: { compact?: boolean }) {
       >
         {busy
           ? "Importing…"
-          : `Bring ${count} device save${count === 1 ? "" : "s"} into workspace`}
-      </Button>
+          : `Bring ${count} device save${count === 1 ? "" : "s"} into ${name}`}
+      </Button><p className="text-xs text-muted-foreground">Everyone in {name} can see imported bids.</p></div>
     )
   return (
     <Alert>
       <AlertTitle>
-        Bring your {count} saved tender{count === 1 ? "" : "s"} into this
-        workspace?
+        Bring your {count} saved tender{count === 1 ? "" : "s"} into {name}?
       </AlertTitle>
       <AlertDescription>
         <p>
-          These saves are on this device. Import only if they belong to you.
+          These saves are on this device. Everyone in {name} can see imported bids.
           Existing bids stay as they are.
         </p>
         <div className="mt-2 flex gap-2">

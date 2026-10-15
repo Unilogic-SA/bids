@@ -63,12 +63,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/workspace", "/api/workspace/:path*", "/admin", "/admin/:path*", "/", "/tenders/:path*", "/sign-in", "/sign-up", "/forgot-password", "/account/:path*", "/api/account/session", "/auth/customer/callback", "/auth/confirm"],
+  matcher: ["/invitations/:path*", "/workspace", "/api/workspace/:path*", "/admin", "/admin/:path*", "/", "/tenders/:path*", "/sign-in", "/sign-up", "/forgot-password", "/account/:path*", "/api/account/session", "/auth/customer/callback", "/auth/confirm"],
 }
 
 function createNoStoreResponse(request: NextRequest) {
   const response = NextResponse.next({ request })
   response.headers.set("Cache-Control", "private, no-store")
+  if (request.nextUrl.pathname.startsWith("/invitations/")) { response.headers.set("Referrer-Policy", "no-referrer"); response.headers.set("X-Robots-Tag", "noindex, nofollow") }
   return response
 }
 
@@ -90,6 +91,7 @@ function redirectToAdminLogin(
     }
   })
   response.headers.set("Cache-Control", "private, no-store")
+  if (request.nextUrl.pathname.startsWith("/invitations/")) { response.headers.set("Referrer-Policy", "no-referrer"); response.headers.set("X-Robots-Tag", "noindex, nofollow") }
 
   return response
 }

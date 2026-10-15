@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { IconBookmark, IconArrowRight } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { workspaceLabel } from "@/lib/auth/account-state"
 import { useAccount } from "@/components/account/account-provider"
 import { useWorkspace } from "@/components/workspace/workspace-provider"
 import { readTenderBookmarks, setTenderBookmark } from "@/lib/tenders/bookmarks"
@@ -42,6 +43,7 @@ export function TenderBookmarkButton({ ocid }: { ocid: string }) {
   const { register } = workspace
   useEffect(() => register(ocid), [register, ocid])
   const remote = workspace.status(ocid)
+  const destination = account.status === "signed-in" ? workspaceLabel(account.workspace.name) : "this device"
   const signedIn = account.status === "signed-in"
   const guest = account.status === "signed-out"
   const bookmarked = signedIn
@@ -87,7 +89,7 @@ export function TenderBookmarkButton({ ocid }: { ocid: string }) {
       return
     }
     if (result.bid)
-      toast("Saved to workspace", {
+      toast(`Saved to ${destination}`, {
         action: {
           label: "View",
           onClick: () => router.push(`/workspace?bid=${result.bid!.id}`)
@@ -117,7 +119,7 @@ export function TenderBookmarkButton({ ocid }: { ocid: string }) {
   return (
     <Button
       aria-label={
-        remote.bid?.archived_at ? "Restore to workspace" : "Save tender"
+        remote.bid?.archived_at ? `Restore to ${destination}` : `Save to ${destination}`
       }
       className="h-8 min-w-18 cursor-pointer disabled:cursor-not-allowed sm:h-7 sm:min-w-28"
       onClick={() => void save()}
