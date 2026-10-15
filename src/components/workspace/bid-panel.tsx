@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import {
   IconExternalLink,
   IconPlus,
@@ -20,8 +20,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter
+  DialogDescription
 } from "@/components/ui/dialog"
 import {
   Drawer,
@@ -53,6 +52,7 @@ import type {
 } from "@/lib/workspace/types"
 import { cn } from "@/lib/utils"
 import { BidStageMenu } from "./bid-stage-menu"
+import { ChecklistAutosave, type ChecklistSnapshot } from "@/lib/workspace/checklist-autosave"
 
 type Props = {
   opener?: HTMLElement | null
@@ -72,9 +72,20 @@ type Props = {
 export function BidPanel(props: Props) {
   const mobile = useIsMobile()
   const router = useRouter()
-  const [navigateAfterDiscard, setNavigateAfterDiscard] = useState(false)
-  const [discard, setDiscard] = useState(false)
-  const [dirty, setDirty] = useState(false)
+  const { bid: currentBid, onPatch: patchBid } = props
+  const leavingLock = useRef(false)
+  const [leaving, setLeaving] = useState(false)
+  const [autosave] = useState(() => new ChecklistAutosave(props.bid,
+    (items, version) => props.onPatch(props.bid, { checklist: items }, version)))
+  const checklistState = useSyncExternalStore(autosave.subscribe, autosave.getSnapshot, autosave.getSnapshot)
+  useEffect(() => {
+    autosave.setSave((items, version) => patchBid(currentBid, { checklist: items }, version))
+    autosave.observe(currentBid)
+  }, [currentBid, patchBid, autosave, checklistState.status])
+  useEffect(() => {
+    autosave.activate()
+    return autosave.dispose
+  }, [autosave])
   const [expanded, setExpanded] = useState(false)
   const [opener] = useState(
     () =>
@@ -89,47 +100,24 @@ export function BidPanel(props: Props) {
       opener.focus()
     }
   }
-  const close = () => {
-    setNavigateAfterDiscard(false)
-    if (dirty) setDiscard(true)
-    else props.onClose()
-  }
-  useEffect(() => {
-    if (!dirty) return
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
+  async function leave(action: () => void) {
+    if (leavingLock.current) return
+    leavingLock.current = true
+    setLeaving(true)
+    try {
+      if (await autosave.flush()) action()
+    } finally {
+      leavingLock.current = false
+      setLeaving(false)
     }
+  }
+  const close = () => { void leave(props.onClose) }
+  useEffect(() => {
+    if (!checklistState.dirty) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault() }
     window.addEventListener("beforeunload", warn)
     return () => window.removeEventListener("beforeunload", warn)
-  }, [dirty])
-  const discardDialog = (
-    <Dialog open={discard} onOpenChange={setDiscard}>
-      <DialogContent className="[&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed">
-        <DialogHeader>
-          <DialogTitle>Discard unsaved preparation?</DialogTitle>
-          <DialogDescription>
-            Your unsaved draft will be lost. Saved preparation stays in your
-            workspace.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setDiscard(false)}>
-            Keep editing
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => {
-              props.onClose()
-              if (navigateAfterDiscard)
-                router.push(tenderHref(props.bid.tender))
-            }}
-          >
-            Discard draft
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+  }, [checklistState.dirty])
   const title =
     props.bid.tender.title || props.bid.tender.tender_no || "Saved tender"
   const reference = props.bid.tender.tender_no
@@ -198,14 +186,24 @@ export function BidPanel(props: Props) {
       <Preparation
         key={props.bid.id}
         {...props}
-        onDirty={setDirty}
-        dirty={dirty}
-        onNavigate={() => {
-          setNavigateAfterDiscard(true)
-          setDiscard(true)
+        autosave={autosave}
+        checklistState={checklistState}
+        leaving={leaving}
+        onNavigate={() => { void leave(() => router.push(tenderHref(props.bid.tender))) }}
+        onStage={(bid, stage) => { void autosave.flush().then(saved => {
+          if (saved) props.onStage({ ...bid, version: autosave.getSnapshot().version }, stage)
+        }) }}
+        onOutcome={(bid, outcome) => { void autosave.flush().then(saved => {
+          if (saved) props.onOutcome({ ...bid, version: autosave.getSnapshot().version }, outcome)
+        }) }}
+        onDelete={(bid) => { void autosave.flush().then(saved => {
+          if (saved) props.onDelete({ ...bid, version: autosave.getSnapshot().version })
+        }) }}
+        onPatch={async (bid, patch) => {
+          if (!await autosave.flush()) return { ok: false, code: "unavailable", message: "Save your checklist before continuing." }
+          return props.onPatch({ ...bid, version: autosave.getSnapshot().version }, patch, autosave.getSnapshot().version)
         }}
       />
-      {discardDialog}
     </div>
   )
   if (mobile)
@@ -230,10 +228,8 @@ export function BidPanel(props: Props) {
               variant="outline"
               className="mx-4 mb-4"
               onClick={(event) => {
-                if (dirty) {
-                  event.preventDefault()
-                  close()
-                }
+                event.preventDefault()
+                close()
               }}
             >
               Close
@@ -269,64 +265,20 @@ function Preparation({
   onStage,
   onOutcome,
   onDelete,
-  onDirty,
-  dirty: hasDraft,
+  autosave,
+  checklistState,
+  leaving,
   onNavigate
 }: Props & {
-  onDirty: (dirty: boolean) => void
-  dirty: boolean
+  autosave: ChecklistAutosave
+  checklistState: ChecklistSnapshot
+  leaving: boolean
   onNavigate: () => void
 }) {
-  const [checklist, setChecklist] = useState(bid.checklist)
-  const [checklistVersion, setChecklistVersion] = useState(bid.version)
-  const [checklistBase, setChecklistBase] = useState(
-    JSON.stringify(bid.checklist)
-  )
-  const [status, setStatus] = useState<
-    "saved" | "saving" | "failed" | "conflict"
-  >("saved")
-  const saveLock = useRef(false)
   const newItem = useRef<string | null>(null)
-  const checklistDirty = JSON.stringify(checklist) !== checklistBase
-  const shownChecklist = checklistDirty ? checklist : bid.checklist
-  useEffect(() => onDirty(checklistDirty), [onDirty, checklistDirty])
+  const { items: shownChecklist, status } = checklistState
+  const editDisabled = leaving || (pending && status !== "saving")
   const signals = attentionSignals(bid, now)
-  function dirty() {
-    onDirty(true)
-  }
-  async function saveChecklist() {
-    if (saveLock.current || pending) return
-    saveLock.current = true
-    setStatus("saving")
-    const version =
-      status === "conflict" || JSON.stringify(bid.checklist) !== checklistBase
-        ? checklistVersion
-        : bid.version
-    let result: MutationResult
-    try {
-      result = await onPatch(bid, { checklist: shownChecklist }, version)
-    } catch {
-      result = {
-        ok: false,
-        code: "unavailable",
-        message: "Checklist could not be saved. Please retry."
-      }
-    } finally {
-      saveLock.current = false
-    }
-    if (result.ok && result.bid) {
-      setChecklist(result.bid.checklist)
-      setChecklistBase(JSON.stringify(result.bid.checklist))
-      setChecklistVersion(result.bid.version)
-      setStatus("saved")
-      onDirty(false)
-    } else {
-      setStatus(
-        !result.ok && result.code === "conflict" ? "conflict" : "failed"
-      )
-      if (result.bid) setChecklistVersion(result.bid.version)
-    }
-  }
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -340,10 +292,8 @@ function Preparation({
           <Link
             href={tenderHref(bid.tender)}
             onClick={(event) => {
-              if (hasDraft) {
-                event.preventDefault()
-                onNavigate()
-              }
+              event.preventDefault()
+              onNavigate()
             }}
           >
             Open tender
@@ -428,7 +378,7 @@ function Preparation({
       ) : null}
       <section className="space-y-3 border-t pt-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Preparation checklist</h3>
+          <h3 className="text-sm font-medium">Checklist</h3>
           {shownChecklist.length ? (
             <span className="text-xs tabular-nums text-muted-foreground">
               {shownChecklist.filter((item) => item.completed).length}/
@@ -436,39 +386,20 @@ function Preparation({
             </span>
           ) : null}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Check every requirement in the full tender.
-        </p>
-        {!bid.checklist_initialized && !shownChecklist.length ? (
-          <Button
-            size="sm"
-            disabled={pending || Boolean(bid.outcome)}
-            onClick={() => onStage(bid, "preparing")}
-          >
-            Prepare bid
-          </Button>
-        ) : null}
         <div className="space-y-2">
           {shownChecklist.map((item, index) => (
             <div key={item.id} className="group flex items-center gap-2">
               <Checkbox
                 aria-label={`Complete ${item.label}`}
                 checked={item.completed}
-                disabled={pending}
+                disabled={editDisabled}
                 onCheckedChange={(completed) => {
                   const updated = shownChecklist.map((entry) =>
                     entry.id === item.id
                       ? { ...entry, completed: completed === true }
                       : entry
                   )
-                  setChecklist(updated)
-                  if (!checklistDirty) setChecklistVersion(bid.version)
-                  setChecklistBase(
-                    checklistDirty
-                      ? checklistBase
-                      : JSON.stringify(bid.checklist)
-                  )
-                  dirty()
+                  autosave.edit(() => updated)
                 }}
               />
               <Input
@@ -480,47 +411,34 @@ function Preparation({
                   }
                 }}
                 aria-label={`Checklist item ${index + 1}`}
+                aria-invalid={!item.label.trim()}
                 value={item.label}
                 maxLength={200}
                 className={cn(
                   "h-10 border-transparent sm:h-8 bg-transparent px-2 shadow-none hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:bg-background focus-visible:text-foreground focus-visible:no-underline dark:bg-transparent",
                   item.completed && "text-muted-foreground line-through"
                 )}
-                disabled={pending}
+                disabled={editDisabled}
                 onChange={(event) => {
-                  setChecklist(
-                    shownChecklist.map((entry) =>
+                  autosave.edit(items =>
+                    items.map((entry) =>
                       entry.id === item.id
                         ? { ...entry, label: event.target.value }
                         : entry
                     )
                   )
-                  if (!checklistDirty) setChecklistVersion(bid.version)
-                  setChecklistBase(
-                    checklistDirty
-                      ? checklistBase
-                      : JSON.stringify(bid.checklist)
-                  )
-                  dirty()
                 }}
               />
               <Button
                 size="icon-sm"
                 variant="ghost"
-                disabled={pending}
+                disabled={editDisabled}
                 className="size-10 shrink-0 text-muted-foreground hover:text-destructive sm:size-8"
                 aria-label={`Remove ${item.label}`}
                 onClick={() => {
-                  setChecklist(
-                    shownChecklist.filter((entry) => entry.id !== item.id)
+                  autosave.edit(items =>
+                    items.filter((entry) => entry.id !== item.id)
                   )
-                  if (!checklistDirty) setChecklistVersion(bid.version)
-                  setChecklistBase(
-                    checklistDirty
-                      ? checklistBase
-                      : JSON.stringify(bid.checklist)
-                  )
-                  dirty()
                 }}
               >
                 <IconTrash />
@@ -533,46 +451,27 @@ function Preparation({
             size="sm"
             className="h-10 sm:h-8"
             variant="ghost"
-            disabled={pending || shownChecklist.length >= 50}
+            disabled={editDisabled || shownChecklist.length >= 50}
             onClick={() => {
               const id = crypto.randomUUID()
               newItem.current = id
-              setChecklist([
-                ...shownChecklist,
+              autosave.edit(items => [
+                ...items,
                 {
                   id,
-                  label: "New preparation item",
+                  label: "New checklist item",
                   completed: false
                 }
               ])
-              if (!checklistDirty) setChecklistVersion(bid.version)
-              setChecklistBase(
-                checklistDirty ? checklistBase : JSON.stringify(bid.checklist)
-              )
-              dirty()
             }}
           >
             <IconPlus data-icon="inline-start" />
             Add item
           </Button>
-          {checklistDirty || status !== "saved" ? (
-            <Button
-              size="sm"
-              className="h-10 sm:h-8"
-              variant="outline"
-              disabled={
-                pending ||
-                status === "saving" ||
-                !checklistDirty ||
-                shownChecklist.some((item) => !item.label.trim())
-              }
-              onClick={() => void saveChecklist()}
-            >
-              {status === "saving"
-                ? "Saving…"
-                : status === "failed" || status === "conflict"
-                  ? "Retry save checklist"
-                  : "Save checklist"}
+          {status === "failed" || status === "conflict" ? (
+            <Button size="sm" variant="outline" disabled={pending || leaving}
+              onClick={() => void autosave.flush(status === "conflict")}>
+              Retry save
             </Button>
           ) : null}
           <span
@@ -588,21 +487,23 @@ function Preparation({
                 ? "Save failed"
                 : status === "conflict"
                   ? "Review latest version"
-                  : checklistDirty
-                    ? "Unsaved"
+                  : status === "invalid"
+                    ? "Enter an item name"
+                  : checklistState.dirty
+                    ? "Saving…"
                     : "Saved"}
           </span>
         </div>
         {status === "failed" ? (
           <p role="alert" className="text-xs text-destructive">
-            Your checklist draft is kept. Retry saving when you’re ready.
+            Couldn’t save. Your changes are kept here. Retry before closing.
           </p>
         ) : null}
         {status === "conflict" ? (
           <Alert>
             <AlertDescription className="text-xs">
               The checklist changed. Your draft is kept. Latest saved items:{" "}
-              {bid.checklist
+              {checklistState.latest
                 .map((item) => `${item.completed ? "Done: " : ""}${item.label}`)
                 .join("; ") || "No items"}
               . Review before retrying.

@@ -105,9 +105,9 @@ controls are compact (32px default, 28px small); Workspace touch controls may be
 larger. Existing mobile detection changes below 768px; `sm` begins at 640px.
 
 List rows use a responsive grid below the desktop table. Kanban columns scroll
-horizontally on desktop and expose a stage selector on mobile. Preparation uses
+horizontally on desktop; mobile always uses list view. Preparation uses
 a centred desktop Dialog and a mobile bottom Drawer; long content scrolls within
-90dvh. Keep close controls, focus restoration and dirty-draft protection.
+90dvh. Keep close controls, focus restoration and pending-save protection.
 
 ## Elevation & Depth
 
@@ -135,13 +135,15 @@ Stage dots supplement explicit labels. Tooltips enhance desktop detail without
 blocking touch actions. Sonner provides confirmed mutation feedback.
 
 Alerts distinguish urgent/deadline changes from informational source state.
-Checklists retain visible progress, explicit dirty/save/failure/conflict feedback,
-inline editing and retry. Skeleton, Empty and Alert cover collection states.
+Checklists retain visible progress, automatic save/failure/conflict feedback,
+inline editing and retry. Use a simple Checklist heading and Add item action;
+normal editing and closing require no Save or discard-confirmation step. Skeleton, Empty and Alert cover collection states.
 
 ## Do's and Don'ts
 
 - Do preserve existing semantic tokens, Inter/Figtree/Geist Mono and Tabler icons.
-- Do prioritise tender title, buyer, closing time and preparation progress.
+- Do prioritise tender title, closing time and preparation progress; retain buyers
+  in lists/details while keeping Kanban previews compact.
 - Do preserve keyboard, touch, focus, confirmation and error-recovery behaviour.
 - Do use whitespace and hierarchy before adding containers.
 - Don't replace shadcn primitives or introduce another UI framework.

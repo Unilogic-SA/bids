@@ -81,8 +81,8 @@ export function WorkspaceList(props: Props) {
               return (
                 <TableRow
                   key={bid.id}
-                  data-state={selected.has(bid.id) ? "selected" : undefined}
-                  className="grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-2 gap-y-1 px-1 py-4 md:px-3 md:py-3 md:table-row md:p-0"
+                  aria-selected={selected.has(bid.id)}
+                  className="grid cursor-pointer hover:bg-transparent has-aria-expanded:bg-transparent grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-2 gap-y-1 px-1 py-3.5 md:px-3 md:py-2.5 md:table-row md:p-0"
                   onClick={(event) => {
                     if (!isWorkspaceControl(event.target)) {
                       event.currentTarget
@@ -94,7 +94,7 @@ export function WorkspaceList(props: Props) {
                     }
                   }}
                 >
-                  <TableCell className="row-span-2 px-0 py-0 md:px-3 md:py-3">
+                  <TableCell className="row-span-2 px-0 py-0 md:px-3 md:py-2.5">
                     <Checkbox
                       className="relative mt-1 cursor-pointer before:absolute before:-inset-3 before:content-[''] md:mt-0 md:before:hidden"
                       aria-label={`Select ${bid.tender.title || bid.tender.tender_no || "saved tender"}`}
@@ -114,7 +114,7 @@ export function WorkspaceList(props: Props) {
                       }
                     />
                   </TableCell>
-                  <TableCell className="col-span-2 min-w-0 whitespace-normal px-0 py-0 md:px-3 md:py-3">
+                  <TableCell className="col-span-2 min-w-0 whitespace-normal px-0 py-0 md:px-3 md:py-2.5">
                     <Tooltip open={mobile ? false : undefined}>
                       <TooltipTrigger asChild>
                         <Button
@@ -166,7 +166,7 @@ export function WorkspaceList(props: Props) {
                       <BidSignals bid={bid} now={props.now} />
                     </div>
                   </TableCell>
-                  <TableCell className="col-start-2 px-0 py-1 md:px-3 md:py-3">
+                  <TableCell className="col-start-2 px-0 py-1 md:px-3 md:py-2.5">
                     <BidStageMenu
                       bid={bid}
                       disabled={busy || props.pending.has(bid.id)}
@@ -179,7 +179,7 @@ export function WorkspaceList(props: Props) {
                       </Badge>
                     ) : null}
                   </TableCell>
-                  <TableCell className="flex min-w-0 items-center whitespace-normal px-0 py-1 text-xs md:table-cell md:px-3 md:py-3">
+                  <TableCell className="flex min-w-0 items-center whitespace-normal px-0 py-1 text-xs md:table-cell md:px-3 md:py-2.5">
                     <BidDeadline bid={bid} now={props.now} mobile={mobile} />
                   </TableCell>
                 </TableRow>

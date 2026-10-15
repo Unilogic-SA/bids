@@ -107,7 +107,7 @@ export function WorkspaceClient() {
   const search = useSearchParams()
   const router = useRouter()
   const query = search.toString()
-  const listQuery = workspaceListQuery(query)
+  const listQuery = workspaceListQuery(query, mobile)
   const filters = useMemo(
     () => parseWorkspaceFilters(new URLSearchParams(listQuery)),
     [listQuery]
@@ -145,7 +145,7 @@ export function WorkspaceClient() {
   }, [])
   useEffect(() => {
     if (!identity) return
-    if (!viewApplied.current) {
+    if (!mobile && !viewApplied.current) {
       viewApplied.current = true
       try {
         const preferred = localStorage.getItem(
@@ -223,7 +223,7 @@ export function WorkspaceClient() {
     }
     void load()
     return () => controller.abort()
-  }, [listQuery, identity, revision, refresh, accountGuard, router, filters])
+  }, [listQuery, identity, revision, refresh, accountGuard, router, filters, mobile])
   const selectedId = search.get("bid")
   if (dismissedId && selectedId !== dismissedId) setDismissedId(null)
   useEffect(() => {
@@ -344,7 +344,7 @@ export function WorkspaceClient() {
       if (!result.ok) {
         toast.error(result.message)
         setRefresh((previous) => previous + 1)
-      } else {
+      } else if (!changes.checklist) {
         toast.success(workspaceMutationMessage(changes))
       }
     }
@@ -500,24 +500,6 @@ export function WorkspaceClient() {
           </div>
           <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <Select
-              value={filters.state}
-              onValueChange={(value) =>
-                changeFilter("state", value === "active" ? "" : value)
-              }
-            >
-              <SelectTrigger
-                className="h-10 w-full sm:h-8 sm:w-36"
-                aria-label="Filter workspace records"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active bids</SelectItem>
-                <SelectItem value="completed">Completed bids</SelectItem>
-                <SelectItem value="archived">Archived bids</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
               value={filters.stage}
               onValueChange={(value) =>
                 changeFilter("stage", value === "all" ? "" : value)
@@ -595,7 +577,7 @@ export function WorkspaceClient() {
                   Refresh workspace
                 </TooltipContent>
               </Tooltip>
-              {filters.state === "active" ? (
+              {!mobile && filters.state === "active" ? (
                 <>
                   <Tooltip open={mobile ? false : undefined}>
                     <TooltipTrigger asChild>

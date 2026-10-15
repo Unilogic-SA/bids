@@ -83,13 +83,13 @@ function AppHeader({ pathname, signedIn, loading }: { pathname: string; signedIn
 
   const navigation = (
     <nav aria-label="App navigation" className="flex flex-col gap-1 py-2 md:h-10 md:flex-row md:items-center md:gap-3 md:py-0">
-      <Button asChild size="sm" variant="ghost" className="h-9 justify-start text-primary hover:text-primary md:h-7">
+      <Button asChild size="sm" variant="ghost" className="h-9 justify-start text-muted-foreground hover:text-foreground aria-[current=page]:text-primary aria-[current=page]:hover:text-primary md:h-7">
         <Link href="/" aria-current={pathname === "/" ? "page" : undefined} onClick={() => setNavigationOpen(false)}>
           <IconCompass className="md:hidden" data-icon="inline-start" />
           Discover
         </Link>
       </Button>
-      <Button asChild size="sm" variant="ghost" className="h-9 justify-start md:h-7">
+      <Button asChild size="sm" variant="ghost" className="h-9 justify-start text-muted-foreground hover:text-foreground aria-[current=page]:text-primary aria-[current=page]:hover:text-primary md:h-7">
         <Link href="/workspace" aria-current={pathname === "/workspace" ? "page" : undefined} onClick={() => setNavigationOpen(false)}>
           <IconBookmark className="md:hidden" data-icon="inline-start" />
           Workspace

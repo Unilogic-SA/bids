@@ -280,7 +280,7 @@ function BidCard({
           : undefined
       }
     >
-      <CardContent className="space-y-3 p-3">
+      <CardContent className="space-y-2.5 p-2.5">
         <div className="flex items-start gap-1">
           <Tooltip open={props.mobile ? false : undefined}>
             <TooltipTrigger asChild>
@@ -332,11 +332,6 @@ function BidCard({
           >
             <IconGripVertical />
           </Button>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          <p className="break-words leading-relaxed">
-            {bid.tender.buyer_name || "Buyer not supplied"}
-          </p>
         </div>
         <div className="flex items-start gap-1.5 text-xs leading-relaxed">
           <IconCalendar

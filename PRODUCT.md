@@ -22,14 +22,16 @@ updating the next step.
 
 Tender titles, buyer names, references, official deadlines and compulsory briefings
 are procurement context. Dates are presented in South African Standard Time.
-Workspace supports list and Kanban views, stage changes, preparation checklists,
+Workspace supports list view on every screen and Kanban on desktop, stage changes, preparation checklists,
 submission records, outcomes and archived records. Submission happens outside
 OpenBids; recording submission must not imply that OpenBids delivered a bid.
 
 ## Capabilities and Constraints
 
-Preserve search, all filters, bulk selection/editing, drag-and-drop, checklist
-editing/saving, error recovery and unsaved-change protection. Desktop preparation
+Preserve search, stage/week filters, bulk selection/editing, desktop drag-and-drop,
+checklist autosave and error recovery. The owner removed the record-status
+selector. Flush pending checklist edits before closing or navigating; failures
+stay inline and keep the editor open without a discard-confirmation dialog. Desktop preparation
 uses shadcn Dialog; mobile uses Drawer. No note-taking functionality. Checklist
 prompts do not replace the tender’s full requirements.
 

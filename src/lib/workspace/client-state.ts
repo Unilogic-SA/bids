@@ -25,9 +25,14 @@ export class WorkspaceGeneration {
 }
 
 /** Sheet selection is presentation state, not a new list/filter request. */
-export function workspaceListQuery(query: string) {
+export function workspaceListQuery(query: string, mobile = false) {
   const params = new URLSearchParams(query)
   params.delete("bid")
+  if (mobile) {
+    params.set("view", "list")
+    for (const stage of ["saved", "reviewing", "preparing", "ready", "submitted"])
+      params.delete(`offset_${stage}`)
+  }
   return params.toString()
 }
 
