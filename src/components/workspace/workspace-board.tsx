@@ -18,7 +18,6 @@ import {
 } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectTrigger,
@@ -195,7 +194,7 @@ function Column({
       ref={setNodeRef}
       aria-label={STAGE_LABELS[stage]}
       className={cn(
-        "min-w-0 w-full shrink-0 rounded-lg bg-muted/20 p-2 md:w-56 xl:flex-1",
+        "min-w-0 w-full shrink-0 rounded-lg bg-muted/10 p-2 md:w-56 xl:flex-1",
         isOver && "bg-primary/5 ring-2 ring-inset ring-primary/40"
       )}
     >
@@ -203,12 +202,9 @@ function Column({
         <h2 className="text-sm font-medium">
           <BidStateLabel state={stage} />
         </h2>
-        <Badge
-          variant="secondary"
-          className="bg-background/70 text-xs font-normal tabular-nums"
-        >
+        <span className="text-xs tabular-nums text-muted-foreground">
           {props.counts[stage] || 0}
-        </Badge>
+        </span>
       </header>
       <div className="min-h-32 space-y-2">
         {items.map((bid) => (
@@ -218,12 +214,12 @@ function Column({
           <p className="py-6 text-center text-xs text-muted-foreground">
             {
               {
-                saved: "Save opportunities to start your bid pipeline.",
+                saved: "Save a tender to start.",
                 reviewing:
-                  "Move bids here while you assess their requirements.",
-                preparing: "Move bids here when you start preparing.",
-                ready: "Move bids here once preparation is complete.",
-                submitted: "Record bids you’ve submitted outside OpenBids."
+                  "Assess tender requirements here.",
+                preparing: "Prepare your response here.",
+                ready: "Ready for submission.",
+                submitted: "Track bids submitted outside OpenBids."
               }[stage]
             }
           </p>
@@ -275,7 +271,7 @@ function BidCard({
         }
       }}
       className={cn(
-        "touch-pan-y cursor-pointer gap-0 border-border/70 py-0 shadow-none transition-colors hover:border-primary/30",
+        "touch-pan-y cursor-pointer gap-0 border-border/70 py-0 shadow-none transition-colors hover:border-primary/30 hover:bg-muted/20 motion-reduce:transition-none",
         isDragging && "z-20 cursor-grabbing opacity-70"
       )}
       style={
@@ -293,7 +289,7 @@ function BidCard({
                 variant="link"
                 data-workspace-open
                 className={cn(
-                  "h-auto min-w-0 cursor-pointer flex-1 justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary",
+                  "h-auto min-w-0 cursor-pointer flex-1 justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary dark:hover:text-chart-1",
                   isDragging && "cursor-grabbing"
                 )}
                 onClick={(event) => {
@@ -328,7 +324,7 @@ function BidCard({
             variant="ghost"
             size="icon-sm"
             className={cn(
-              "touch-none shrink-0 cursor-grab text-muted-foreground hover:text-foreground disabled:cursor-not-allowed",
+              "size-10 touch-none shrink-0 cursor-grab sm:size-8 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed",
               isDragging && "cursor-grabbing"
             )}
             disabled={disabled}
@@ -337,12 +333,7 @@ function BidCard({
             <IconGripVertical />
           </Button>
         </div>
-        <div className="space-y-1 text-xs text-muted-foreground">
-          {bid.tender.tender_no &&
-          bid.tender.tender_no.trim().toLowerCase() !==
-            bid.tender.title?.trim().toLowerCase() ? (
-            <p className="break-words">{bid.tender.tender_no}</p>
-          ) : null}
+        <div className="text-xs text-muted-foreground">
           <p className="break-words leading-relaxed">
             {bid.tender.buyer_name || "Buyer not supplied"}
           </p>
@@ -365,6 +356,7 @@ function BidCard({
           ) : null}
           <BidStageMenu
             bid={bid}
+            compact
             disabled={disabled}
             onStage={props.onStage}
             onOutcome={props.onOutcome}

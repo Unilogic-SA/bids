@@ -142,7 +142,7 @@ export function BidPanel(props: Props) {
         {props.bid.tender.buyer_name || "Buyer not supplied"}
       </span>
       {showReference ? (
-        <span className="mt-1 block text-xs">{reference}</span>
+        <span className="block text-xs">{reference}</span>
       ) : null}
     </>
   )
@@ -154,7 +154,7 @@ export function BidPanel(props: Props) {
             title={title}
             className={cn(
               !expanded && "line-clamp-3",
-              "break-words text-left text-base font-semibold leading-snug"
+              "break-words text-left text-lg font-semibold leading-snug"
             )}
           >
             {title}
@@ -164,7 +164,7 @@ export function BidPanel(props: Props) {
             title={title}
             className={cn(
               !expanded && "line-clamp-3",
-              "break-words text-base font-semibold leading-snug"
+              "break-words text-lg font-semibold leading-snug"
             )}
           >
             {title}
@@ -183,18 +183,18 @@ export function BidPanel(props: Props) {
         ) : null}
       </div>
       {mobile ? (
-        <DrawerDescription className="mt-2 text-left text-xs leading-relaxed">
+        <DrawerDescription className="text-left text-xs leading-relaxed">
           {description}
         </DrawerDescription>
       ) : (
-        <DialogDescription className="mt-2 text-xs leading-relaxed">
+        <DialogDescription className="text-xs leading-relaxed">
           {description}
         </DialogDescription>
       )}
     </>
   )
   const body = (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
       <Preparation
         key={props.bid.id}
         {...props}
@@ -221,7 +221,7 @@ export function BidPanel(props: Props) {
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={restoreFocus}
         >
-          <DrawerHeader className="max-h-[30dvh] shrink-0 overflow-y-auto border-b px-4 pb-4 text-left">
+          <DrawerHeader className="max-h-[30dvh] shrink-0 overflow-y-auto gap-1.5 border-b px-4 pb-3 text-left">
             {header}
           </DrawerHeader>
           {body}
@@ -253,7 +253,7 @@ export function BidPanel(props: Props) {
         className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl [&_button:not(:disabled)]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
         onCloseAutoFocus={restoreFocus}
       >
-        <DialogHeader className="max-h-[30dvh] shrink-0 overflow-y-auto border-b px-6 py-5">
+        <DialogHeader className="max-h-[30dvh] shrink-0 overflow-y-auto gap-1.5 border-b px-6 py-4">
           {header}
         </DialogHeader>
         {body}
@@ -356,10 +356,14 @@ function Preparation({
           {signals.map((signal) => (
             <Alert
               key={signal.kind}
-              className={cn("py-2", signalClass(signal.kind))}
+              className={cn(
+                "py-2",
+                signal.kind === "source" && "rounded-none border-0 bg-transparent px-0",
+                signalClass(signal.kind)
+              )}
             >
               <SignalIcon kind={signal.kind} />
-              <AlertDescription className="text-xs">
+              <AlertDescription className={cn("text-xs", signalClass(signal.kind))}>
                 {signal.text}
                 {signal.kind === "deadline" ? (
                   <div className="mt-1 space-y-1">
@@ -369,8 +373,7 @@ function Preparation({
                       Current: {workspaceDate(bid.tender.closing_at)}
                     </p>
                     <p>
-                      Re-add or update any calendar event you previously
-                      exported.
+                      Update any calendar event you exported.
                     </p>
                     <Button
                       size="sm"
@@ -419,30 +422,13 @@ function Preparation({
             </p>
           ) : null}
           <p className="mt-1 text-muted-foreground">
-            Submission recorded by you. OpenBids does not deliver your bid.
+            Recorded by you. OpenBids does not submit bids.
           </p>
         </div>
       ) : null}
       <section className="space-y-3 border-t pt-5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Preparation checklist</h3>
-          <span
-            role="status"
-            className={cn(
-              "ml-auto mr-3 text-xs",
-              status === "failed" ? "text-destructive" : "text-muted-foreground"
-            )}
-          >
-            {status === "saving"
-              ? "Saving…"
-              : status === "failed"
-                ? "Save failed"
-                : status === "conflict"
-                  ? "Review latest version"
-                  : checklistDirty
-                    ? "Unsaved"
-                    : "Saved"}
-          </span>
           {shownChecklist.length ? (
             <span className="text-xs tabular-nums text-muted-foreground">
               {shownChecklist.filter((item) => item.completed).length}/
@@ -451,8 +437,7 @@ function Preparation({
           ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
-          Editable prompts to help you prepare. Check the tender’s full
-          requirements.
+          Check every requirement in the full tender.
         </p>
         {!bid.checklist_initialized && !shownChecklist.length ? (
           <Button
@@ -498,7 +483,7 @@ function Preparation({
                 value={item.label}
                 maxLength={200}
                 className={cn(
-                  "h-8 border-transparent bg-transparent px-2 shadow-none hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:bg-background focus-visible:text-foreground focus-visible:no-underline dark:bg-transparent",
+                  "h-10 border-transparent sm:h-8 bg-transparent px-2 shadow-none hover:border-input hover:bg-muted/40 focus-visible:border-ring focus-visible:bg-background focus-visible:text-foreground focus-visible:no-underline dark:bg-transparent",
                   item.completed && "text-muted-foreground line-through"
                 )}
                 disabled={pending}
@@ -523,7 +508,7 @@ function Preparation({
                 size="icon-sm"
                 variant="ghost"
                 disabled={pending}
-                className="shrink-0 text-muted-foreground opacity-60 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                className="size-10 shrink-0 text-muted-foreground hover:text-destructive sm:size-8"
                 aria-label={`Remove ${item.label}`}
                 onClick={() => {
                   setChecklist(
@@ -546,6 +531,7 @@ function Preparation({
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
+            className="h-10 sm:h-8"
             variant="ghost"
             disabled={pending || shownChecklist.length >= 50}
             onClick={() => {
@@ -572,6 +558,7 @@ function Preparation({
           {checklistDirty || status !== "saved" ? (
             <Button
               size="sm"
+              className="h-10 sm:h-8"
               variant="outline"
               disabled={
                 pending ||
@@ -588,6 +575,23 @@ function Preparation({
                   : "Save checklist"}
             </Button>
           ) : null}
+          <span
+            role="status"
+            className={cn(
+              "text-xs",
+              status === "failed" ? "text-destructive" : "text-muted-foreground"
+            )}
+          >
+            {status === "saving"
+              ? "Saving…"
+              : status === "failed"
+                ? "Save failed"
+                : status === "conflict"
+                  ? "Review latest version"
+                  : checklistDirty
+                    ? "Unsaved"
+                    : "Saved"}
+          </span>
         </div>
         {status === "failed" ? (
           <p role="alert" className="text-xs text-destructive">
@@ -606,7 +610,7 @@ function Preparation({
           </Alert>
         ) : null}
       </section>
-      <div className="flex justify-end border-t pt-4">
+      <div className="flex justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="ghost" disabled={pending}>

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Official vendored design tooling has its own runtime and lint conventions.
+    ".agents/**",
   ]),
 ]);
 

@@ -145,22 +145,30 @@ Prefer progressive disclosure over displaying every available control simultaneo
 
 Prefer one clear primary action over several competing primary actions.
 
-## 7. Functional implementation is the first pass
+## 7. Design-refinement workflow
 
-A feature being functional does not automatically mean the UI work is finished.
+Use the project-scoped [Impeccable skill](../../.agents/skills/impeccable/SKILL.md)
+as the preferred workflow for meaningful UI refinement. It supports shadcn; it
+does not replace this document or introduce another visual system.
 
-For meaningful frontend work, perform a final refinement pass using the following principles:
+1. Read [PRODUCT.md](../../PRODUCT.md) and [DESIGN.md](../../DESIGN.md), then run
+   the skill's context launcher once for the target.
+2. Use `$impeccable distill <target>` to remove redundant presentation and clarify
+   hierarchy; use critique when a separate design assessment is useful.
+3. Use `$impeccable polish <target>` for one restrained finishing pass.
+4. Use `$impeccable audit <target>` and the verification requirements below to
+   check the result, including rendered desktop and mobile behaviour.
 
-1. Distill
-2. Layout
-3. Typeset
-4. Clarify
-5. Harden
-6. Polish
+The standards below remain the project-specific quality bar. Explicit scope,
+OpenBids identity, existing tokens and shadcn conventions override generic skill
+style suggestions. Document the incumbent system; do not invent a replacement.
 
-These are quality principles, not separate design systems or required external skills.
-
-Use them to refine the existing implementation rather than redesigning it without cause.
+Installed using the official project installer: `npx impeccable install
+--providers=codex --scope=project` (4.5.2). Reload Codex to discover `$impeccable`;
+`/skills` lists it. Codex's `/hooks` trust approval is separate from skill
+installation. Use the bundled `scripts/impeccable detect` manually when hooks
+are not active. To check/update, use `npx impeccable check` / `npx impeccable update`
+and review the vendored diff. Downloaded platform engines are not committed.
 
 ---
 

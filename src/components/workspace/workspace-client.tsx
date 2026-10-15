@@ -45,7 +45,6 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { Spinner } from "@/components/ui/spinner"
 import { Toaster } from "@/components/ui/sonner"
 import { useAccount } from "@/components/account/account-provider"
 import { useWorkspace } from "./workspace-provider"
@@ -458,9 +457,8 @@ export function WorkspaceClient() {
             </EmptyMedia>
             <EmptyTitle>Your bid workspace</EmptyTitle>
             <EmptyDescription>
-              Save opportunities, prepare responses and track your bids from
-              review to outcome. Sign in to keep your work connected across
-              devices.
+              Sign in to save tenders, prepare responses and track your bids
+              across devices.
             </EmptyDescription>
           </EmptyHeader>
           <Button asChild>
@@ -478,116 +476,111 @@ export function WorkspaceClient() {
         <Toaster position="top-center" duration={2000} visibleToasts={1} />
         <GuestImportPrompt />
         <form
-          className="flex flex-wrap items-center gap-2"
+          className="flex flex-wrap items-center gap-x-3 gap-y-3"
           onSubmit={(event) => {
             event.preventDefault()
             changeFilter("q", draftSearch)
           }}
         >
-          <div className="relative min-w-0 flex-1 md:max-w-sm">
-            <IconSearch className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
+          <div className="relative w-full min-w-0 sm:w-auto sm:min-w-52 sm:flex-1 lg:max-w-72">
+            <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={draftSearch}
               onChange={(event) =>
                 setSearchDraft({ query: filters.q, value: event.target.value })
               }
+              type="search"
+              enterKeyHint="search"
               aria-label="Search your workspace"
+              aria-description="Press Enter to search"
               placeholder="Search your workspace"
-              className="h-8 pl-8"
+              className="h-10 pl-8 sm:h-8"
               maxLength={200}
             />
           </div>
-          <Button size="sm" variant="outline" className="h-8" type="submit">
-            Search
-          </Button>
-          <Select
-            value={filters.state}
-            onValueChange={(value) =>
-              changeFilter("state", value === "active" ? "" : value)
-            }
-          >
-            <SelectTrigger
-              className="h-8 w-36"
-              aria-label="Filter workspace records"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active bids</SelectItem>
-              <SelectItem value="completed">Completed bids</SelectItem>
-              <SelectItem value="archived">Archived bids</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.stage}
-            onValueChange={(value) =>
-              changeFilter("stage", value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger
-              className={cn(
-                "h-8 w-40 cursor-pointer",
-                filters.stage !== "all" && bidStateTriggerClass(filters.stage)
-              )}
-              aria-label="Filter by bid stage"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem className="cursor-pointer" value="all">
-                All stages
-              </SelectItem>
-              {BID_STAGES.map((value) => (
-                <SelectItem
-                  className="cursor-pointer"
-                  key={value}
-                  value={value}
-                >
-                  <BidStateLabel state={value} />
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="workspace-week"
-              checked={filters.week}
-              onCheckedChange={(checked) =>
-                changeFilter("week", checked ? "1" : "")
+          <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <Select
+              value={filters.state}
+              onValueChange={(value) =>
+                changeFilter("state", value === "active" ? "" : value)
               }
-            />
-            <Label htmlFor="workspace-week" className="text-xs">
-              Closing this week
-            </Label>
+            >
+              <SelectTrigger
+                className="h-10 w-full sm:h-8 sm:w-36"
+                aria-label="Filter workspace records"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active bids</SelectItem>
+                <SelectItem value="completed">Completed bids</SelectItem>
+                <SelectItem value="archived">Archived bids</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={filters.stage}
+              onValueChange={(value) =>
+                changeFilter("stage", value === "all" ? "" : value)
+              }
+            >
+              <SelectTrigger
+                className={cn(
+                  "h-10 w-full cursor-pointer sm:h-8 sm:w-40",
+                  filters.stage !== "all" && bidStateTriggerClass(filters.stage)
+                )}
+                aria-label="Filter by bid stage"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem className="cursor-pointer" value="all">
+                  All stages
+                </SelectItem>
+                {BID_STAGES.map((value) => (
+                  <SelectItem
+                    className="cursor-pointer"
+                    key={value}
+                    value={value}
+                  >
+                    <BidStateLabel state={value} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex min-h-10 items-center gap-2 sm:min-h-8 sm:px-1">
+              <Checkbox
+                id="workspace-week"
+                checked={filters.week}
+                onCheckedChange={(checked) =>
+                  changeFilter("week", checked ? "1" : "")
+                }
+              />
+              <Label htmlFor="workspace-week" className="text-xs">
+                Closing this week
+              </Label>
+            </div>
+            {filters.q || filters.stage !== "all" || filters.week ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={clearFilters}
+              >
+                Clear filters
+              </Button>
+            ) : null}
           </div>
-          {filters.q || filters.stage !== "all" || filters.week ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={clearFilters}
-            >
-              Clear filters
-            </Button>
-          ) : null}
-          <div className="ml-auto flex items-center gap-2">
-            <span
-              role="status"
-              className="flex min-w-20 items-center gap-1 text-xs text-muted-foreground"
-            >
-              {loading && loadedQuery === listQuery ? (
-                <>
-                  <Spinner className="size-3" />
-                  Updating…
-                </>
-              ) : null}
+          <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto">
+            <span role="status" className="sr-only">
+              {loading && loadedQuery === listQuery ? "Updating…" : ""}
             </span>
-            <div className="flex gap-1">
+            <div className="flex items-center gap-1" role="group" aria-label="Workspace view controls">
               <Tooltip open={mobile ? false : undefined}>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
                     size="icon-sm"
+                    className="size-10 sm:size-8"
                     variant="ghost"
                     aria-label="Refresh workspace"
                     disabled={loading}
@@ -609,6 +602,7 @@ export function WorkspaceClient() {
                       <Button
                         type="button"
                         size="icon-sm"
+                        className="size-10 sm:size-8"
                         variant={
                           filters.view === "list" ? "secondary" : "ghost"
                         }
@@ -639,6 +633,7 @@ export function WorkspaceClient() {
                       <Button
                         type="button"
                         size="icon-sm"
+                        className="size-10 sm:size-8"
                         variant={
                           filters.view === "board" ? "secondary" : "ghost"
                         }
@@ -667,8 +662,8 @@ export function WorkspaceClient() {
                 </>
               ) : null}
             </div>
-            <Button asChild size="sm">
-              <Link href="/">Browse Tenders</Link>
+            <Button asChild size="sm" className="h-10 sm:h-8">
+              <Link href="/">Browse tenders</Link>
             </Button>
           </div>
         </form>
@@ -695,7 +690,7 @@ export function WorkspaceClient() {
           )
         ) : error && loadedQuery !== listQuery ? null : !error &&
           !items.length ? (
-          <Empty className="border">
+          <Empty className="py-12">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <IconBookmark />
@@ -713,7 +708,7 @@ export function WorkspaceClient() {
                 {filters.q || filters.stage !== "all" || filters.week
                   ? "Adjust your search or clear the filters."
                   : filters.state === "active"
-                    ? "Find an opportunity, save it and prepare your response here."
+                    ? "Save a tender to prepare your response here."
                     : "Your records will stay available here after leaving the active pipeline."}
               </EmptyDescription>
             </EmptyHeader>

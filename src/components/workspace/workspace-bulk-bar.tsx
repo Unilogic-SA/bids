@@ -95,10 +95,10 @@ export function WorkspaceBulkBar({
     <>
       <section
         aria-label="Edit selected tenders"
-        className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto max-w-3xl rounded-lg border bg-background p-3 shadow-lg"
+        className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto max-w-2xl rounded-lg border bg-background p-2 shadow-md sm:px-3"
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium" role="status">
+        <div className="grid grid-cols-[1fr_auto] items-center gap-2 sm:flex sm:flex-wrap">
+          <span className="text-xs font-medium tabular-nums sm:mr-1" role="status">
             {items.length} selected
           </span>
           <Select
@@ -107,7 +107,7 @@ export function WorkspaceBulkBar({
             onValueChange={(value) => setStage(value as BidStage)}
           >
             <SelectTrigger
-              className="h-8 w-44"
+              className="col-start-1 row-start-2 h-10 w-full sm:h-8 sm:w-44"
               aria-label="New stage for selected tenders"
             >
               <SelectValue placeholder="Change bid stage" />
@@ -122,6 +122,7 @@ export function WorkspaceBulkBar({
           </Select>
           <Button
             size="sm"
+            className="col-start-2 row-start-2 h-10 sm:h-8"
             disabled={busy || disabled || blocked || !stage || !changed.length}
             onClick={() => {
               if (submitting || backward) {
@@ -137,7 +138,7 @@ export function WorkspaceBulkBar({
           <Button
             size="sm"
             variant="ghost"
-            className="ml-auto"
+            className="col-start-2 row-start-1 h-10 sm:ml-auto sm:h-8"
             disabled={busy}
             onClick={onClear}
           >

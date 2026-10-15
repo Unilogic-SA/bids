@@ -43,3 +43,10 @@ supabase/.temp/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Impeccable downloaded engines and local review/cache artifacts
+.agents/skills/impeccable/scripts/bin/
+.impeccable/review/
+.impeccable/cache/
+.impeccable/live/
+.impeccable/config.local.json
