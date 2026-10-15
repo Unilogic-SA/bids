@@ -31,7 +31,7 @@ export function signalClass(kind: string) {
   return kind === "close" || kind === "briefing"
     ? "text-destructive"
     : kind === "deadline"
-      ? "text-primary"
+      ? "text-primary dark:text-chart-1"
       : "text-muted-foreground"
 }
 export function SignalIcon({ kind }: { kind: string }) {
@@ -127,7 +127,7 @@ export function BidDeadline({
           variant={urgency === "Deadline passed" ? "destructive" : "secondary"}
           className={cn(
             "text-xs",
-            urgency !== "Deadline passed" && "bg-primary/10 text-primary"
+            urgency !== "Deadline passed" && "bg-primary/10 text-primary dark:text-chart-1"
           )}
         >
           {urgency}

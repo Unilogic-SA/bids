@@ -31,7 +31,7 @@ export function BidPanelLoading() {
   const body = (
     <div
       aria-busy="true"
-      className="space-y-6 overflow-y-auto px-4 py-5 sm:px-6"
+      className="space-y-6 overflow-y-auto px-4 py-4 sm:px-6"
     >
       <Skeleton className="h-6 w-3/4" />
       <Skeleton className="h-20 w-full" />
@@ -57,7 +57,7 @@ export function BidPanelLoading() {
   return (
     <Dialog open onOpenChange={change}>
       <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="border-b px-6 py-5">
+        <DialogHeader className="border-b px-6 py-4">
           <DialogTitle>Loading bid…</DialogTitle>
           <DialogDescription>Preparing your bid details.</DialogDescription>
         </DialogHeader>

@@ -1,5 +1,5 @@
 "use client"
-import { IconChevronDown } from "@tabler/icons-react"
+import { IconChevronDown, IconDots } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import { BidStateLabel, bidStateTriggerClass } from "./stage-presentation"
 import { Button } from "@/components/ui/button"
@@ -19,11 +19,13 @@ import {
 export function BidStageMenu({
   bid,
   disabled,
+  compact = false,
   onStage,
   onOutcome
 }: {
   bid: WorkspaceEntry
   disabled?: boolean
+  compact?: boolean
   onStage: (bid: WorkspaceEntry, stage: BidStage) => void
   onOutcome: (bid: WorkspaceEntry, outcome: BidOutcome | null) => void
 }) {
@@ -37,17 +39,23 @@ export function BidStageMenu({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
-            size="sm"
+            variant={compact ? "ghost" : "outline"}
+            size={compact ? "icon-sm" : "sm"}
             className={cn(
-              "h-8 max-w-full cursor-pointer gap-2 disabled:cursor-not-allowed",
-              bidStateTriggerClass(bid.outcome || bid.stage)
+              "h-10 max-w-full cursor-pointer gap-2 disabled:cursor-not-allowed sm:h-8",
+              compact
+                ? "w-10 text-muted-foreground sm:w-8"
+                : bidStateTriggerClass(bid.outcome || bid.stage)
             )}
             disabled={disabled}
             aria-label={`Change stage for ${bid.tender.tender_no || bid.tender.title}`}
           >
-            <BidStateLabel state={bid.outcome || bid.stage} />
-            <IconChevronDown data-icon="inline-end" />
+            {compact ? <IconDots /> : (
+              <>
+                <BidStateLabel state={bid.outcome || bid.stage} />
+                <IconChevronDown data-icon="inline-end" />
+              </>
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">

@@ -46,7 +46,7 @@ export function WorkspaceList(props: Props) {
     eligible.length > 0 && eligible.every((bid) => selected.has(bid.id))
   return (
     <div className={selectedItems.length ? "pb-72 sm:pb-44 md:pb-32" : ""}>
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-hidden border-y md:rounded-lg md:border">
         <Table>
           <TableHeader className="hidden md:table-header-group">
             <TableRow>
@@ -82,7 +82,7 @@ export function WorkspaceList(props: Props) {
                 <TableRow
                   key={bid.id}
                   data-state={selected.has(bid.id) ? "selected" : undefined}
-                  className="grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-2 gap-y-1 px-3 py-3 md:table-row md:p-0"
+                  className="grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-2 gap-y-1 px-1 py-4 md:px-3 md:py-3 md:table-row md:p-0"
                   onClick={(event) => {
                     if (!isWorkspaceControl(event.target)) {
                       event.currentTarget
@@ -94,9 +94,9 @@ export function WorkspaceList(props: Props) {
                     }
                   }}
                 >
-                  <TableCell className="row-span-2 px-0 py-1 md:px-3 md:py-3">
+                  <TableCell className="row-span-2 px-0 py-0 md:px-3 md:py-3">
                     <Checkbox
-                      className="cursor-pointer"
+                      className="relative mt-1 cursor-pointer before:absolute before:-inset-3 before:content-[''] md:mt-0 md:before:hidden"
                       aria-label={`Select ${bid.tender.title || bid.tender.tender_no || "saved tender"}`}
                       checked={selected.has(bid.id)}
                       disabled={
@@ -114,14 +114,14 @@ export function WorkspaceList(props: Props) {
                       }
                     />
                   </TableCell>
-                  <TableCell className="col-span-2 min-w-0 whitespace-normal px-0 py-1 md:px-3 md:py-3">
+                  <TableCell className="col-span-2 min-w-0 whitespace-normal px-0 py-0 md:px-3 md:py-3">
                     <Tooltip open={mobile ? false : undefined}>
                       <TooltipTrigger asChild>
                         <Button
                           type="button"
                           data-workspace-open
                           variant="link"
-                          className="h-auto w-full cursor-pointer justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
+                          className="h-auto w-full cursor-pointer justify-start whitespace-normal break-words p-0 text-left text-sm font-medium leading-snug text-foreground hover:text-primary dark:hover:text-chart-1"
                           onClick={(event) => {
                             event.stopPropagation()
                             props.onOpen(bid)
@@ -150,9 +150,11 @@ export function WorkspaceList(props: Props) {
                           "Saved tender"}
                       </TooltipContent>
                     </Tooltip>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {bid.tender.tender_no} ·{" "}
+                    <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
                       {bid.tender.buyer_name || "Buyer not supplied"}
+                      {bid.tender.tender_no ? (
+                        <span className="hidden md:inline"> · {bid.tender.tender_no}</span>
+                      ) : null}
                     </p>
                     {bid.checklist.length ? (
                       <p className="mt-1 text-xs tabular-nums text-muted-foreground">
@@ -177,7 +179,7 @@ export function WorkspaceList(props: Props) {
                       </Badge>
                     ) : null}
                   </TableCell>
-                  <TableCell className="min-w-0 whitespace-normal px-0 py-1 text-xs md:px-3 md:py-3">
+                  <TableCell className="flex min-w-0 items-center whitespace-normal px-0 py-1 text-xs md:table-cell md:px-3 md:py-3">
                     <BidDeadline bid={bid} now={props.now} mobile={mobile} />
                   </TableCell>
                 </TableRow>

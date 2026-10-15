@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-15T07:00:00Z",
+  "title": "Design System: OpenBids",
+  "extensions": {
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Confirmed primary action.",
+      "html": "<button class=\"ds-primary\">Save checklist</button>",
+      "css": ".ds-primary{background:var(--primary);color:var(--primary-foreground);height:2rem;padding:0 .625rem;border:1px solid transparent;border-radius:var(--radius);font:500 .875rem Inter,sans-serif}.ds-primary:hover{background:color-mix(in oklch,var(--primary) 80%,transparent)}.ds-primary:focus-visible{outline:3px solid var(--ring);outline-offset:2px}"
+    },
+    {
+      "name": "Ghost button",
+      "kind": "button",
+      "description": "Secondary contextual action.",
+      "html": "<button class=\"ds-ghost\">More actions</button>",
+      "css": ".ds-ghost{background:transparent;color:var(--foreground);height:2rem;padding:0 .625rem;border:1px solid transparent;border-radius:var(--radius);font:500 .875rem Inter,sans-serif}.ds-ghost:hover{background:var(--muted)}.ds-ghost:focus-visible{outline:3px solid var(--ring);outline-offset:2px}"
+    },
+    {
+      "name": "Search input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Workspace search field.",
+      "html": "<input class=\"ds-input\" aria-label=\"Search workspace\" placeholder=\"Search your workspace\">",
+      "css": ".ds-input{height:2rem;padding:0 .625rem;border:1px solid var(--input);border-radius:var(--radius);background:transparent;color:var(--foreground);font:.875rem Inter,sans-serif}.ds-input::placeholder{color:var(--muted-foreground)}.ds-input:hover{border-color:var(--border)}.ds-input:focus-visible{outline:3px solid var(--ring);outline-offset:2px}"
+    },
+    {
+      "name": "Active navigation",
+      "kind": "nav",
+      "description": "Existing workspace navigation convention.",
+      "html": "<a class=\"ds-nav\" href=\"#\" aria-current=\"page\">Workspace</a>",
+      "css": ".ds-nav{display:inline-flex;align-items:center;height:2rem;padding:0 .625rem;border-radius:var(--radius);background:var(--secondary);color:var(--secondary-foreground);font:500 .875rem Inter,sans-serif;text-decoration:none}.ds-nav:hover{background:var(--muted)}.ds-nav:focus-visible{outline:3px solid var(--ring);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary badge",
+      "kind": "chip",
+      "description": "Quiet supporting status.",
+      "html": "<span class=\"ds-badge\">Archived</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;padding:.125rem .5rem;border-radius:var(--radius);background:var(--secondary);color:var(--secondary-foreground);font:500 .75rem Inter,sans-serif}"
+    },
+    {
+      "name": "Flat bid card",
+      "kind": "card",
+      "description": "Tender preview on the Kanban board; synthetic label.",
+      "html": "<article class=\"ds-card\"><strong>Supply and delivery of equipment</strong><p>Synthetic buyer</p></article>",
+      "css": ".ds-card{padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);color:var(--card-foreground);font:.875rem Inter,sans-serif}.ds-card strong{font-weight:500}.ds-card p{margin:.5rem 0 0;color:var(--muted-foreground);font-size:.75rem}.ds-card:hover{border-color:var(--primary)}"
+    }
+  ],
+  "narrative": {
+    "overview": "Compact, professional procurement interface preserving the existing OpenBids identity.",
+    "dos": [
+      "Preserve semantic tokens and installed shadcn components."
+    ],
+    "donts": [
+      "Do not introduce a replacement visual system."
+    ]
+  }
+}
