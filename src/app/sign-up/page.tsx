@@ -22,7 +22,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
         </div>
       </div>
       <div className="relative hidden bg-muted lg:block">
-        <Image src="/auth-signup-cover.jpg" alt="" fill sizes="50vw" className="object-cover" priority />
+        <Image src="https://images.unsplash.com/photo-1506787497326-c2736dde1bef?q=85&w=2400&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D" alt="" fill sizes="50vw" className="object-cover" priority />
       </div>
     </main>
   )
