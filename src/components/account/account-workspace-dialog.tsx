@@ -28,7 +28,7 @@ export function AccountWorkspaceDialog({
 }) {
   const title = useRef<HTMLHeadingElement>(null);
   const mobile = useIsMobile();
-  const [tab, setTab] = useState("account");
+  const [tab, setTab] = useState("workspace");
   const restoreFocus = (event: Event) => {
     if (opener?.isConnected) {
       event.preventDefault();
@@ -38,11 +38,11 @@ export function AccountWorkspaceDialog({
   const content = (
     <Tabs value={tab} onValueChange={setTab} className="min-h-0 flex-1 gap-4">
       <TabsList className="mx-4 h-10 shrink-0 sm:mx-6 sm:h-8">
-        <TabsTrigger value="account" className="px-4">
-          Account
-        </TabsTrigger>
         <TabsTrigger value="workspace" className="px-4">
           Workspace
+        </TabsTrigger>
+        <TabsTrigger value="account" className="px-4">
+          Account
         </TabsTrigger>
       </TabsList>
       <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-6 sm:px-6">

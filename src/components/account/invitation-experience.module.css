@@ -1,0 +1,23 @@
+.confetti {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.3rem;
+  height: 0.55rem;
+  background: var(--chart-1);
+  opacity: 0;
+  transform: rotate(calc(var(--piece) * 45deg));
+  animation: welcome-burst 750ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.confetti:nth-child(even) { background: var(--primary); }
+
+@keyframes welcome-burst {
+  0% { opacity: 0; transform: rotate(calc(var(--piece) * 45deg)) translateY(-1.5rem); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(calc(var(--piece) * 45deg)) translateY(-4.5rem) rotate(100deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti { display: none; animation: none; }
+}

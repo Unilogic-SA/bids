@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
+import { IconArrowRight, IconCheck } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ export function WorkspaceMembers() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
+  const [feedbackTarget, setFeedbackTarget] = useState("management");
   const [confirm, setConfirm] = useState<{ id: string; name: string } | null>(
     null,
   );
@@ -81,9 +83,11 @@ export function WorkspaceMembers() {
   function run(
     operation: () => Promise<InvitationActionResult>,
     after?: () => void,
+    target = "management",
   ) {
     const current = workspace.accountGuard();
     setMessage("");
+    setFeedbackTarget(target);
     startTransition(async () => {
       try {
         const result = await operation();
@@ -104,34 +108,7 @@ export function WorkspaceMembers() {
   return (
     <div className="space-y-5">
       <WorkspaceSelector />
-      {owner ? (
-        <form
-          className="space-y-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            run(() => renameWorkspace(companyId!, name), refreshAccount);
-          }}
-        >
-          <Label htmlFor="workspace-name">Workspace name</Label>
-          <div className="flex gap-2">
-            <Input
-              id="workspace-name"
-              maxLength={100}
-              value={name}
-              placeholder="Your workspace"
-              disabled={pending}
-              onChange={(event) => setName(event.target.value)}
-            />
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={pending || !name.trim()}
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-      ) : (
+      {!owner ? (
         <div>
           <p className="wrap-anywhere font-medium">
             {workspaceLabel(account.workspace.name)}
@@ -140,8 +117,123 @@ export function WorkspaceMembers() {
             You’re a member of this workspace.
           </p>
         </div>
-      )}
-      {message ? (
+      ) : null}
+
+      {owner ? (
+        <section className="space-y-4" aria-labelledby="workspace-invite-heading">
+          <div className="space-y-1">
+            <h3 id="workspace-invite-heading" className="font-heading text-lg font-semibold">Invite a teammate</h3>
+            <p className="text-sm text-muted-foreground">Work on saved bids together in this workspace.</p>
+          </div>
+          <form
+            className="space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              run(
+                () => inviteWorkspaceMember(companyId!, email),
+                () => setEmail(""),
+                "invite",
+              );
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="workspace-invite-email">Email address</Label>
+              <Input
+                id="workspace-invite-email"
+                type="email"
+                autoComplete="email"
+                aria-describedby="workspace-invite-help"
+                maxLength={254}
+                placeholder="colleague@example.com"
+                disabled={pending || !account.invitationsEnabled}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+            <p id="workspace-invite-help" className="text-xs leading-relaxed text-muted-foreground">
+              Members can see and edit all bids in this workspace. Invitations
+              expire in seven days and reserve a place.
+            </p>
+            {!account.invitationsEnabled ? (
+              <p className="text-xs text-muted-foreground">
+                Invitations are temporarily unavailable. Existing workspace
+                access is unchanged.
+              </p>
+            ) : null}
+            <Button
+              className="h-10 w-full gap-2"
+              disabled={pending || !account.invitationsEnabled || !email.trim()}
+              type="submit"
+            >
+              {pending ? "Working…" : "Send invitation"}
+              <IconArrowRight aria-hidden="true" />
+            </Button>
+            {feedbackTarget === "invite" && message ? (
+              <p role={failed ? "alert" : "status"} className={failed ? "text-sm text-destructive" : "flex items-start gap-2 text-sm"}>
+                {!failed ? <IconCheck className="mt-0.5 size-4 shrink-0 text-primary dark:text-chart-1" aria-hidden="true" /> : null}
+                {message}
+              </p>
+            ) : null}
+          </form>
+          {members?.invitations.length ? (
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium">Pending invitations</h3>
+              <ul className="space-y-4">
+                {members.invitations.map((invite) => {
+                  const expired = Date.parse(invite.expiresAt) < now;
+                  return (
+                    <li key={invite.id} className="space-y-1">
+                      <p className="wrap-anywhere text-sm">{invite.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {expired
+                          ? "Expired"
+                          : invite.sendStatus === "sent"
+                            ? "Sent · awaiting acceptance"
+                            : invite.sendStatus === "failed"
+                              ? "Email not sent"
+                              : "Send not confirmed; resend available after one minute"}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={pending || !account.invitationsEnabled}
+                          onClick={() =>
+                            run(() => inviteWorkspaceMember(companyId!, invite.email, invite.id), undefined, "invite")
+                          }
+                        >
+                          Resend
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={pending}
+                          onClick={() =>
+                            run(() => cancelWorkspaceInvitation(companyId!, invite.id), undefined, "invite")
+                          }
+                        >
+                          Cancel invitation
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {members.nextOffset !== null ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => setOffset(members.nextOffset!)}
+                >
+                  Load more invitations
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+      {feedbackTarget === "management" && message ? (
         <p
           role={failed ? "alert" : "status"}
           className={
@@ -153,7 +245,8 @@ export function WorkspaceMembers() {
           {message}
         </p>
       ) : null}
-      <section className="space-y-3">
+
+      <section className="space-y-3 border-t pt-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium">Members</h3>
           <span className="text-xs tabular-nums text-muted-foreground">
@@ -280,113 +373,37 @@ export function WorkspaceMembers() {
         </Alert>
       ) : null}
       {owner ? (
-        <section className="space-y-4 border-t pt-4">
-          <form
-            className="space-y-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              run(
-                () => inviteWorkspaceMember(companyId!, email),
-                () => setEmail(""),
-              );
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="workspace-invite-email">Invite by email</Label>
-              <Input
-                id="workspace-invite-email"
-                type="email"
-                autoComplete="off"
-                maxLength={254}
-                placeholder="colleague@example.com"
-                disabled={pending || !account.invitationsEnabled}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Members can see and edit all bids in this workspace. Invitations
-              expire in seven days and reserve a place.
-            </p>
-            {!account.invitationsEnabled ? (
-              <p className="text-xs text-muted-foreground">
-                Invitations are temporarily unavailable. Existing workspace
-                access is unchanged.
-              </p>
-            ) : null}
+        <form
+          className="space-y-2 border-t pt-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            run(() => renameWorkspace(companyId!, name), refreshAccount, "rename");
+          }}
+        >
+          <Label htmlFor="workspace-name">Workspace name</Label>
+          <div className="flex gap-2">
+            <Input
+              id="workspace-name"
+              maxLength={100}
+              value={name}
+              placeholder="Your workspace"
+              disabled={pending}
+              onChange={(event) => setName(event.target.value)}
+            />
             <Button
-              disabled={pending || !account.invitationsEnabled || !email.trim()}
               type="submit"
+              variant="outline"
+              disabled={pending || !name.trim()}
             >
-              {pending ? "Working…" : "Send invitation"}
+              Save
             </Button>
-          </form>
-          {members?.invitations.length ? (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">Pending invitations</h3>
-              <ul className="space-y-4">
-                {members.invitations.map((invite) => {
-                  const expired = Date.parse(invite.expiresAt) < now;
-                  return (
-                    <li key={invite.id} className="space-y-1">
-                      <p className="wrap-anywhere text-sm">{invite.email}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {expired
-                          ? "Expired"
-                          : invite.sendStatus === "sent"
-                            ? "Sent · awaiting acceptance"
-                            : invite.sendStatus === "failed"
-                              ? "Email not sent"
-                              : "Send not confirmed; resend available after one minute"}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={pending || !account.invitationsEnabled}
-                          onClick={() =>
-                            run(() =>
-                              inviteWorkspaceMember(
-                                companyId!,
-                                invite.email,
-                                invite.id,
-                              ),
-                            )
-                          }
-                        >
-                          Resend
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={pending}
-                          onClick={() =>
-                            run(() =>
-                              cancelWorkspaceInvitation(companyId!, invite.id),
-                            )
-                          }
-                        >
-                          Cancel invitation
-                        </Button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-              {members.nextOffset !== null ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => setOffset(members.nextOffset!)}
-                >
-                  Load more invitations
-                </Button>
-              ) : null}
-            </div>
+          </div>
+          {feedbackTarget === "rename" && message ? (
+            <p role={failed ? "alert" : "status"} className={failed ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{message}</p>
           ) : null}
-        </section>
-      ) : (
+        </form>
+      ) : null}
+      {!owner ? (
         <div className="border-t pt-4">
           <Button
             variant="outline"
@@ -396,7 +413,7 @@ export function WorkspaceMembers() {
             Leave workspace
           </Button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

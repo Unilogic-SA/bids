@@ -213,7 +213,8 @@ export async function acceptWorkspaceInvitation(
       "Invitation could not be accepted. Retry or reopen the email.",
     );
   }
-  redirect("/workspace");
+  // Let the invitation surface acknowledge confirmed membership before navigation.
+  return { ok: true, message: "Invitation accepted." };
 }
 export async function changeInvitationAccount(
   _state: InvitationActionResult,
