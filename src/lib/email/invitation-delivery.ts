@@ -1,12 +1,5 @@
-function escapeHtml(value: string) {
-  return value.replace(
-    /[&<>"']/g,
-    (char) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        char
-      ]!,
-  );
-}
+import { emailParagraph, escapeHtml, transactionalEmail } from "./transactional-layout";
+
 export function workspaceInvitationEmail(input: {
   workspaceName: string;
   inviterName: string;
@@ -18,7 +11,14 @@ export function workspaceInvitationEmail(input: {
   return {
     subject: "You're invited to an OpenBids workspace",
     text: `${title}\n\n${detail}\n\nReview invitation: ${input.url}\n\nSign in with the email address this invitation was sent to. Joining requires your explicit acceptance.`,
-    html: `<html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenBids workspace invitation</title></head><body><h1>${escapeHtml(title)}</h1><p>${detail}</p><p><a href="${escapeHtml(input.url)}">Review invitation</a></p><p>Sign in with the email address this invitation was sent to. Joining requires your explicit acceptance.</p></body></html>`,
+    html: transactionalEmail({
+      title: "You're invited to a workspace",
+      body: emailParagraph(`${escapeHtml(input.inviterName)} invited you to <strong style="font-weight:600;color:#171717;">${escapeHtml(input.workspaceName)}</strong>.`)
+        + emailParagraph(detail),
+      action: "Review invitation",
+      href: escapeHtml(input.url),
+      reassurance: "Sign in with the email address this invitation was sent to. Joining requires your explicit acceptance.",
+    }),
   };
 }
 export type EmailOutcome = {
