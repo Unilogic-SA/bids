@@ -2,9 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 import {
-  IconActivity,
   IconBookmark,
   IconCompass,
   IconMenu2,
@@ -18,23 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AccountMenu } from "@/components/account/account-menu"
 import { useAccount } from "@/components/account/account-provider"
 import { authPageHref, getSafePublicNextPath } from "@/lib/auth/redirects"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ActivityMenu } from "@/components/activity/activity-menu"
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from "@/components/ui/tooltip"
 
 // One root-layout island persists across Discover/detail navigation, without
@@ -109,7 +98,7 @@ function AppHeader({ pathname, signedIn, loading }: { pathname: string; signedIn
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <HeaderPanel open={openMenu === "activity"} onOpenChange={open => changeMenu("activity", open)} label="Activity" icon={<IconActivity aria-hidden="true" />} description="Your recent activity will appear here." />
+                <ActivityMenu open={openMenu === "activity"} onOpenChange={open => changeMenu("activity", open)} />
                 <AccountMenu open={openMenu === "account"} onOpenChange={open => changeMenu("account", open)} />
               </> : <div className="flex items-center gap-2">
                 {([
@@ -139,26 +128,3 @@ function AppHeader({ pathname, signedIn, loading }: { pathname: string; signedIn
   )
 }
 
-function HeaderPanel({ label, icon, description, open, onOpenChange }: { label: string; icon: ReactNode; description: string; open: boolean; onOpenChange: (open: boolean) => void }) {
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <Button aria-label={label} variant="ghost" size="icon" className="size-11 rounded-full data-[state=open]:bg-accent md:size-8">{icon}</Button>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent>{label}</TooltipContent>
-      </Tooltip>
-      <PopoverContent aria-label={label} align="end" sideOffset={8} collisionPadding={16} className="w-72 max-w-[calc(100vw-2rem)] p-0">
-        <Empty className="gap-2 p-5">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">{icon}</EmptyMedia>
-            <EmptyTitle className="text-sm">{label}</EmptyTitle>
-            <EmptyDescription className="text-xs">{description}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </PopoverContent>
-    </Popover>
-  )
-}
