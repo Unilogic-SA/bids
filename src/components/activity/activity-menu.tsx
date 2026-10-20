@@ -46,7 +46,7 @@ function ActivityInbox({ open, onOpenChange, companyId, workspaceName }: Props &
   const error = failure?.key === key ? failure.message : null
 
   const load = useCallback(async () => {
-    if (!navigator.onLine || document.visibilityState !== "visible") return
+    if (document.visibilityState !== "visible") return
     readRequest.current?.abort()
     const controller = new AbortController()
     readRequest.current = controller
@@ -63,27 +63,28 @@ function ActivityInbox({ open, onOpenChange, companyId, workspaceName }: Props &
       setFailure(null)
     } catch (cause) {
       if (controller.signal.aborted || !alive.current || request !== sequence.current) return
-      setFailure({ key: view + ":" + page, message: cause instanceof Error ? cause.message : "Activity could not be loaded." })
+      setFailure({ key: view + ":" + page, message: !navigator.onLine ? "You are offline. Reconnect to refresh activity." : cause instanceof Error ? cause.message : "Activity could not be loaded." })
     }
   }, [companyId, page, view, refreshAccount])
 
   useEffect(() => {
     alive.current = true
+    const controllers = writes.current
     return () => {
       alive.current = false
       readRequest.current?.abort()
-      for (const controller of writes.current) controller.abort()
-      sequence.current++
+      for (const controller of controllers) controller.abort()
     }
   }, [])
   useEffect(() => {
-    void load()
     const refresh = () => { void load() }
+    const initial = window.setTimeout(refresh, 0)
     const poll = window.setInterval(refresh, open ? 30000 : 60000)
     window.addEventListener("focus", refresh)
     window.addEventListener("online", refresh)
     document.addEventListener("visibilitychange", refresh)
     return () => {
+      window.clearTimeout(initial)
       window.clearInterval(poll)
       window.removeEventListener("focus", refresh)
       window.removeEventListener("online", refresh)

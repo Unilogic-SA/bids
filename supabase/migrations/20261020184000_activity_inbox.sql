@@ -9,6 +9,7 @@ create table public.workspace_activity_events (
   detected_at timestamptz not null default now(),
   unique(bid_id,kind)
 );
+create index workspace_bids_activity_tender on public.workspace_bids(tender_ocid);
 create index workspace_activity_events_company on public.workspace_activity_events(company_id,detected_at desc);
 alter table public.workspace_activity_events enable row level security;
 revoke all on public.workspace_activity_events from public,anon,authenticated;
