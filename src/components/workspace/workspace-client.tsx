@@ -505,7 +505,7 @@ export function WorkspaceClient() {
               maxLength={200}
             />
           </div>
-          <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <div className="grid w-full grid-cols-1 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <Select
               value={filters.stage}
               onValueChange={(value) =>
