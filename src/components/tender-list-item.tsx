@@ -4,15 +4,13 @@ import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { trackUmamiEvent } from "@/lib/analytics"
-import {
-  formatClosingUrgency,
-  normalizeTenderTitle,
-} from "@/lib/tenders/presentation"
+import { formatClosingUrgency, normalizeTenderTitle } from "@/lib/tenders/presentation"
 import { cn } from "@/lib/utils"
 
 const NEW_BADGE_WINDOW_MS = 48 * 60 * 60 * 1_000
 
 type TenderListItemProps = {
+  headingLevel?: "h2" | "h3"
   title?: string | null
   buyer?: string | null
   province?: string | null
@@ -33,6 +31,7 @@ type TenderListItemProps = {
 }
 
 export function TenderListItem({
+  headingLevel = "h2",
   title,
   buyer,
   province,
@@ -47,13 +46,12 @@ export function TenderListItem({
   resultId,
   analytics,
 }: TenderListItemProps) {
-  const displayTitle =
-    normalizeTenderTitle(cleanText(title)) || "Tender title not supplied"
+  const Heading = headingLevel
+  const displayTitle = normalizeTenderTitle(cleanText(title)) || "Tender title not supplied"
   const displayBuyer = cleanText(buyer) || "Buyer not supplied"
   const displayProvince = cleanText(province)
   const displayIndustry = cleanText(industry)
-  const displayTenderNumber =
-    cleanText(tenderNumber) || "Reference not supplied"
+  const displayTenderNumber = cleanText(tenderNumber) || "Reference not supplied"
   const closing = formatClosingUrgency(closingDate)
   const showNewBadge = Boolean(isNew && isRecentlyPublished(publishedAt))
 
@@ -95,26 +93,18 @@ export function TenderListItem({
             {displayTenderNumber}
           </p>
         </div>
-        <h2 className="line-clamp-2 text-[0.95rem] font-semibold leading-snug tracking-normal text-foreground sm:text-base">
+        <Heading className="line-clamp-2 text-[0.95rem] font-semibold leading-snug tracking-normal text-foreground sm:text-base">
           {displayTitle}
-        </h2>
+        </Heading>
         <PillLine province={displayProvince} industry={displayIndustry} />
       </div>
 
-      <p className={cn("text-sm font-semibold", closing.className)}>
-        {closing.label}
-      </p>
+      <p className={cn("text-sm font-semibold", closing.className)}>{closing.label}</p>
     </Link>
   )
 }
 
-function PillLine({
-  province,
-  industry,
-}: {
-  province?: string | null
-  industry?: string | null
-}) {
+function PillLine({ province, industry }: { province?: string | null; industry?: string | null }) {
   const items = compact([province, industry])
   if (!items.length) return null
 
@@ -141,9 +131,7 @@ function cleanText(value?: string | null) {
 }
 
 function compact(values: Array<string | null | undefined>) {
-  return values
-    .map((value) => cleanText(value))
-    .filter((value): value is string => Boolean(value))
+  return values.map((value) => cleanText(value)).filter((value): value is string => Boolean(value))
 }
 
 function isRecentlyPublished(value?: string | null) {

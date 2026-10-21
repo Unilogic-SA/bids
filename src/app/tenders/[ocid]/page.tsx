@@ -1,13 +1,14 @@
+import { SeoBreadcrumbs } from "@/components/seo-breadcrumbs"
+import { PublicFooter } from "@/components/public-footer"
+import { TenderListItem } from "@/components/tender-list-item"
+import { PROVINCE_COLLECTIONS, collectionPath } from "@/lib/tenders/directory"
+import { buildTenderPath } from "@/lib/tenders/format"
+import { getPublicTenderDetail } from "@/lib/tenders/public-detail"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { cache, type ReactNode } from "react"
-import {
-  IconAlertTriangle,
-  IconArrowLeft,
-  IconClock,
-  IconDatabaseOff,
-} from "@tabler/icons-react"
+import { IconAlertTriangle, IconArrowLeft, IconClock, IconDatabaseOff } from "@tabler/icons-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -33,14 +34,15 @@ import {
   getTenderLastModified,
   getTenderTitle,
   stringifyJsonLd,
+  SITE_NAME,
+  documentMimeType,
+  publicRobots,
+  isTenderIndexable,
 } from "@/lib/seo"
 import { parseListingReturnHref } from "@/lib/tenders/navigation"
-import { getTenderDetail } from "@/lib/tenders/query"
+import { getRelatedTenders } from "@/lib/tenders/query"
 import type { TenderDetail, TenderDocument } from "@/lib/tenders/types"
-import {
-  formatClosingUrgency,
-  normalizeTenderTitle,
-} from "@/lib/tenders/presentation"
+import { formatClosingUrgency, normalizeTenderTitle } from "@/lib/tenders/presentation"
 import { formatTenderLocation } from "@/lib/tenders/location"
 import { isElapsedTenderTimestamp } from "@/lib/tenders/calendar"
 
@@ -51,15 +53,11 @@ type TenderPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-const getCachedTenderDetail = cache((ocid: string) => getTenderDetail(ocid))
+const getCachedTenderDetail = cache((ocid: string) => getPublicTenderDetail(ocid))
 
-export async function generateMetadata({
-  params,
-}: TenderPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: TenderPageProps): Promise<Metadata> {
   const { ocid } = await params
-  const { tender, documents, configMissing } = await getCachedTenderDetail(
-    decodeURIComponent(ocid)
-  )
+  const { tender, documents, configMissing } = await getCachedTenderDetail(ocid)
 
   if (!tender && !configMissing) notFound()
 
@@ -75,8 +73,7 @@ export async function generateMetadata({
 
   const title = getTenderTitle(tender)
   const description = getTenderDescription(tender)
-  const canonicalPath =
-    tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
+  const canonicalPath = tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
   const lastModified = getTenderLastModified(tender, documents)
 
   return {
@@ -92,35 +89,22 @@ export async function generateMetadata({
       type: "article",
       publishedTime: tender.published_at || undefined,
       modifiedTime: lastModified?.toISOString(),
+      images: [absoluteUrl("/opengraph-image")],
     },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-snippet": -1,
-        "max-image-preview": "large",
-        "max-video-preview": -1,
-      },
-    },
+    robots: publicRobots(isTenderIndexable(tender)),
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
+      images: [absoluteUrl("/opengraph-image")],
       title,
       description,
     },
   }
 }
 
-export default async function TenderPage({
-  params,
-  searchParams,
-}: TenderPageProps) {
+export default async function TenderPage({ params, searchParams }: TenderPageProps) {
   const { ocid } = await params
   const listingHref = parseListingReturnHref((await searchParams).from)
-  const { tender, documents, configMissing } = await getCachedTenderDetail(
-    decodeURIComponent(ocid)
-  )
+  const { tender, documents, configMissing } = await getCachedTenderDetail(ocid)
 
   if (!tender && !configMissing) notFound()
 
@@ -144,23 +128,21 @@ export default async function TenderPage({
     )
   }
 
-  const description =
-    normalizeTenderTitle(getPrimaryDescription(tender)) || "Tender notice"
+  const description = normalizeTenderTitle(getPrimaryDescription(tender)) || "Tender notice"
   const buyer = getPrimaryBuyer(tender)
-  const canonicalPath =
-    tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
+  const canonicalPath = tender.detail_path || `/tenders/${encodeURIComponent(tender.ocid)}`
   const canonicalUrl = absoluteUrl(canonicalPath)
   const location = formatTenderLocation(tender)
   const hasBriefing = hasMeaningfulBriefing(tender)
   const conditionItems = getConditionItems(tender)
   const hasContact = hasMeaningfulContact(tender)
-  const originalTenderUrl = getVerifiedOriginalTenderUrl(
-    tender.original_source_url
-  )
+  const originalTenderUrl = getVerifiedOriginalTenderUrl(tender.original_source_url)
   const sourceLabel =
     getMeaningfulText(tender.source_label).replace(/^source\s*:\s*/i, "") ||
     "National Treasury eTenders"
   const jsonLd = buildTenderJsonLd(tender, documents)
+  const provinceCollection = PROVINCE_COLLECTIONS.find((item) => item.province === tender.province)
+  const related = await getRelatedTenders(tender)
 
   return (
     <div className="min-h-screen bg-background">
@@ -170,13 +152,17 @@ export default async function TenderPage({
       />
       <header className="border-b bg-background">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:py-6 md:px-6">
+          <SeoBreadcrumbs
+            items={[
+              { name: "Discover", path: "/" },
+              ...(provinceCollection
+                ? [{ name: provinceCollection.name, path: collectionPath(provinceCollection) }]
+                : [{ name: "Browse tenders", path: "/tenders" }]),
+              { name: tender.tender_no || "Tender notice", path: canonicalPath },
+            ]}
+          />
           <div className="flex items-center justify-between gap-2">
-            <Button
-              asChild
-              className="h-8 w-fit px-1 sm:h-7"
-              size="sm"
-              variant="ghost"
-            >
+            <Button asChild className="h-8 w-fit px-1 sm:h-7" size="sm" variant="ghost">
               <Link href={listingHref}>
                 <IconArrowLeft data-icon="inline-start" />
                 Tenders
@@ -187,8 +173,7 @@ export default async function TenderPage({
               <TenderCalendarAction
                 tender={{
                   ocid: tender.ocid,
-                  tenderNumber:
-                    getMeaningfulText(tender.tender_no) || "Tender notice",
+                  tenderNumber: getMeaningfulText(tender.tender_no) || "Tender notice",
                   description,
                   buyer,
                   canonicalUrl,
@@ -208,9 +193,7 @@ export default async function TenderPage({
                 {description}
               </h1>
               {buyer ? (
-                <p className="break-words text-sm leading-6 text-muted-foreground">
-                  {buyer}
-                </p>
+                <p className="break-words text-sm leading-6 text-muted-foreground">{buyer}</p>
               ) : null}
             </div>
           </div>
@@ -219,12 +202,7 @@ export default async function TenderPage({
       </header>
 
       <main className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
-        <Button
-          asChild
-          size="sm"
-          variant="secondary"
-          className="h-8 w-fit text-primary lg:hidden"
-        >
+        <Button asChild size="sm" variant="secondary" className="h-8 w-fit text-primary lg:hidden">
           <a href="#tender-documents">Go to Documents</a>
         </Button>
 
@@ -232,10 +210,7 @@ export default async function TenderPage({
           <TenderOverview tender={tender} />
           {location ? (
             <>
-              <section
-                aria-labelledby="delivery-heading"
-                className="flex min-w-0 flex-col gap-2"
-              >
+              <section aria-labelledby="delivery-heading" className="flex min-w-0 flex-col gap-2">
                 <h2 id="delivery-heading" className="text-base font-semibold">
                   Delivery location
                 </h2>
@@ -265,7 +240,6 @@ export default async function TenderPage({
                 <p>Last updated {formatDate(tender.modified_at)}</p>
               ) : null}
             </div>
-
           </footer>
         </div>
 
@@ -275,13 +249,30 @@ export default async function TenderPage({
           aria-label="Tender documents"
           className="min-w-0 scroll-mt-16 lg:sticky lg:top-16 lg:col-start-2 lg:row-start-1"
         >
-          <TenderDocuments
-            documents={documents}
-            sourceUrl={originalTenderUrl}
-            tender={tender}
-          />
+          <TenderDocuments documents={documents} sourceUrl={originalTenderUrl} tender={tender} />
         </aside>
       </main>
+      {related.length ? (
+        <section
+          aria-label="Related open tenders"
+          className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 pb-6 md:px-6"
+        >
+          <h2 className="text-base font-semibold">More open tenders from {tender.buyer_name}</h2>
+          {related.map((item) => (
+            <TenderListItem
+              headingLevel="h3"
+              key={item.ocid}
+              detailUrl={item.detail_path || buildTenderPath(item.ocid)}
+              title={item.bid_description || item.title_snippet || item.title}
+              buyer={item.buyer_name}
+              tenderNumber={item.tender_no}
+              province={item.province}
+              closingDate={item.closing_at}
+            />
+          ))}
+        </section>
+      ) : null}
+      <PublicFooter />
     </div>
   )
 }
@@ -309,7 +300,8 @@ function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
         dateModified: lastModified?.toISOString(),
         isPartOf: {
           "@type": "WebSite",
-          name: "Bids ZA",
+          name: SITE_NAME,
+          "@id": `${absoluteUrl("/")}#website`,
           url: absoluteUrl("/"),
         },
       },
@@ -330,7 +322,7 @@ function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
         ].filter(Boolean),
         provider: buyer
           ? {
-              "@type": "GovernmentOrganization",
+              "@type": "Organization",
               name: buyer,
             }
           : undefined,
@@ -355,12 +347,9 @@ function buildTenderJsonLd(tender: TenderDetail, documents: TenderDocument[]) {
               position: index + 1,
               item: {
                 "@type": "DigitalDocument",
-                name:
-                  document.document_title ||
-                  document.file_name ||
-                  "Tender document",
+                name: document.document_title || document.file_name || "Tender document",
                 url: document.document_url,
-                encodingFormat: document.file_extension || undefined,
+                encodingFormat: documentMimeType(document.file_extension),
                 datePublished: document.date_published || undefined,
                 dateModified: document.date_modified || undefined,
               },
@@ -376,27 +365,21 @@ function TenderReference({ tender }: { tender: TenderDetail }) {
   const status = formatTenderStatus(tender)
   const hasKnownStatus = Boolean(
     formatAvailableDate(tender.closing_at) ||
-    getMeaningfulText(tender.derived_status) ||
-    getMeaningfulText(tender.status)
+      getMeaningfulText(tender.derived_status) ||
+      getMeaningfulText(tender.status)
   )
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <Badge
         variant={
-          status === "closing_today"
-            ? "default"
-            : status === "closed"
-              ? "destructive"
-              : "secondary"
+          status === "closing_today" ? "default" : status === "closed" ? "destructive" : "secondary"
         }
       >
         {hasKnownStatus ? statusLabel(status) : "Status not supplied"}
       </Badge>
       {reference ? (
-        <p className="min-w-0 break-all font-mono text-xs text-muted-foreground">
-          {reference}
-        </p>
+        <p className="min-w-0 break-all font-mono text-xs text-muted-foreground">{reference}</p>
       ) : null}
     </div>
   )
@@ -411,10 +394,7 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
   const isUrgent = !isClosed && urgency.className === "text-primary"
 
   return (
-    <section
-      aria-label="Tender dates"
-      className="flex flex-col gap-3"
-    >
+    <section aria-label="Tender dates" className="flex flex-col gap-3">
       <dl className="grid grid-cols-2 items-start gap-x-6 gap-y-3 sm:grid-cols-3">
         <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
           <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -424,17 +404,14 @@ function TenderCriticalFacts({ tender }: { tender: TenderDetail }) {
           <dd className="break-words text-sm font-semibold leading-6">
             {closing || "Not supplied"}
           </dd>
-          {isUrgent ? (
-            <p className="text-xs font-medium text-primary">{urgency.label}</p>
-          ) : null}
+          {isUrgent ? <p className="text-xs font-medium text-primary">{urgency.label}</p> : null}
         </div>
         {opening ? <DetailItem label="Opening date" value={opening} /> : null}
         {published ? <DetailItem label="Published" value={published} /> : null}
       </dl>
       {isClosed ? (
         <p className="text-sm text-muted-foreground">
-          This tender has closed. Details and documents are available for
-          reference.
+          This tender has closed. Details and documents are available for reference.
         </p>
       ) : null}
     </section>
@@ -455,33 +432,23 @@ function TenderOverview({ tender }: { tender: TenderDetail }) {
     category && !areEquivalent(category, industry)
       ? { label: "Procurement category", value: category }
       : null,
-    method && !areEquivalent(method, type)
-      ? { label: "Procurement method", value: method }
-      : null,
+    method && !areEquivalent(method, type) ? { label: "Procurement method", value: method } : null,
   ].filter((fact) => fact !== null)
 
   return (
-    <section
-      aria-labelledby="overview-heading"
-      className="flex min-w-0 flex-col gap-2"
-    >
+    <section aria-labelledby="overview-heading" className="flex min-w-0 flex-col gap-2">
       <h2 id="overview-heading" className="text-base font-semibold">
         Tender details
       </h2>
       {facts.length ? (
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
           {facts.map((fact) => (
-            <DetailItem
-              key={fact.label}
-              label={fact.label}
-              value={fact.value}
-            />
+            <DetailItem key={fact.label} label={fact.label} value={fact.value} />
           ))}
         </dl>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Additional bid details were not supplied. Check the tender documents
-          or original notice.
+          Additional bid details were not supplied. Check the tender documents or original notice.
         </p>
       )}
     </section>
@@ -542,9 +509,7 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
   return (
     <section className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-semibold">
-          {ended ? "Briefing — ended" : "Briefing"}
-        </h2>
+        <h2 className="text-base font-semibold">{ended ? "Briefing — ended" : "Briefing"}</h2>
         {tender.compulsory_briefing === false ? (
           <Badge variant="outline">Non-compulsory</Badge>
         ) : null}
@@ -557,18 +522,12 @@ function TenderBriefing({ tender }: { tender: TenderDetail }) {
 function TenderConditions({ items }: { items: TenderConditionItem[] }) {
   const isLong =
     items.reduce((length, item) => length + item.value.length, 0) > 900 ||
-    items.some(
-      (item) => item.value.length > 700 || item.value.split("\n").length > 8
-    )
+    items.some((item) => item.value.length > 700 || item.value.split("\n").length > 8)
 
   return (
     <section className="flex min-w-0 flex-col gap-2">
       <h2 className="text-base font-semibold">Conditions</h2>
-      {isLong ? (
-        <TenderConditionsDisclosure items={items} />
-      ) : (
-        <ConditionItems items={items} />
-      )}
+      {isLong ? <TenderConditionsDisclosure items={items} /> : <ConditionItems items={items} />}
     </section>
   )
 }
@@ -578,12 +537,8 @@ function ConditionItems({ items }: { items: TenderConditionItem[] }) {
     <dl className="flex flex-col gap-3">
       {items.map((item) => (
         <div className="flex min-w-0 flex-col gap-0.5" key={item.label}>
-          <dt className="text-xs font-medium text-muted-foreground">
-            {item.label}
-          </dt>
-          <dd className="whitespace-pre-line break-words text-sm leading-6">
-            {item.value}
-          </dd>
+          <dt className="text-xs font-medium text-muted-foreground">{item.label}</dt>
+          <dd className="whitespace-pre-line break-words text-sm leading-6">{item.value}</dd>
         </div>
       ))}
     </dl>
@@ -603,9 +558,7 @@ function TenderContact({ tender }: { tender: TenderDetail }) {
       <h2 className="text-base font-semibold">Contact</h2>
       <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
         {person ? <DetailItem label="Contact person" value={person} /> : null}
-        {role && !areEquivalent(role, person) ? (
-          <DetailItem label="Role" value={role} />
-        ) : null}
+        {role && !areEquivalent(role, person) ? <DetailItem label="Role" value={role} /> : null}
         {emailTarget ? (
           <DetailItem
             label="Email"
@@ -709,9 +662,9 @@ function getConditionItems(tender: TenderDetail) {
 function hasMeaningfulBriefing(tender: TenderDetail) {
   return Boolean(
     tender.briefing_session === true ||
-    tender.compulsory_briefing === true ||
-    formatAvailableDate(tender.briefing_datetime, true) ||
-    getMeaningfulText(tender.briefing_venue)
+      tender.compulsory_briefing === true ||
+      formatAvailableDate(tender.briefing_datetime, true) ||
+      getMeaningfulText(tender.briefing_venue)
   )
 }
 
@@ -719,16 +672,9 @@ function hasMeaningfulContact(tender: TenderDetail) {
   const person = getMeaningfulText(tender.contact_person)
   const role = getMeaningfulText(tender.contact_role)
   const emailTarget = getEmailTarget(getMeaningfulText(tender.contact_email))
-  const telephoneTarget = getTelephoneTarget(
-    getMeaningfulText(tender.contact_tel)
-  )
+  const telephoneTarget = getTelephoneTarget(getMeaningfulText(tender.contact_tel))
 
-  return Boolean(
-    person ||
-    (role && !areEquivalent(role, person)) ||
-    emailTarget ||
-    telephoneTarget
-  )
+  return Boolean(person || (role && !areEquivalent(role, person)) || emailTarget || telephoneTarget)
 }
 
 function formatAvailableDate(value?: string | null, includeTime = false) {
@@ -756,12 +702,9 @@ function getVerifiedOriginalTenderUrl(value?: string | null) {
   try {
     const url = new URL(candidate)
     const isEtendersHost =
-      url.hostname === "etenders.gov.za" ||
-      url.hostname.endsWith(".etenders.gov.za")
+      url.hostname === "etenders.gov.za" || url.hostname.endsWith(".etenders.gov.za")
 
-    return ["http:", "https:"].includes(url.protocol) && isEtendersHost
-      ? url.toString()
-      : ""
+    return ["http:", "https:"].includes(url.protocol) && isEtendersHost ? url.toString() : ""
   } catch {
     return ""
   }

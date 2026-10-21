@@ -1,8 +1,6 @@
+import { collectSitemapBatches } from "./sitemap-batches"
 import { createPublicClient, hasSupabasePublicConfig } from "@/lib/supabase/server"
-import {
-  getIndustryRawValues,
-  getTenderTypeRawValues,
-} from "@/lib/tenders/filters"
+import { getIndustryRawValues, getTenderTypeRawValues } from "@/lib/tenders/filters"
 import { LISTING_PAGE_SIZE } from "@/lib/tenders/navigation"
 import type {
   ListingSearchParams,
@@ -93,6 +91,12 @@ const DOCUMENT_COLUMNS = [
 ].join(",")
 
 const SITEMAP_COLUMNS = [
+  "title",
+  "title_snippet",
+  "bid_description",
+  "tender_no",
+  "buyer_name",
+  "department",
   "ocid",
   "detail_path",
   "published_at",
@@ -134,15 +138,7 @@ type TenderListingResult = {
 }
 
 export async function getTenderListing(params: ListingSearchParams): Promise<TenderListingResult> {
-  if (!hasSupabasePublicConfig()) {
-    return {
-      items: [] as TenderListingItem[],
-      totalCount: 0,
-      pageCount: 0,
-      configMissing: true,
-      resolvedPage: params.page,
-    }
-  }
+  if (!hasSupabasePublicConfig()) throw new Error("Public tender catalog unavailable")
 
   const supabase = createPublicClient()
   if (params.q) {
@@ -169,9 +165,7 @@ async function getTenderTableListing(
 
   if (params.q) {
     const pattern = `%${params.q}%`
-    query = query.or(
-      SEARCH_COLUMNS.map(column => `${column}.ilike.${pattern}`).join(",")
-    )
+    query = query.or(SEARCH_COLUMNS.map((column) => `${column}.ilike.${pattern}`).join(","))
   }
 
   if (params.region) {
@@ -192,9 +186,7 @@ async function getTenderTableListing(
     query = query.in("tender_type", tenderTypeRawValues)
   }
 
-  const sort = SORT_CONFIG[
-    params.sort === "relevance" ? "closing_at_asc" : params.sort
-  ]
+  const sort = SORT_CONFIG[params.sort === "relevance" ? "closing_at_asc" : params.sort]
   const { data, error, count } = await query
     .order(sort.column, {
       ascending: sort.ascending,
@@ -274,19 +266,14 @@ export async function getTenderDetail(ocid: string) {
   }
 
   const supabase = createPublicClient()
-  const [{ data: tender, error }, { data: documents, error: documentsError }] =
-    await Promise.all([
-      supabase
-        .from("tenders")
-        .select(DETAIL_COLUMNS)
-        .eq("ocid", ocid)
-        .maybeSingle(),
-      supabase
-        .from("tender_documents")
-        .select(DOCUMENT_COLUMNS)
-        .eq("tender_ocid", ocid)
-        .order("document_index", { ascending: true }),
-    ])
+  const [{ data: tender, error }, { data: documents, error: documentsError }] = await Promise.all([
+    supabase.from("tenders").select(DETAIL_COLUMNS).eq("ocid", ocid).maybeSingle(),
+    supabase
+      .from("tender_documents")
+      .select(DOCUMENT_COLUMNS)
+      .eq("tender_ocid", ocid)
+      .order("document_index", { ascending: true }),
+  ])
 
   if (error) throw new Error(error.message)
   if (documentsError) throw new Error(documentsError.message)
@@ -298,23 +285,24 @@ export async function getTenderDetail(ocid: string) {
   }
 }
 
-export async function getTenderSitemapItems(limit = 5000) {
-  if (!hasSupabasePublicConfig()) return [] as TenderSitemapItem[]
-
+export async function getTenderSitemapItems() {
+  if (!hasSupabasePublicConfig())
+    throw new Error("Public catalog configuration missing for sitemap")
   const supabase = createPublicClient()
-  const availabilityCutoff = getAvailabilityCutoff()
-  const { data, error } = await supabase
-    .from("tenders")
-    .select(SITEMAP_COLUMNS)
-    .in("derived_status", ["open", "closing_today"])
-    .gte("closing_at", availabilityCutoff)
-    .order("modified_at", { ascending: false, nullsFirst: false })
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .limit(limit)
-
-  if (error) throw new Error(error.message)
-
-  return (data || []) as unknown as TenderSitemapItem[]
+  const cutoff = getAvailabilityCutoff()
+  return collectSitemapBatches<TenderSitemapItem>(async (after) => {
+    let query = supabase
+      .from("tenders")
+      .select(SITEMAP_COLUMNS)
+      .in("derived_status", ["open", "closing_today"])
+      .gte("closing_at", cutoff)
+      .order("ocid", { ascending: true })
+      .limit(500)
+    if (after) query = query.gt("ocid", after)
+    const { data, error } = await query
+    if (error) throw new Error(`Tender sitemap read failed: ${error.code}`)
+    return (data || []) as unknown as TenderSitemapItem[]
+  })
 }
 
 export async function getLatestSuccessfulSyncRun() {
@@ -339,9 +327,7 @@ export async function getRecentSyncRuns() {
   const recentCutoff = new Date(Date.now() - 26 * 60 * 60 * 1_000).toISOString()
   const { data } = await supabase
     .from("tender_sync_runs")
-    .select(
-      "mode,status,date_from,date_to,completed_at,open_count,upserted_tender_count,message"
-    )
+    .select("mode,status,date_from,date_to,completed_at,open_count,upserted_tender_count,message")
     .in("status", ["completed", "failed"])
     .gte("completed_at", recentCutoff)
     .order("completed_at", { ascending: false })
@@ -352,4 +338,25 @@ export async function getRecentSyncRuns() {
 
 function getAvailabilityCutoff() {
   return new Date().toISOString()
+}
+
+export async function getRelatedTenders(tender: TenderListingItem) {
+  if (!hasSupabasePublicConfig() || !tender.buyer_name) return [] as TenderListingItem[]
+  let query = createPublicClient()
+    .from("tenders")
+    .select(LISTING_COLUMNS)
+    .eq("buyer_name", tender.buyer_name)
+    .neq("ocid", tender.ocid)
+    .in("derived_status", ["open", "closing_today"])
+    .gt("closing_at", getAvailabilityCutoff())
+  if (tender.industry) query = query.eq("industry", tender.industry)
+  const { data, error } = await query
+    .order("closing_at", { ascending: true })
+    .order("ocid", { ascending: true })
+    .limit(3)
+  if (error) {
+    console.error("seo_related_tenders_read_failed", { code: error.code })
+    return [] as TenderListingItem[]
+  }
+  return (data || []) as unknown as TenderListingItem[]
 }
