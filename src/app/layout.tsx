@@ -88,16 +88,19 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col">
-        <GoogleAnalytics />
         <AccountProvider>
           <WorkspaceProvider>
             <PublicAppHeader />
             {children}
           </WorkspaceProvider>
         </AccountProvider>
+        <GoogleAnalytics />
       </body>
       <Script
         data-website-id="628e3929-8181-451a-b427-8f5746434e4c"
+        data-exclude-search="true"
+        data-exclude-hash="true"
+        data-do-not-track="true"
         id="umami-analytics"
         src="https://cloud.umami.is/script.js"
         strategy="afterInteractive"

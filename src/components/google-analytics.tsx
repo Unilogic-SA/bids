@@ -7,7 +7,7 @@ import {
   analyticsAllowed, analyticsChoice, currentCampaign, googleMeasurementId, isMeasurementPage,
   nextMeasurementContext, setAnalyticsChoice, subscribeAnalyticsChoice, trackGoogleEvent,
 } from "@/lib/google-analytics"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 
 const serverChoice = () => null
@@ -69,19 +69,23 @@ export function GoogleAnalytics() {
 
   if (!id || !publicPage) return null
   return <>
-    {(choice === null || preferencesOpen) ? <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-lg">
-      <Alert role="region" aria-label="Optional Google analytics" className="p-4 shadow-lg">
-        <AlertTitle>Allow visit analytics?</AlertTitle>
-        <AlertDescription>
-          We use optional Google Analytics cookies to understand visits and tender interactions.
-          {" "}<a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noreferrer">How Google uses data</a>.
-        </AlertDescription>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => { setAnalyticsChoice("allowed"); setPreferencesOpen(false) }}>Allow analytics</Button>
-          <Button size="sm" variant="outline" onClick={() => { setAnalyticsChoice("declined"); setPreferencesOpen(false) }}>No thanks</Button>
-        </div>
-      </Alert>
-    </div> : <div className="fixed right-2 bottom-2 z-40 rounded-md bg-background/95"><Button variant="link" size="sm" onClick={() => setPreferencesOpen(true)}>Analytics preferences</Button></div>}
+    <footer className="px-4 py-3 text-center text-xs text-muted-foreground">
+      <Popover open={preferencesOpen} onOpenChange={setPreferencesOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="link" size="sm" className="text-xs text-muted-foreground">Privacy preferences</Button>
+        </PopoverTrigger>
+        <PopoverContent side="top" className="w-72 p-4" aria-label="Privacy preferences">
+          <h2 className="font-medium">Privacy preferences</h2>
+          <p className="text-xs text-muted-foreground">We use cookieless Umami analytics to understand how OpenBids is used. Essential cookies keep you signed in.</p>
+          <p className="text-xs text-muted-foreground">Google Analytics is optional and uses cookies on public tender pages. It is {choice === "allowed" ? "on" : "off"}.</p>
+          <a className="text-xs underline underline-offset-4" href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noreferrer">How Google uses data</a>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => { setAnalyticsChoice("allowed"); setPreferencesOpen(false) }}>Allow Google analytics</Button>
+            <Button size="sm" variant="outline" onClick={() => { setAnalyticsChoice("declined"); setPreferencesOpen(false) }}>Turn off Google analytics</Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </footer>
     {allowed && <Script id="openbids-google-bootstrap" strategy="afterInteractive" onReady={() => setReady(true)}>
       {`window.dataLayer = window.dataLayer || [];
         window.gtag = window.gtag || function(){window.dataLayer.push(arguments);};
