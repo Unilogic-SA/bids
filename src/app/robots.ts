@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next"
-
-import { absoluteUrl, getSiteUrl } from "@/lib/seo"
+import { absoluteUrl } from "@/lib/seo"
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,10 +7,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/workspace", "/api/", "/?*q=", "/?*buyer=", "/?*page="],
+        disallow: process.env.VERCEL_ENV === "preview" ? ["/"] : ["/api/", "/auth/", "/join/"],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),
-    host: getSiteUrl(),
   }
 }

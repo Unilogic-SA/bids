@@ -67,6 +67,12 @@ export type TenderSitemapItem = Pick<
   | "published_at"
   | "closing_at"
   | "documents_count"
+  | "title"
+  | "title_snippet"
+  | "bid_description"
+  | "tender_no"
+  | "buyer_name"
+  | "department"
 > & {
   modified_at: string | null
   imported_at: string | null

@@ -1,32 +1,44 @@
-import type { Metadata } from "next";
-import { Figtree, Geist_Mono, Inter } from "next/font/google";
-import Script from "next/script";
-import "./globals.css";
-import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
-import { cn } from "@/lib/utils";
-import { PublicAppHeader } from "@/components/public-app-header";
-import { WorkspaceProvider } from "@/components/workspace/workspace-provider";
-import { AccountProvider } from "@/components/account/account-provider";
-import { GoogleAnalytics } from "@/components/google-analytics";
+import type { Metadata } from "next"
+import localFont from "next/font/local"
+import Script from "next/script"
+import "./globals.css"
+import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, publicRobots, stringifyJsonLd } from "@/lib/seo"
+import { cn } from "@/lib/utils"
+import { PublicAppHeader } from "@/components/public-app-header"
+import { WorkspaceProvider } from "@/components/workspace/workspace-provider"
+import { AccountProvider } from "@/components/account/account-provider"
+import { GoogleAnalytics } from "@/components/google-analytics"
 
-const figtreeHeading = Figtree({
-  subsets: ["latin"],
+const figtreeHeading = localFont({
+  src: "./fonts/figtree.woff2",
+  weight: "300 900",
+  display: "swap",
   variable: "--font-heading",
-});
+})
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: "./fonts/inter.woff2",
+  weight: "100 900",
+  display: "swap",
   variable: "--font-sans",
-});
+})
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/geist-mono.woff2",
+  weight: "100 900",
+  display: "swap",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL(absoluteUrl()),
   applicationName: SITE_NAME,
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : undefined,
+  },
   title: {
     default: `${SITE_NAME} - South African public tenders`,
     template: `%s | ${SITE_NAME}`,
@@ -41,9 +53,6 @@ export const metadata: Metadata = {
     "bid documents",
     "procurement opportunities",
   ],
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     title: `${SITE_NAME} - South African public tenders`,
     description: SITE_DESCRIPTION,
@@ -51,29 +60,28 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: "en_ZA",
     type: "website",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "OpenBids — South African public tenders",
+      },
+    ],
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-snippet": -1,
-      "max-image-preview": "large",
-      "max-video-preview": -1,
-    },
-  },
+  robots: publicRobots(),
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    images: ["/opengraph-image"],
     title: `${SITE_NAME} - South African public tenders`,
     description: SITE_DESCRIPTION,
   },
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html
@@ -84,10 +92,23 @@ export default function RootLayout({
         "font-sans",
         inter.variable,
         figtreeHeading.variable,
-        geistMono.variable,
+        geistMono.variable
       )}
     >
       <body className="min-h-full flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: stringifyJsonLd({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "@id": `${absoluteUrl("/")}#organization`,
+              name: SITE_NAME,
+              url: absoluteUrl("/"),
+              logo: absoluteUrl("/icon.svg"),
+            }),
+          }}
+        />
         <GoogleAnalytics />
         <AccountProvider>
           <WorkspaceProvider>
@@ -103,5 +124,5 @@ export default function RootLayout({
         strategy="afterInteractive"
       />
     </html>
-  );
+  )
 }

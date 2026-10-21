@@ -1,22 +1,16 @@
+import { PublicFooter } from "@/components/public-footer"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { Suspense } from "react"
 import { DiscoverResultsSkeleton } from "@/components/discover-skeleton"
 import { FileSearchIcon } from "lucide-react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
-import {
-  ListingFilterIsland,
-  MobileListingControls,
-} from "@/components/listing-filter-island"
+import { ListingFilterIsland, MobileListingControls } from "@/components/listing-filter-island"
 import { ListingResultCount } from "@/components/listing-result-count"
 import { TenderListItem } from "@/components/tender-list-item"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import {
   Pagination,
   PaginationContent,
@@ -33,12 +27,7 @@ import {
   parseListingSearchParams,
 } from "@/lib/tenders/navigation"
 import { getTenderListing } from "@/lib/tenders/query"
-import {
-  absoluteUrl,
-  SITE_DESCRIPTION,
-  SITE_NAME,
-  stringifyJsonLd,
-} from "@/lib/seo"
+import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, stringifyJsonLd, pageMetadata } from "@/lib/seo"
 import { TENDER_TYPE_FILTERS } from "@/lib/tenders/filters"
 import { buildTenderPath } from "@/lib/tenders/format"
 import type { TenderListingItem } from "@/lib/tenders/types"
@@ -50,40 +39,20 @@ type HomeProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-export async function generateMetadata({
-  searchParams,
-}: HomeProps): Promise<Metadata> {
+export async function generateMetadata({ searchParams }: HomeProps): Promise<Metadata> {
   const filters = parseListingSearchParams(await searchParams)
-  const hasListingModifiers = countActiveListingFilters(filters) > 0 || filters.page > 1
-
-  return {
-    title: hasListingModifiers
-      ? "Tender search results"
-      : "South African public tenders",
-    description: SITE_DESCRIPTION,
-    alternates: {
-      canonical: "/",
-    },
-    robots: hasListingModifiers
-      ? {
-          index: false,
-          follow: true,
-          googleBot: {
-            index: false,
-            follow: true,
-          },
-        }
-      : {
-          index: true,
-          follow: true,
-        },
-    openGraph: {
-      title: `${SITE_NAME} - South African public tenders`,
-      description: SITE_DESCRIPTION,
-      url: "/",
-      type: "website",
-    },
-  }
+  const filtered = countActiveListingFilters(filters) > 0
+  const canonicalFilters = { ...filters, sortExplicit: false }
+  const canonical = buildListingHref(canonicalFilters)
+  const title = filtered
+    ? "Tender search results"
+    : `South African public tenders${filters.page > 1 ? ` – Page ${filters.page}` : ""}`
+  return pageMetadata(
+    title,
+    SITE_DESCRIPTION,
+    canonical,
+    !filtered && filters.sort === "closing_at_asc"
+  )
 }
 
 export default async function Home({ searchParams }: HomeProps) {
@@ -92,7 +61,15 @@ export default async function Home({ searchParams }: HomeProps) {
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": `${absoluteUrl("/")}#website`,
     name: SITE_NAME,
+    publisher: {
+      "@id": `${absoluteUrl("/")}#organization`,
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+      logo: absoluteUrl("/icon.svg"),
+    },
     url: absoluteUrl("/"),
     description: SITE_DESCRIPTION,
     inLanguage: "en-ZA",
@@ -105,6 +82,17 @@ export default async function Home({ searchParams }: HomeProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-4 pt-4 md:px-6">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight">South African public tenders</h1>
+          <p className="text-sm text-muted-foreground">
+            Find opportunities, check documents and prepare your response.
+          </p>
+        </div>
+        <Button asChild size="sm" variant="ghost">
+          <Link href="/tenders">Browse by province, industry or buyer</Link>
+        </Button>
+      </div>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(websiteJsonLd) }}
@@ -125,75 +113,70 @@ export default async function Home({ searchParams }: HomeProps) {
           <TenderResults filters={filters} />
         </Suspense>
       </main>
+      <PublicFooter />
     </div>
   )
 }
 
-async function TenderResults({ filters }: { filters: ReturnType<typeof parseListingSearchParams> }) {
+async function TenderResults({
+  filters,
+}: {
+  filters: ReturnType<typeof parseListingSearchParams>
+}) {
   const page = filters.page
   const listing = await getTenderListing(filters)
-  if (listing.resolvedPage !== page) redirect(buildListingHref({ ...filters, page: listing.resolvedPage }))
+  if (listing.resolvedPage !== page)
+    redirect(buildListingHref({ ...filters, page: listing.resolvedPage }))
   const activeFilterCount = countActiveListingFilters(filters)
   return (
     <div className="flex min-w-0 flex-col gap-4">
-    <ListingResultCount
-      isFiltered={activeFilterCount > 0}
-      totalCount={listing.totalCount}
-    />
+      <ListingResultCount isFiltered={activeFilterCount > 0} totalCount={listing.totalCount} />
 
-    <section className="flex flex-col gap-3" aria-label="Tender results">
-      {listing.items.length > 0 ? (
-        listing.items.map((tender, index) => (
-          <TenderListItem
-            key={tender.ocid}
-            analytics={{
-              activeFilterCount,
-              page,
-              position: index + 1,
-            }}
-            buyer={tender.buyer_name || tender.department}
-            closingDate={tender.closing_at}
-            detailUrl={buildTenderDetailHref(
-              tender.detail_path || buildTenderPath(tender.ocid),
-              filters,
-              index + 1
-            )}
-            documentsCount={tender.documents_count}
-            industry={tender.industry}
-            isNew={tender.is_new}
-            procurementType={formatProcurementType(tender)}
-            publishedAt={tender.published_at}
-            resultId={buildTenderResultId(index + 1)}
-            province={tender.province}
-            tenderNumber={tender.tender_no}
-            title={
-              tender.bid_description || tender.title_snippet || tender.title
-            }
-          />
-        ))
-      ) : (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileSearchIcon />
-            </EmptyMedia>
-            <EmptyTitle>No tenders found</EmptyTitle>
-            <EmptyDescription>
-              No open tenders match the current filters.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
-    </section>
+      <section className="flex flex-col gap-3" aria-label="Tender results">
+        {listing.items.length > 0 ? (
+          listing.items.map((tender, index) => (
+            <TenderListItem
+              key={tender.ocid}
+              analytics={{
+                activeFilterCount,
+                page,
+                position: index + 1,
+              }}
+              buyer={tender.buyer_name || tender.department}
+              closingDate={tender.closing_at}
+              detailUrl={buildTenderDetailHref(
+                tender.detail_path || buildTenderPath(tender.ocid),
+                filters,
+                index + 1
+              )}
+              documentsCount={tender.documents_count}
+              industry={tender.industry}
+              isNew={tender.is_new}
+              procurementType={formatProcurementType(tender)}
+              publishedAt={tender.published_at}
+              resultId={buildTenderResultId(index + 1)}
+              province={tender.province}
+              tenderNumber={tender.tender_no}
+              title={tender.bid_description || tender.title_snippet || tender.title}
+            />
+          ))
+        ) : (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileSearchIcon />
+              </EmptyMedia>
+              <EmptyTitle>No tenders found</EmptyTitle>
+              <EmptyDescription>No open tenders match the current filters.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+      </section>
 
-    {listing.pageCount > 1 ? (
-      <TenderPagination
-        currentPage={page}
-        filters={filters}
-        pageCount={listing.pageCount}
-      />
-    ) : null}
-  </div>
+      {listing.pageCount > 1 ? (
+        <TenderPagination currentPage={page} filters={filters} pageCount={listing.pageCount} />
+      ) : null}
+    </div>
   )
 }
 
@@ -202,9 +185,8 @@ function formatProcurementType(tender: TenderListingItem) {
   if (!tenderType) return null
 
   return (
-    TENDER_TYPE_FILTERS.find((option) =>
-      option.rawValues.some((value) => value === tenderType)
-    )?.label || tenderType
+    TENDER_TYPE_FILTERS.find((option) => option.rawValues.some((value) => value === tenderType))
+      ?.label || tenderType
   )
 }
 
@@ -265,9 +247,7 @@ function TenderPagination({
               )}
               data-umami-event="tender_listing_page_change"
               data-umami-event-active-filters={String(activeFilterCount)}
-              data-umami-event-direction={
-                pageNumber > currentPage ? "forward" : "back"
-              }
+              data-umami-event-direction={pageNumber > currentPage ? "forward" : "back"}
               data-umami-event-from-page={String(currentPage)}
               data-umami-event-to-page={String(pageNumber)}
               href={buildListingHref(filters, { page: pageNumber })}
@@ -320,21 +300,11 @@ function getVisiblePages(currentPage: number, pageCount: number) {
   const end = Math.min(pageCount, start + 4)
   const adjustedStart = Math.max(1, end - 4)
 
-  return Array.from(
-    { length: end - adjustedStart + 1 },
-    (_, index) => adjustedStart + index
-  )
+  return Array.from({ length: end - adjustedStart + 1 }, (_, index) => adjustedStart + index)
 }
 
-function countActiveListingFilters(
-  filters: ReturnType<typeof parseListingSearchParams>
-) {
-  return [
-    filters.q,
-    filters.region,
-    filters.buyer,
-    filters.industry,
-    filters.tenderType,
-  ].filter(Boolean).length
+function countActiveListingFilters(filters: ReturnType<typeof parseListingSearchParams>) {
+  return [filters.q, filters.region, filters.buyer, filters.industry, filters.tenderType].filter(
+    Boolean
+  ).length
 }
-

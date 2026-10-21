@@ -1,51 +1,31 @@
 import type { MetadataRoute } from "next"
-
-import { absoluteUrl } from "@/lib/seo"
+import { absoluteUrl, getTenderLastModified, isTenderIndexable } from "@/lib/seo"
 import { buildTenderPath } from "@/lib/tenders/format"
 import { getTenderSitemapItems } from "@/lib/tenders/query"
+import { TENDER_COLLECTIONS, collectionPath } from "@/lib/tenders/directory"
+import { GUIDES, guidePath } from "@/lib/tenders/guides"
 
 export const dynamic = "force-dynamic"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const tenders = await getSitemapTenders()
-  const now = new Date()
-
+  // Fail visibly instead of returning a successful, almost-empty sitemap.
+  const tenders = await getTenderSitemapItems()
+  if (!tenders.length) console.warn("seo_sitemap_empty_active_catalog")
+  const staticPaths = [
+    "/",
+    "/tenders",
+    "/guides",
+    "/about",
+    "/privacy",
+    "/terms",
+    ...GUIDES.map((guide) => guidePath(guide.slug)),
+    ...TENDER_COLLECTIONS.map(collectionPath),
+  ]
   return [
-    {
-      url: absoluteUrl("/"),
-      lastModified: now,
-      changeFrequency: "hourly",
-      priority: 1,
-    },
-    ...tenders.map((tender) => ({
+    ...staticPaths.map((path) => ({ url: absoluteUrl(path) })),
+    ...tenders.filter(isTenderIndexable).map((tender) => ({
       url: absoluteUrl(tender.detail_path || buildTenderPath(tender.ocid)),
-      lastModified:
-        getLastModified([
-          tender.modified_at,
-          tender.imported_at,
-          tender.published_at,
-          tender.captured_at,
-        ]) || now,
-      changeFrequency: "daily" as const,
-      priority: tender.documents_count && tender.documents_count > 0 ? 0.9 : 0.8,
+      lastModified: getTenderLastModified(tender),
     })),
   ]
-}
-
-async function getSitemapTenders() {
-  try {
-    return await getTenderSitemapItems()
-  } catch {
-    return []
-  }
-}
-
-function getLastModified(values: Array<string | null>) {
-  const dates = values
-    .filter(Boolean)
-    .map((value) => new Date(value as string))
-    .filter((date) => !Number.isNaN(date.getTime()))
-    .sort((a, b) => b.getTime() - a.getTime())
-
-  return dates[0]
 }
